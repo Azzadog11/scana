@@ -4,6 +4,7 @@
 pub mod client;
 pub mod describe;
 pub mod detect;
+pub mod modules;
 pub mod poller;
 pub mod readers;
 pub mod recorder;
@@ -12,5 +13,5 @@ pub mod safety;
 pub mod session;
 pub mod store;
 
-pub use client::{Addressing, Client, CoreError, EcuReply, FrameSink, Options, Target};
+pub use client::{Addressing, Channel, Client, CoreError, EcuReply, FrameSink, Options, Target};
 pub use detect::{DetectOptions, Detected, detect};

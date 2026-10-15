@@ -3,6 +3,10 @@
 //! The first data byte of each frame (the PCI) says what it is:
 //! single frame `0L`, first frame `1L LL`, consecutive frame `2N`, flow control `3S BS ST`.
 //! Time is passed in as milliseconds, so this runs the same in tests and against a car.
+//!
+//! With extended addressing (ISO 15765-2 address extension, used for example behind a
+//! Toyota-family gateway on 0x750) the first data byte of every frame is an address, so each
+//! frame carries one byte less: `frame_len` 7 instead of 8. The caller adds and strips that byte.
 
 use thiserror::Error;
 
@@ -59,20 +63,38 @@ pub struct FlowControl {
 
 impl FlowControl {
     pub fn frame_data(self, padding: Option<u8>) -> Vec<u8> {
-        pad(vec![0x30, self.block_size, self.st_min], padding)
+        self.frame_data_len(padding, 8)
+    }
+
+    /// The flow control payload for frames of `frame_len` bytes (7 with an address byte).
+    pub fn frame_data_len(self, padding: Option<u8>, frame_len: usize) -> Vec<u8> {
+        pad(vec![0x30, self.block_size, self.st_min], padding, frame_len)
     }
 }
 
-fn pad(mut v: Vec<u8>, padding: Option<u8>) -> Vec<u8> {
-    if let Some(p) = padding {
-        v.resize(8, p);
+fn pad(mut v: Vec<u8>, padding: Option<u8>, frame_len: usize) -> Vec<u8> {
+    if let Some(p) = padding
+        && v.len() < frame_len
+    {
+        v.resize(frame_len, p);
     }
     v
+}
+
+/// Frame payload sizes allowed: 8 normally, 7 with an address byte. Smaller makes no sense.
+fn check_frame_len(frame_len: usize) -> usize {
+    frame_len.clamp(4, 8)
 }
 
 /// Splits a message into frame payloads. The first is sent at once; if there are more,
 /// wait for the receiver's flow control before sending the rest (see [`Sender`]).
 pub fn segment(message: &[u8], padding: Option<u8>) -> Result<Vec<Vec<u8>>, IsoTpError> {
+    segment_len(message, padding, 8)
+}
+
+/// [`segment`] for frames of `frame_len` bytes: 7 when an address byte comes first.
+pub fn segment_len(message: &[u8], padding: Option<u8>, frame_len: usize) -> Result<Vec<Vec<u8>>, IsoTpError> {
+    let fl = check_frame_len(frame_len);
     let n = message.len();
     if n == 0 {
         return Err(IsoTpError::Empty);
@@ -80,19 +102,20 @@ pub fn segment(message: &[u8], padding: Option<u8>) -> Result<Vec<Vec<u8>>, IsoT
     if n > MAX_MESSAGE {
         return Err(IsoTpError::TooLong(n));
     }
-    if n <= 7 {
+    if n < fl {
         let mut v = vec![n as u8];
         v.extend_from_slice(message);
-        return Ok(vec![pad(v, padding)]);
+        return Ok(vec![pad(v, padding, fl)]);
     }
-    let mut frames = Vec::with_capacity(1 + (n - 6).div_ceil(7));
+    let first_part = fl - 2;
+    let mut frames = Vec::with_capacity(1 + (n - first_part).div_ceil(fl - 1));
     let mut first = vec![0x10 | (n >> 8) as u8, (n & 0xFF) as u8];
-    first.extend_from_slice(&message[..6]);
+    first.extend_from_slice(&message[..first_part]);
     frames.push(first);
-    for (i, chunk) in message[6..].chunks(7).enumerate() {
+    for (i, chunk) in message[first_part..].chunks(fl - 1).enumerate() {
         let mut v = vec![0x20 | ((i + 1) & 0x0F) as u8];
         v.extend_from_slice(chunk);
-        frames.push(pad(v, padding));
+        frames.push(pad(v, padding, fl));
     }
     Ok(frames)
 }
@@ -126,7 +149,12 @@ impl Sender {
     pub const FC_TIMEOUT_MS: u64 = 1000;
 
     pub fn new(message: &[u8], padding: Option<u8>) -> Result<Self, IsoTpError> {
-        let frames = segment(message, padding)?;
+        Self::with_frame_len(message, padding, 8)
+    }
+
+    /// A sender for frames of `frame_len` bytes (7 when an address byte comes first).
+    pub fn with_frame_len(message: &[u8], padding: Option<u8>, frame_len: usize) -> Result<Self, IsoTpError> {
+        let frames = segment_len(message, padding, frame_len)?;
         Ok(Sender {
             frames,
             next: 0,
@@ -234,6 +262,7 @@ pub enum Received {
 pub struct Receiver {
     flow: FlowControl,
     padding: Option<u8>,
+    frame_len: usize,
     buf: Vec<u8>,
     expected: usize,
     next_seq: u8,
@@ -246,7 +275,22 @@ impl Receiver {
     pub const CF_TIMEOUT_MS: u64 = 1000;
 
     pub fn new(flow: FlowControl, padding: Option<u8>) -> Self {
-        Receiver { flow, padding, buf: Vec::new(), expected: 0, next_seq: 1, last_ms: 0, active: false }
+        Self::with_frame_len(flow, padding, 8)
+    }
+
+    /// A receiver for frames of `frame_len` bytes (7 when an address byte comes first; the
+    /// caller strips that byte before passing the rest in).
+    pub fn with_frame_len(flow: FlowControl, padding: Option<u8>, frame_len: usize) -> Self {
+        Receiver {
+            flow,
+            padding,
+            frame_len: check_frame_len(frame_len),
+            buf: Vec::new(),
+            expected: 0,
+            next_seq: 1,
+            last_ms: 0,
+            active: false,
+        }
     }
 
     pub fn is_active(&self) -> bool {
@@ -258,27 +302,28 @@ impl Receiver {
             Some(FrameKind::Single) => {
                 let len = usize::from(data[0] & 0x0F);
                 self.active = false;
-                if len == 0 || len > 7 || data.len() < 1 + len {
+                if len == 0 || len >= self.frame_len || data.len() < 1 + len {
                     return Received::Failed(IsoTpError::Malformed);
                 }
                 Received::Complete(data[1..1 + len].to_vec())
             }
             Some(FrameKind::First) => {
-                if data.len() < 8 {
+                let fl = self.frame_len;
+                if data.len() < fl {
                     return Received::Failed(IsoTpError::Malformed);
                 }
                 let len = (usize::from(data[0] & 0x0F) << 8) | usize::from(data[1]);
-                if len < 8 {
-                    // Length 0 is the escape form (over 4095 bytes); 1-7 should be a single frame.
+                if len < fl {
+                    // Length 0 is the escape form (over 4095 bytes); shorter fits a single frame.
                     return Received::Failed(if len == 0 { IsoTpError::TooLong(len) } else { IsoTpError::Malformed });
                 }
                 self.buf.clear();
-                self.buf.extend_from_slice(&data[2..8]);
+                self.buf.extend_from_slice(&data[2..fl]);
                 self.expected = len;
                 self.next_seq = 1;
                 self.last_ms = now_ms;
                 self.active = true;
-                Received::SendFlowControl(self.flow.frame_data(self.padding))
+                Received::SendFlowControl(self.flow.frame_data_len(self.padding, self.frame_len))
             }
             Some(FrameKind::Consecutive) => {
                 if !self.active {
@@ -291,7 +336,7 @@ impl Receiver {
                 }
                 self.next_seq = (self.next_seq + 1) & 0x0F;
                 self.last_ms = now_ms;
-                let want = (self.expected - self.buf.len()).min(7).min(data.len().saturating_sub(1));
+                let want = (self.expected - self.buf.len()).min(self.frame_len - 1).min(data.len().saturating_sub(1));
                 self.buf.extend_from_slice(&data[1..1 + want]);
                 if self.buf.len() >= self.expected {
                     self.active = false;
@@ -415,6 +460,32 @@ mod tests {
         let mut s = Sender::new(&msg, PAD).unwrap();
         s.step(0);
         assert_eq!(s.on_flow_control(&[0x32, 0, 0], 1), Some(IsoTpError::Overflow));
+    }
+
+    #[test]
+    fn frames_with_an_address_byte_carry_one_byte_less() {
+        // Six bytes still fit one frame; seven need a first frame and a consecutive frame.
+        let f = segment_len(&[1, 2, 3, 4, 5, 6], PAD, 7).unwrap();
+        assert_eq!(f, vec![vec![0x06, 1, 2, 3, 4, 5, 6]]);
+        let f = segment_len(&[1, 2, 3, 4, 5, 6, 7], PAD, 7).unwrap();
+        assert_eq!(f, vec![vec![0x10, 7, 1, 2, 3, 4, 5], vec![0x21, 6, 7, 0xCC, 0xCC, 0xCC, 0xCC]]);
+        assert_eq!(FlowControl::default().frame_data_len(PAD, 7).len(), 7);
+        for n in 1..=100usize {
+            let msg: Vec<u8> = (0..n).map(|i| i as u8).collect();
+            let frames = segment_len(&msg, PAD, 7).unwrap();
+            assert!(frames.iter().all(|f| f.len() <= 7));
+            let mut r = Receiver::with_frame_len(FlowControl::default(), PAD, 7);
+            let mut done = None;
+            for f in &frames {
+                if let Received::Complete(m) = r.on_frame(f, 0) {
+                    done = Some(m);
+                }
+            }
+            assert_eq!(done.as_deref(), Some(&msg[..]), "length {n}");
+        }
+        // A 7-byte single frame is too long when an address byte takes a place.
+        let mut r = Receiver::with_frame_len(FlowControl::default(), PAD, 7);
+        assert_eq!(r.on_frame(&[0x07, 1, 2, 3, 4, 5, 6], 0), Received::Failed(IsoTpError::Malformed));
     }
 
     #[test]

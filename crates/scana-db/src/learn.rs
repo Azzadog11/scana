@@ -113,7 +113,7 @@ pub fn lesson() -> &'static [Section] {
 mod tests {
     use super::*;
 
-    const PAGE_IDS: [&str; 13] = [
+    const PAGE_IDS: [&str; 14] = [
         "home",
         "health",
         "codes",
@@ -123,6 +123,7 @@ mod tests {
         "tests",
         "info",
         "modules",
+        "explorer",
         "monitor",
         "sessions",
         "learn",

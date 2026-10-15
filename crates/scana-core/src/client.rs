@@ -5,8 +5,9 @@
 use scana_link::{BusEvent, Link, LinkError, LinkEvent, TimedFrame};
 use scana_proto::isotp::{self, FlowControl, Received, Receiver, SendStep, Sender};
 use scana_proto::obd::{self, Reply};
-use scana_proto::{CanId, Frame};
+use scana_proto::{CanId, Frame, uds};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
@@ -93,6 +94,81 @@ impl Addressing {
     }
 }
 
+/// Where one module listens and answers: the request ID, the reply ID, and the address byte
+/// in front of every frame when the module sits behind a gateway (ISO 15765-2 extended
+/// addressing; Toyota-family cars use 0x750 with an address byte, replies from 0x758).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Channel {
+    pub tx: CanId,
+    pub rx: CanId,
+    pub ext: Option<u8>,
+}
+
+impl Channel {
+    pub fn new(tx: CanId, rx: CanId, ext: Option<u8>) -> Self {
+        Channel { tx, rx, ext }
+    }
+
+    /// The usual reply ID for a request ID: request + 8 for 11-bit IDs, or source and target
+    /// swapped for 29-bit `18DAttss` IDs.
+    pub fn conventional(tx: CanId, ext: Option<u8>) -> Option<Self> {
+        let rx = match tx {
+            CanId::Standard(x) if x <= 0x7F7 => CanId::Standard(x + 8),
+            CanId::Extended(x) if x & 0xFFFF_0000 == 0x18DA_0000 => {
+                CanId::Extended(0x18DA_0000 | ((x & 0xFF) << 8) | ((x >> 8) & 0xFF))
+            }
+            _ => return None,
+        };
+        Some(Channel { tx, rx, ext })
+    }
+
+    /// The channel of an OBD-II ECU, named by the ID it replies from (0x7E8 ...).
+    pub fn obd(reply: CanId) -> Option<Self> {
+        Addressing::request_id_for(reply).map(|tx| Channel { tx, rx: reply, ext: None })
+    }
+
+    /// True for an OBD-II ECU's channel (7E0-7E7, or 18DAxxF1 with its usual reply).
+    pub fn is_obd(&self) -> bool {
+        self.ext.is_none() && Addressing::request_id_for(self.rx) == Some(self.tx)
+    }
+
+    /// Bytes per frame for ISO-TP: one less with an address byte.
+    pub fn frame_len(&self) -> usize {
+        if self.ext.is_some() { 7 } else { 8 }
+    }
+
+    /// "7B0", "750/40" or "18DA28F1": the request ID, and the address byte after a slash.
+    pub fn label(&self) -> String {
+        match self.ext {
+            Some(a) => format!("{}/{a:02X}", self.tx),
+            None => self.tx.to_string(),
+        }
+    }
+
+    /// Parses "7B0", "0x7B0", "750/40", "18DA28F1", or "7B0:7B8" with an explicit reply ID.
+    pub fn parse(s: &str) -> Option<Self> {
+        let s = s.trim().to_ascii_uppercase().replace("0X", "");
+        let (ids, ext) = match s.split_once('/') {
+            Some((a, b)) => (a.to_string(), Some(u8::from_str_radix(b, 16).ok()?)),
+            None => (s.clone(), None),
+        };
+        let id_of = |t: &str| -> Option<CanId> {
+            let v = u32::from_str_radix(t, 16).ok()?;
+            if t.len() <= 3 { CanId::standard(u16::try_from(v).ok()?) } else { CanId::extended(v) }
+        };
+        match ids.split_once(':') {
+            Some((tx, rx)) => Some(Channel { tx: id_of(tx)?, rx: id_of(rx)?, ext }),
+            None => Channel::conventional(id_of(&ids)?, ext),
+        }
+    }
+}
+
+impl fmt::Display for Channel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.label())
+    }
+}
+
 /// Who a request goes to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Target {
@@ -162,6 +238,9 @@ pub struct Client {
     pub foreign_requests: u64,
     /// Requests Scana sent.
     pub requests_sent: u64,
+    /// Every CAN ID heard on the bus. Module discovery never sends on one of these: it
+    /// belongs to someone else.
+    seen_ids: HashSet<CanId>,
 }
 
 impl Client {
@@ -176,6 +255,7 @@ impl Client {
             last_foreign_ms: None,
             foreign_requests: 0,
             requests_sent: 0,
+            seen_ids: HashSet::new(),
         }
     }
 
@@ -196,11 +276,17 @@ impl Client {
         self.last_foreign_ms.is_some_and(|t| self.now_ms().saturating_sub(t) < OTHER_TESTER_MEMORY_MS)
     }
 
+    /// Every CAN ID heard since the client started.
+    pub fn seen_ids(&self) -> &HashSet<CanId> {
+        &self.seen_ids
+    }
+
     /// Every received frame goes through here: the log, and spotting other testers.
     pub(crate) fn note_frame(&mut self, tf: &TimedFrame) {
         if let Some(s) = self.sink.as_mut() {
             s.frame(&tf.frame, tf.at_ms, false);
         }
+        self.seen_ids.insert(tf.frame.id);
         // The bridge doesn't echo our own frames, so any request we see came from someone else.
         if Addressing::is_request_id(tf.frame.id) {
             self.foreign_requests += 1;
@@ -364,6 +450,151 @@ impl Client {
         Ok(results)
     }
 
+    /// Sends a request to one module on its channel and returns its answer, if any.
+    /// Handles long messages both ways, the address byte, and "busy, reply coming".
+    pub fn request_on(&mut self, ch: Channel, payload: &[u8]) -> Result<Option<EcuReply>, CoreError> {
+        self.pace()?;
+        let padding = self.options.padding;
+        let fl = ch.frame_len();
+        let mut sender = Sender::with_frame_len(payload, padding, fl)?;
+        let start = self.link.now_ms();
+        if let SendStep::Send(first) = sender.step(start) {
+            self.send_on(ch, &first)?;
+        }
+        self.requests_sent += 1;
+        self.last_request_ms = Some(start);
+        let mut deadline = start + self.options.physical_timeout_ms;
+        let mut receiver = Receiver::with_frame_len(FlowControl::default(), padding, fl);
+        let mut sending = !sender.is_single_frame();
+        loop {
+            let now = self.link.now_ms();
+            if sending {
+                match sender.step(now) {
+                    SendStep::Send(p) => self.send_on(ch, &p)?,
+                    SendStep::Wait => {}
+                    SendStep::Done => sending = false,
+                    SendStep::Failed(e) => return Err(e.into()),
+                }
+            }
+            if now >= deadline {
+                return Ok(None);
+            }
+            let wait = if sending { 2 } else { deadline - now };
+            let tf = match self.link.recv(Duration::from_millis(wait))? {
+                Some(LinkEvent::Frame(tf)) => tf,
+                Some(LinkEvent::Bus(e)) => {
+                    Self::check_bus_event(&e)?;
+                    continue;
+                }
+                Some(LinkEvent::BridgeReady { .. }) => return Err(CoreError::BridgeReset),
+                None => continue,
+            };
+            self.note_frame(&tf);
+            if tf.frame.id != ch.rx {
+                continue;
+            }
+            let data = match ch.ext {
+                None => tf.frame.data(),
+                Some(a) if tf.frame.data().first() == Some(&a) => &tf.frame.data()[1..],
+                Some(_) => continue,
+            };
+            if isotp::kind_of(data) == Some(isotp::FrameKind::FlowControl) {
+                if sending && let Some(e) = sender.on_flow_control(data, tf.at_ms) {
+                    return Err(e.into());
+                }
+                continue;
+            }
+            match receiver.on_frame(data, tf.at_ms) {
+                Received::Complete(msg) => {
+                    let Ok(reply) = obd::parse_reply(&msg) else { continue };
+                    if !uds::reply_matches(payload, &reply) {
+                        continue;
+                    }
+                    if let Reply::Negative { code: 0x78, .. } = reply {
+                        deadline = deadline.max(tf.at_ms + self.options.pending_timeout_ms);
+                        continue;
+                    }
+                    return Ok(Some(EcuReply { ecu: ch.rx, reply, at_ms: tf.at_ms }));
+                }
+                Received::SendFlowControl(fc) => {
+                    self.send_on(ch, &fc)?;
+                    deadline = deadline.max(tf.at_ms + Receiver::CF_TIMEOUT_MS);
+                }
+                Received::InProgress => deadline = deadline.max(tf.at_ms + Receiver::CF_TIMEOUT_MS),
+                Received::Ignored | Received::Failed(_) => {}
+            }
+        }
+    }
+
+    /// One module's answer on its channel: positive data (after the service byte), a refusal
+    /// as an error, or no answer as an error.
+    pub fn request_one_on(&mut self, ch: Channel, payload: &[u8]) -> Result<Vec<u8>, CoreError> {
+        match self.request_on(ch, payload)? {
+            Some(EcuReply { reply: Reply::Positive { data, .. }, .. }) => Ok(data),
+            Some(EcuReply { reply: Reply::Negative { service, code }, .. }) => Err(CoreError::Refused {
+                ecu: ch.rx,
+                service: uds::service_name(service),
+                code,
+                text: obd::negative_code_text(code),
+            }),
+            None => Err(CoreError::NoReply(format!(
+                "{} to {}",
+                ch.label(),
+                uds::service_name(payload.first().copied().unwrap_or(0))
+            ))),
+        }
+    }
+
+    /// Sends one single-frame request to `tx` (with an address byte, if given) and returns
+    /// every frame heard in the next `window_ms`. Module discovery uses it: the caller decides
+    /// which frame, if any, answered.
+    pub fn probe(
+        &mut self,
+        tx: CanId,
+        ext: Option<u8>,
+        payload: &[u8],
+        window_ms: u64,
+    ) -> Result<Vec<TimedFrame>, CoreError> {
+        self.pace()?;
+        let ch = Channel { tx, rx: tx, ext };
+        let frames = isotp::segment_len(payload, self.options.padding, ch.frame_len())?;
+        let [first] = frames.as_slice() else {
+            return Err(CoreError::BadRequest("a probe must fit in one frame".into()));
+        };
+        let start = self.link.now_ms();
+        self.send_on(ch, first)?;
+        self.requests_sent += 1;
+        self.last_request_ms = Some(start);
+        let mut heard = Vec::new();
+        loop {
+            let now = self.link.now_ms();
+            if now >= start + window_ms {
+                return Ok(heard);
+            }
+            match self.link.recv(Duration::from_millis(start + window_ms - now))? {
+                Some(LinkEvent::Frame(tf)) => {
+                    self.note_frame(&tf);
+                    heard.push(tf);
+                }
+                Some(LinkEvent::Bus(e)) => Self::check_bus_event(&e)?,
+                Some(LinkEvent::BridgeReady { .. }) => return Err(CoreError::BridgeReset),
+                None => {}
+            }
+        }
+    }
+
+    fn send_on(&mut self, ch: Channel, payload: &[u8]) -> Result<(), CoreError> {
+        match ch.ext {
+            None => self.send_frame(ch.tx, payload),
+            Some(a) => {
+                let mut d = Vec::with_capacity(8);
+                d.push(a);
+                d.extend_from_slice(payload);
+                self.send_frame(ch.tx, &d)
+            }
+        }
+    }
+
     /// One ECU's reply: positive data, a refusal as an error, or no reply as an error.
     pub fn request_one(&mut self, ecu: CanId, payload: &[u8]) -> Result<Vec<u8>, CoreError> {
         let replies = self.request(Target::Ecu(ecu), payload)?;
@@ -449,6 +680,53 @@ mod tests {
         link.open(OpenMode::Normal).unwrap();
         let mut c = Client::new(Box::new(link));
         assert!(matches!(c.request(Target::AllEcus, &[0x01, 0x00]), Err(CoreError::NotAcknowledged)));
+    }
+
+    #[test]
+    fn channels_parse_and_pair() {
+        let c = Channel::parse("7B0").unwrap();
+        assert_eq!((c.tx, c.rx, c.ext), (CanId::Standard(0x7B0), CanId::Standard(0x7B8), None));
+        assert_eq!(c.label(), "7B0");
+        let c = Channel::parse("750/40").unwrap();
+        assert_eq!((c.rx, c.ext, c.frame_len()), (CanId::Standard(0x758), Some(0x40), 7));
+        assert_eq!(c.to_string(), "750/40");
+        let c = Channel::parse("18DA28F1").unwrap();
+        assert_eq!(c.rx, CanId::Extended(0x18DA_F128));
+        let c = Channel::parse("0x7E0:0x7E8").unwrap();
+        assert!(c.is_obd());
+        assert!(!Channel::parse("7B0").unwrap().is_obd());
+        assert_eq!(Channel::parse("7FF"), None);
+        assert_eq!(Channel::parse("zz"), None);
+        assert_eq!(Channel::obd(CanId::Standard(0x7E9)).unwrap().tx, CanId::Standard(0x7E1));
+    }
+
+    #[test]
+    fn modules_answer_on_their_channels() {
+        let mut c = client(VirtualCar::hijet());
+        // UDS airbag module: a long identity string, with flow control.
+        let srs = Channel::parse("780").unwrap();
+        let data = c.request_one_on(srs, &uds::read_did_request(0xF18A)).unwrap();
+        assert_eq!(uds::did_value(0xF18A, &data).and_then(|v| uds::text_of(&v)).as_deref(), Some("SIMULATED SUPPLIER"));
+        // KWP body module behind the 750 gateway.
+        let body = Channel::parse("750/40").unwrap();
+        let data = c.request_one_on(body, &[0x1A, 0x88, 0x81]).unwrap();
+        assert_eq!(uds::text_of(&data[2..]).as_deref(), Some("89221-SIM01"));
+        // A refusal comes back as an error with the service named.
+        let e = c.request_one_on(srs, &[0x21, 0x01]).unwrap_err();
+        assert!(matches!(e, CoreError::Refused { code: 0x11, service: "data by local ID (KWP)", .. }), "{e}");
+        // Nothing at 7D0.
+        assert!(matches!(c.request_one_on(Channel::parse("7D0").unwrap(), &uds::PROBE), Err(CoreError::NoReply(_))));
+    }
+
+    #[test]
+    fn probes_return_what_was_heard() {
+        let mut c = client(VirtualCar::hijet());
+        let heard = c.probe(CanId::Standard(0x7B0), None, &uds::PROBE, 60).unwrap();
+        assert_eq!(heard.len(), 1);
+        assert_eq!(heard[0].frame.id, CanId::Standard(0x7B8));
+        assert!(c.seen_ids().contains(&CanId::Standard(0x7B8)));
+        let heard = c.probe(CanId::Standard(0x7D0), None, &uds::PROBE, 60).unwrap();
+        assert!(heard.is_empty());
     }
 
     #[test]

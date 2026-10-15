@@ -2,12 +2,13 @@
 
 For anyone, human or AI agent, working on this code. Read `docs/DESIGN.md` first: how everything works. If a `CLAUDE.local.md` exists beside this file, read it too: it holds a contributor's own setup and is not part of the repo.
 
-Scana has two stages built: the firmware, seven crates (`scana-proto`, `scana-sim`, `scana-link`, `scana-core`, `scana-db`, `scana-app`, `scana-cli`) and `tools/gate.sh`. Stage 3 (every module, read-only) is next.
+Scana has three stages built: the firmware, seven crates (`scana-proto`, `scana-sim`, `scana-link`, `scana-core`, `scana-db`, `scana-app`, `scana-cli`) and `tools/gate.sh`. Stage 3 (every module, read-only: discovery, module codes, the data explorer) works on simulated modules; it still needs a real car.
 
 ## Hard rules
 
 - **Bus manners** (DESIGN section 7) and the **safety model** (section 11) are not optional. A new service that changes a module, a new raw-frame path or a change to the safety levels needs agreement first.
 - Never add programming, security access (0x27), data writes (0x2E) or communication control (0x28, 0x85).
+- Every service goes through `scana_proto::uds::level_of`. Module discovery follows DESIGN section 7a: car still, listen first, never send on an ID heard in use, 0x7DF and 0x7E8-0x7EF never used as probes.
 - The bridge firmware never sends a frame on its own, and always starts closed.
 - `scana-proto` has no I/O, threads or clock. Time is passed in. Keep it deterministic so the simulator tests mean something.
 - No `unwrap`/`expect` outside tests. Typed errors in libraries (`thiserror`), `anyhow` in binaries.
@@ -47,6 +48,9 @@ Work is done when the gate passes and the screenshots look right.
 - Inside `horizontal_wrapped` a `Frame`'s contents lay out sideways: give each tile its own `allocate_ui_with_layout(..., Layout::top_down(...))`. Long text in `ui.horizontal` doesn't wrap and widens the page: put it on its own line.
 - Commands that save sessions (`health`, `clear`, `record`) write to the real sessions folder: test them with `XDG_DATA_HOME` (or `record --dir`) pointing at a temporary folder. Screenshot mode keeps its sessions inside its folder and never saves settings.
 - `scana record` stops on a line from stdin; with input closed (no terminal) it runs until `--minutes` or Ctrl-C.
+- Module tests run full discoveries (about 500 probes): give the test client a 1 ms gap and an 8 ms answer window, or they take minutes.
+- An OBD-II ECU refuses `3E 00` (`7F 3E 11`) on many cars: that still counts as found. Its enhanced side may list no codes while OBD-II service 03 does: `read_codes` merges them.
+- Toyota-family facts come from openpilot's opendbc (MIT) and the toyota-diagnostics README: addresses only, no data copied. Name sources in `addresses.toml`.
 
 ## Style
 

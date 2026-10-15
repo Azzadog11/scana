@@ -1,14 +1,17 @@
 //! What the app knows: the latest of everything the session worker sent, kept for drawing.
 
+use scana_core::Channel;
+use scana_core::modules::{DataKind, ModuleInfo};
 use scana_core::readers::{FreezeFrame, PidReading, VehicleInfo};
 use scana_core::report::HealthReport;
 use scana_core::safety::ClearOutcome;
-use scana_core::session::{CodeSet, ConnectionInfo, LinkState, Stats, Update};
+use scana_core::session::{CodeSet, ConnectionInfo, DiscoverySummary, LinkState, Stats, Update};
 use scana_db::profile::{self, Profile};
 use scana_proto::mode06::TestResult;
+use scana_proto::obd::Reply;
 use scana_proto::pids::MonitorStatus;
 use scana_proto::{CanId, Frame};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -40,11 +43,93 @@ impl Live {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explore_items_count_changes_per_byte() {
+        let mut i = ExploreItem::new(vec![1, 2, 3]);
+        i.update(vec![1, 9, 3], 100);
+        i.update(vec![1, 8, 4], 200);
+        assert_eq!(i.changes, vec![0, 2, 1]);
+        assert_eq!(i.changed_at, vec![None, Some(200), Some(200)]);
+        assert_eq!(i.baseline, vec![1, 2, 3]);
+        i.reset();
+        assert_eq!(i.changes, vec![0, 0, 0]);
+        assert_eq!(i.baseline, vec![1, 8, 4]);
+        // A longer reply grows the counters.
+        i.update(vec![1, 8, 4, 7], 300);
+        assert_eq!(i.changes, vec![0, 0, 0, 1]);
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct FrameRow {
     pub frame: Frame,
     pub at_ms: u64,
     pub outgoing: bool,
+}
+
+/// One data ID in the data explorer, with which of its bytes have changed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExploreItem {
+    pub bytes: Vec<u8>,
+    /// The bytes when the scan ran or changes were last reset.
+    pub baseline: Vec<u8>,
+    /// How many times each byte changed.
+    pub changes: Vec<u32>,
+    /// When each byte last changed (ms on the session clock).
+    pub changed_at: Vec<Option<u64>>,
+    pub t_ms: u64,
+}
+
+impl ExploreItem {
+    fn new(bytes: Vec<u8>) -> Self {
+        let n = bytes.len();
+        ExploreItem { baseline: bytes.clone(), bytes, changes: vec![0; n], changed_at: vec![None; n], t_ms: 0 }
+    }
+
+    fn update(&mut self, bytes: Vec<u8>, t_ms: u64) {
+        let n = bytes.len().max(self.bytes.len());
+        self.changes.resize(n, 0);
+        self.changed_at.resize(n, None);
+        for i in 0..n {
+            if bytes.get(i) != self.bytes.get(i) {
+                self.changes[i] += 1;
+                self.changed_at[i] = Some(t_ms);
+            }
+        }
+        self.bytes = bytes;
+        self.t_ms = t_ms;
+    }
+
+    /// Forget the changes seen so far: now is the new starting point.
+    pub fn reset(&mut self) {
+        self.baseline = self.bytes.clone();
+        self.changes.iter_mut().for_each(|c| *c = 0);
+        self.changed_at.iter_mut().for_each(|c| *c = None);
+    }
+}
+
+/// The data explorer: one module's data IDs.
+#[derive(Clone, Debug, Default)]
+pub struct Explore {
+    pub channel: Option<Channel>,
+    pub kind: Option<DataKind>,
+    pub items: BTreeMap<u16, ExploreItem>,
+    /// False if the last scan was stopped before the end.
+    pub complete: bool,
+    /// The newest time seen, for "changed in the last 2 s".
+    pub now_ms: u64,
+}
+
+/// One request sent from the console, and what came back.
+#[derive(Clone, Debug)]
+pub struct ConsoleEntry {
+    pub channel: Channel,
+    pub request: Vec<u8>,
+    pub reply: Result<Option<Reply>, String>,
 }
 
 #[derive(Clone, Debug)]
@@ -78,6 +163,14 @@ pub struct Model {
     pub banners: Vec<Banner>,
     /// Marks set on the live graphs, in seconds.
     pub marks: Vec<f64>,
+    /// Stage 3: every module found, with what was read from it.
+    pub modules: Vec<ModuleInfo>,
+    pub discovery: Option<DiscoverySummary>,
+    pub discovering: bool,
+    /// A long job's progress, 0 to 1.
+    pub progress: Option<f32>,
+    pub explore: Explore,
+    pub console: Vec<ConsoleEntry>,
 }
 
 impl Model {
@@ -139,6 +232,12 @@ impl Model {
         self.cleared = None;
         self.stats = None;
         self.busy = None;
+        self.modules.clear();
+        self.discovery = None;
+        self.discovering = false;
+        self.progress = None;
+        self.explore = Explore::default();
+        self.console.clear();
     }
 
     pub fn apply(&mut self, u: Update) {
@@ -217,7 +316,50 @@ impl Model {
                 }
             }
             Update::Stats(s) => self.stats = Some(s),
-            Update::Busy(b) => self.busy = b,
+            Update::Busy(b) => {
+                if b.is_none() {
+                    self.discovering = false;
+                }
+                self.busy = b;
+            }
+            Update::Progress(p) => self.progress = p,
+            Update::DiscoveryStarted => {
+                self.modules.clear();
+                self.discovery = None;
+                self.discovering = true;
+            }
+            Update::Discovery(d) => {
+                self.discovering = false;
+                self.discovery = Some(d);
+            }
+            Update::Module(m) => match self.modules.iter_mut().find(|x| x.channel == m.channel) {
+                Some(x) => *x = *m,
+                None => self.modules.push(*m),
+            },
+            Update::DataScan { channel, kind, items, complete } => {
+                self.explore = Explore {
+                    channel: Some(channel),
+                    kind: Some(kind),
+                    items: items.into_iter().map(|i| (i.id, ExploreItem::new(i.bytes))).collect(),
+                    complete,
+                    now_ms: self.explore.now_ms,
+                };
+                if !complete {
+                    self.banner("The scan was stopped: the list shows what was found before that.", false);
+                }
+            }
+            Update::DataValue { channel, kind, id, bytes, t_ms } => {
+                if self.explore.channel == Some(channel) && self.explore.kind == Some(kind) {
+                    self.explore.now_ms = self.explore.now_ms.max(t_ms);
+                    self.explore.items.entry(id).or_insert_with(|| ExploreItem::new(bytes.clone())).update(bytes, t_ms);
+                }
+            }
+            Update::ConsoleReply { channel, request, reply } => {
+                self.console.push(ConsoleEntry { channel, request, reply });
+                if self.console.len() > 40 {
+                    self.console.remove(0);
+                }
+            }
             Update::Message(m) => self.banner(m, false),
             Update::Error(e) => self.banner(e, true),
         }

@@ -5,9 +5,13 @@
 //! info), the health check and the clear-codes gate, records sessions, and recovers by itself:
 //! a pulled USB cable or a bridge reset reconnects every 2 s; a silent car (key off) is looked
 //! for again every 5 s.
+//!
+//! Stage 3 adds module discovery, reading each module, the data explorer (scan and watch) and
+//! the read-only console. Long jobs check for [`Command::Stop`] between requests.
 
-use crate::client::{Addressing, Client, CoreError, FrameSink};
+use crate::client::{Addressing, Channel, Client, CoreError, FrameSink};
 use crate::detect::{DetectOptions, detect};
+use crate::modules::{self, DataItem, DataKind, DiscoverOptions, ModuleInfo, Progress};
 use crate::poller::Poller;
 use crate::readers::{self, FreezeFrame, PidReading, VehicleInfo};
 use crate::recorder::{Recorder, SessionSummary};
@@ -17,9 +21,11 @@ use scana_link::serial::SlcanLink;
 use scana_link::sim::SimLink;
 use scana_link::{Link, LinkError};
 use scana_proto::mode06::TestResult;
+use scana_proto::obd::Reply;
 use scana_proto::pids::MonitorStatus;
 use scana_proto::{Bitrate, CanId, Dtc, Frame, obd};
 use scana_sim::VirtualCar;
+use std::collections::VecDeque;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -68,7 +74,47 @@ pub enum Command {
         alone_ms: u64,
         shared_ms: u64,
     },
+    /// Stage 3: find every module, then read each one's identity and codes.
+    FindModules,
+    /// Read one module again: identity and codes.
+    ReadModule(Channel),
+    /// Read every data ID from `from` to `to` on one module (the data explorer).
+    ScanData {
+        channel: Channel,
+        kind: DataKind,
+        from: u16,
+        to: u16,
+    },
+    /// Keep reading these data IDs from one module, or stop watching (`None`).
+    Watch(Option<WatchSpec>),
+    /// One read request typed by the user. Refused unless it only reads.
+    Console {
+        channel: Channel,
+        request: Vec<u8>,
+    },
+    /// Stop a long job: module discovery or a data scan.
+    Stop,
     Shutdown,
+}
+
+/// Data IDs to keep reading from one module.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WatchSpec {
+    pub channel: Channel,
+    pub kind: DataKind,
+    pub ids: Vec<u16>,
+}
+
+/// How a module discovery ended.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiscoverySummary {
+    pub found: usize,
+    pub tried: usize,
+    /// IDs heard on the bus and so left alone.
+    pub skipped: Vec<CanId>,
+    pub stopped_early: bool,
+    /// For example: no computer reports speed, so the car couldn't be checked as still.
+    pub note: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -161,6 +207,36 @@ pub enum Update {
     Stats(Stats),
     /// Something slow is running ("Reading codes"), or finished (`None`).
     Busy(Option<String>),
+    /// How far a long job has got, 0 to 1, or finished (`None`).
+    Progress(Option<f32>),
+    /// Module discovery started (the list is cleared) ...
+    DiscoveryStarted,
+    /// ... and ended.
+    Discovery(DiscoverySummary),
+    /// What Scana read from one module (or just its address and likely name, while
+    /// discovery is still running).
+    Module(Box<ModuleInfo>),
+    /// A data scan's results; `complete` is false if it was stopped.
+    DataScan {
+        channel: Channel,
+        kind: DataKind,
+        items: Vec<DataItem>,
+        complete: bool,
+    },
+    /// One watched data value.
+    DataValue {
+        channel: Channel,
+        kind: DataKind,
+        id: u16,
+        bytes: Vec<u8>,
+        t_ms: u64,
+    },
+    /// The console's answer: a reply, silence (`Ok(None)`), or why it wasn't sent.
+    ConsoleReply {
+        channel: Channel,
+        request: Vec<u8>,
+        reply: Result<Option<Reply>, String>,
+    },
     Message(String),
     Error(String),
 }
@@ -276,6 +352,30 @@ struct Worker {
     stats_requests: u64,
     stats_frames: u64,
     record_wanted: bool,
+    /// Modules found this connection (for the health check and the session).
+    modules: Vec<ModuleInfo>,
+    watch: Option<(WatchSpec, usize)>,
+    /// The watch's turn next (it alternates with the live values).
+    watch_turn: bool,
+    /// Commands that arrived during a long job, handled after it.
+    pending: VecDeque<Command>,
+}
+
+/// Collects commands that arrive during a long job. True if the job should stop: the user
+/// pressed Stop, or asked to disconnect, connect elsewhere or quit (kept for afterwards).
+fn stop_requested(rx: &Receiver<Command>, pending: &mut VecDeque<Command>) -> bool {
+    let mut stop = false;
+    while let Ok(c) = rx.try_recv() {
+        match c {
+            Command::Stop => stop = true,
+            c @ (Command::Disconnect | Command::Shutdown | Command::Connect(_)) => {
+                stop = true;
+                pending.push_back(c);
+            }
+            other => pending.push_back(other),
+        }
+    }
+    stop
 }
 
 impl Worker {
@@ -297,6 +397,10 @@ impl Worker {
             stats_at: Instant::now(),
             stats_requests: 0,
             stats_frames: 0,
+            modules: vec![],
+            watch: None,
+            watch_turn: false,
+            pending: VecDeque::new(),
         }
     }
 
@@ -306,6 +410,14 @@ impl Worker {
 
     fn run(mut self) {
         loop {
+            if let Some(cmd) = self.pending.pop_front() {
+                if matches!(cmd, Command::Shutdown) {
+                    self.disconnect(false);
+                    return;
+                }
+                self.guarded(|w| w.handle(cmd));
+                continue;
+            }
             let wait = self.wait_time();
             match self.rx.recv_timeout(wait) {
                 Ok(Command::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
@@ -379,7 +491,207 @@ impl Worker {
                     c.options.shared_gap_ms = self.gaps.1;
                 }
             }
-            Command::Shutdown => {}
+            Command::FindModules => self.one_off("Looking for modules", Worker::find_modules),
+            Command::ReadModule(ch) => self.one_off("Reading the module", move |w| w.read_one_module(ch)),
+            Command::ScanData { channel, kind, from, to } => {
+                self.one_off("Scanning data IDs", move |w| w.scan(channel, kind, from, to));
+            }
+            Command::Watch(spec) => self.watch = spec.map(|s| (s, 0)),
+            Command::Console { channel, request } => {
+                self.one_off("Sending the request", move |w| w.console(channel, request));
+            }
+            Command::Stop | Command::Shutdown => {}
+        }
+    }
+
+    /// The maker family for module names and gateways: from the vehicle profile.
+    fn family(&self) -> Option<&'static str> {
+        let id = self.conn.as_ref()?.profile_id.as_ref()?;
+        scana_db::profile::builtin().iter().find(|p| &p.id == id)?.family()
+    }
+
+    /// Gives a module the OBD ECU's name from the profile, where it is one.
+    fn name_from_conn(&self, info: &mut ModuleInfo) {
+        if info.channel.is_obd()
+            && let Some(e) = self.conn.as_ref().and_then(|c| c.ecus.iter().find(|e| e.id == info.channel.rx))
+            && info.name_from != modules::NameFrom::Module
+        {
+            info.name = e.name.clone();
+            info.name_from = modules::NameFrom::Module;
+        }
+    }
+
+    fn find_modules(&mut self) -> Result<(), CoreError> {
+        let conn = self.conn.clone().ok_or_else(|| CoreError::BadRequest("not connected".into()))?;
+        let family = self.family();
+        let ecus = self.ecus();
+        let mut client = self.client.take().ok_or_else(|| CoreError::BadRequest("not connected".into()))?;
+        self.modules.clear();
+        self.watch = None;
+        self.send(Update::DiscoveryStarted);
+        let shared = self.shared.clone();
+        let rx = &self.rx;
+        let pending = &mut self.pending;
+        let mut found = Vec::new();
+        let result = (|| -> Result<DiscoverySummary, CoreError> {
+            let note = modules::check_still(&mut client, &ecus)?;
+            let opts = DiscoverOptions::for_car(conn.addressing, family);
+            let mut last = Instant::now() - Duration::from_secs(1);
+            let d = modules::discover(&mut client, &opts, |p| {
+                match p {
+                    Progress::Listening => shared.send(Update::Busy(Some("Listening to the bus first".into()))),
+                    Progress::Probing { done, total, at } => {
+                        if last.elapsed() >= Duration::from_millis(250) {
+                            last = Instant::now();
+                            shared.send(Update::Busy(Some(format!(
+                                "Looking for modules: address {at}, {done} of {total}"
+                            ))));
+                            shared.send(Update::Progress(Some(done as f32 / total.max(1) as f32 * 0.8)));
+                        }
+                    }
+                    Progress::Found(f) => {
+                        shared.send(Update::Module(Box::new(ModuleInfo::named(f.channel, family))));
+                    }
+                }
+                !stop_requested(rx, pending)
+            })?;
+            let mut stopped = d.stopped_early;
+            for (i, f) in d.found.iter().enumerate() {
+                if stop_requested(rx, pending) {
+                    stopped = true;
+                    break;
+                }
+                shared.send(Update::Busy(Some(format!(
+                    "Reading module {} of {} ({})",
+                    i + 1,
+                    d.found.len(),
+                    f.channel.label()
+                ))));
+                shared.send(Update::Progress(Some(0.8 + 0.2 * i as f32 / d.found.len().max(1) as f32)));
+                found.push(modules::read_module(&mut client, f.channel, Some(f), family)?);
+            }
+            Ok(DiscoverySummary {
+                found: d.found.len(),
+                tried: d.tried,
+                skipped: d.skipped,
+                stopped_early: stopped,
+                note,
+            })
+        })();
+        self.client = Some(client);
+        for mut m in found {
+            self.name_from_conn(&mut m);
+            self.send(Update::Module(Box::new(m.clone())));
+            self.modules.push(m);
+        }
+        self.send(Update::Progress(None));
+        let summary = result?;
+        self.write_modules_file();
+        self.send(Update::Discovery(summary));
+        Ok(())
+    }
+
+    fn read_one_module(&mut self, ch: Channel) -> Result<(), CoreError> {
+        let family = self.family();
+        let mut m = modules::read_module(self.client()?, ch, None, family)?;
+        self.name_from_conn(&mut m);
+        match self.modules.iter_mut().find(|x| x.channel == ch) {
+            Some(x) => *x = m.clone(),
+            None => self.modules.push(m.clone()),
+        }
+        self.send(Update::Module(Box::new(m)));
+        Ok(())
+    }
+
+    fn scan(&mut self, ch: Channel, kind: DataKind, from: u16, to: u16) -> Result<(), CoreError> {
+        let (from, to) = (from.min(to), from.max(to));
+        self.watch = None;
+        let mut client = self.client.take().ok_or_else(|| CoreError::BadRequest("not connected".into()))?;
+        let shared = self.shared.clone();
+        let rx = &self.rx;
+        let pending = &mut self.pending;
+        let mut complete = true;
+        let mut last = Instant::now() - Duration::from_secs(1);
+        let result = modules::scan_data(&mut client, ch, kind, from..=to, |done, total| {
+            if last.elapsed() >= Duration::from_millis(250) {
+                last = Instant::now();
+                shared.send(Update::Busy(Some(format!("Scanning {}: {done} of {total}", ch.label()))));
+                shared.send(Update::Progress(Some(done as f32 / total.max(1) as f32)));
+            }
+            let go = !stop_requested(rx, pending);
+            complete &= go;
+            go
+        });
+        self.client = Some(client);
+        self.send(Update::Progress(None));
+        let items = result?;
+        self.send(Update::DataScan { channel: ch, kind, items, complete });
+        Ok(())
+    }
+
+    fn console(&mut self, ch: Channel, request: Vec<u8>) -> Result<(), CoreError> {
+        let reply = match modules::console_request(self.client()?, ch, &request) {
+            Ok(r) => Ok(r),
+            Err(e) if modules::is_fatal(&e) && !matches!(e, CoreError::Unsafe(_)) => return Err(e),
+            Err(e) => Err(e.to_string()),
+        };
+        self.send(Update::ConsoleReply { channel: ch, request, reply });
+        Ok(())
+    }
+
+    /// Reads the next watched data ID, if watching. Returns false when nothing was due.
+    fn watch_step(&mut self) -> Option<Result<(), CoreError>> {
+        let (spec, idx) = self.watch.as_mut()?;
+        if spec.ids.is_empty() {
+            return None;
+        }
+        let id = spec.ids[*idx % spec.ids.len()];
+        *idx = (*idx + 1) % spec.ids.len();
+        let (ch, kind) = (spec.channel, spec.kind);
+        let client = self.client.as_mut()?;
+        match modules::read_data(client, ch, kind, id) {
+            Ok(bytes) => {
+                let t_ms = client.now_ms();
+                self.send(Update::DataValue { channel: ch, kind, id, bytes, t_ms });
+                Some(Ok(()))
+            }
+            Err(e) if modules::is_fatal(&e) => Some(Err(e)),
+            Err(_) => Some(Ok(())),
+        }
+    }
+
+    /// Saves what discovery found in the session folder, when recording.
+    fn write_modules_file(&mut self) {
+        if self.modules.is_empty() {
+            return;
+        }
+        let mut t = String::from("# Modules found by Scana's module search. Codes as read at the time.\n");
+        for m in &self.modules {
+            t.push_str(&format!(
+                "\n[[module]]\naddress = \"{}\"\nreply = \"{}\"\nname = \"{}\"\ndialect = \"{}\"\n",
+                m.channel.label(),
+                m.channel.rx,
+                m.display_name().replace('"', "'"),
+                m.dialect.name()
+            ));
+            for (k, v) in &m.identity {
+                if k == "VIN" {
+                    continue; // kept out of files that might be shared
+                }
+                t.push_str(&format!("identity.\"{}\" = \"{}\"\n", k.replace('"', "'"), v.replace('"', "'")));
+            }
+            match &m.codes {
+                Ok(c) => t.push_str(&format!(
+                    "codes = [{}]\n",
+                    c.iter().map(|d| format!("\"{d} {}\"", d.state().words())).collect::<Vec<_>>().join(", ")
+                )),
+                Err(e) => t.push_str(&format!("codes_error = \"{}\"\n", e.replace('"', "'"))),
+            }
+        }
+        if let Ok(mut g) = self.shared.rec.lock()
+            && let Some(r) = g.as_mut()
+        {
+            let _ = r.write_file("modules.toml", &t);
         }
     }
 
@@ -521,6 +833,8 @@ impl Worker {
         self.client = None;
         self.conn = None;
         self.lost = None;
+        self.modules.clear();
+        self.watch = None;
         if tell {
             self.source = None;
             self.send(Update::State(LinkState::Disconnected));
@@ -593,6 +907,18 @@ impl Worker {
             }
             return;
         }
+        // The data explorer's watch takes turns with the live values.
+        if self.watch.is_some() && (self.watch_turn || self.live.is_empty()) {
+            self.watch_turn = false;
+            if let Some(r) = self.watch_step() {
+                if let Err(e) = r {
+                    self.on_error(e, false);
+                }
+                self.maybe_stats();
+                return;
+            }
+        }
+        self.watch_turn = true;
         let Some(client) = self.client.as_mut() else { return };
         let now = client.now_ms();
         let result = match self.poller.next_batch(now) {
@@ -783,7 +1109,30 @@ impl Worker {
         }
         let profile = conn.profile_id.as_ref().and_then(|id| scana_db::profile::builtin().iter().find(|p| &p.id == id));
         let ecus = self.ecus();
-        let result = run_report(self.client()?, &ecus, profile, &conn);
+        let mut result = run_report(self.client()?, &ecus, profile, &conn);
+        // Every module found this connection: read its codes again for the report.
+        if result.is_ok() && !self.modules.is_empty() {
+            let mut mods = self.modules.clone();
+            let mut fatal = None;
+            for m in &mut mods {
+                m.codes = match modules::read_codes(self.client()?, m.channel, m.dialect) {
+                    Ok(c) => Ok(c),
+                    Err(e) if modules::is_fatal(&e) => {
+                        fatal = Some(e);
+                        break;
+                    }
+                    Err(e) => Err(e.to_string()),
+                };
+            }
+            match fatal {
+                Some(e) => result = Err(e),
+                None => {
+                    if let Ok(report) = result.as_mut() {
+                        report.modules = mods;
+                    }
+                }
+            }
+        }
         let mut path = None;
         if let Ok(report) = &result
             && let Ok(mut g) = self.shared.rec.lock()
@@ -886,6 +1235,57 @@ mod tests {
         wait_for(&h, 5, |u| matches!(u, Update::State(LinkState::Disconnected)).then_some(()));
         drop(h);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn modules_are_found_read_and_reported() {
+        let dir = std::env::temp_dir().join(format!("scana-session-test3-{}", std::process::id()));
+        let h = handle(&dir, true);
+        h.send(Command::Connect(Source::DemoFaults));
+        wait_for(&h, 10, |u| matches!(u, Update::Connected(_)).then_some(()));
+        h.send(Command::FindModules);
+        let summary = wait_for(&h, 90, |u| if let Update::Discovery(s) = u { Some(s) } else { None });
+        assert_eq!(summary.found, 6, "{summary:?}");
+        assert!(!summary.stopped_early);
+        // The cluster's U0100 shows in the health report.
+        h.send(Command::HealthCheck);
+        let report = wait_for(&h, 30, |u| if let Update::Health { report, .. } = u { Some(report) } else { None });
+        assert_eq!(report.modules.len(), 6);
+        assert!(report.all_codes().iter().any(|c| c.starts_with("U0100-87")));
+        assert!(report.summary().iter().any(|(_, l)| l.contains("U0100")));
+        // The data explorer: scan the body module, then watch a value.
+        let body = Channel::parse("750/40").unwrap();
+        h.send(Command::ScanData { channel: body, kind: DataKind::Lid, from: 0, to: 8 });
+        let items = wait_for(&h, 30, |u| if let Update::DataScan { items, .. } = u { Some(items) } else { None });
+        assert_eq!(items.len(), 3);
+        h.send(Command::Watch(Some(WatchSpec { channel: body, kind: DataKind::Lid, ids: vec![1, 2] })));
+        wait_for(&h, 10, |u| matches!(u, Update::DataValue { id: 2, .. }).then_some(()));
+        h.send(Command::Watch(None));
+        // The console refuses a write and answers a read.
+        h.send(Command::Console { channel: body, request: vec![0x3B, 0x01, 0x00] });
+        let r = wait_for(&h, 10, |u| if let Update::ConsoleReply { reply, .. } = u { Some(reply) } else { None });
+        assert!(r.is_err());
+        h.send(Command::Console { channel: body, request: vec![0x21, 0x03] });
+        let r = wait_for(&h, 10, |u| if let Update::ConsoleReply { reply, .. } = u { Some(reply) } else { None });
+        assert!(matches!(r, Ok(Some(Reply::Positive { service: 0x21, .. }))));
+        h.send(Command::Disconnect);
+        drop(h);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn module_discovery_can_be_stopped() {
+        let dir = std::env::temp_dir().join(format!("scana-session-test4-{}", std::process::id()));
+        let h = handle(&dir, false);
+        h.send(Command::Connect(Source::Demo));
+        wait_for(&h, 10, |u| matches!(u, Update::Connected(_)).then_some(()));
+        h.send(Command::FindModules);
+        wait_for(&h, 10, |u| matches!(u, Update::Progress(Some(_))).then_some(()));
+        h.send(Command::Stop);
+        let summary = wait_for(&h, 20, |u| if let Update::Discovery(s) = u { Some(s) } else { None });
+        assert!(summary.stopped_early);
+        drop(h);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

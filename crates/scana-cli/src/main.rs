@@ -1,19 +1,23 @@
 //! `scana`: the command line. Checks the bridge, watches the bus, finds the car, and reads
-//! live values, fault codes and vehicle information. `--sim` uses a simulated Hijet.
+//! live values, fault codes and vehicle information; finds and reads every module (stage 3).
+//! `--sim` uses a simulated Hijet.
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use scana_core::describe::frame_meaning;
+use scana_core::modules::{self, DataKind, DiscoverOptions, ModuleInfo};
 use scana_core::readers::{self, PidReading};
 use scana_core::recorder::{self, Recorder};
 use scana_core::report;
 use scana_core::safety::{self, CLEAR_WARNING, ClearConsent};
 use scana_core::session::{Command, LinkState, SessionHandle, Source, Update, WorkerSettings};
-use scana_core::{Client, DetectOptions, Detected, FrameSink, detect};
+use scana_core::{Channel, Client, DetectOptions, Detected, FrameSink, detect};
+use scana_db::dtc as dtcdb;
 use scana_link::serial::{SlcanLink, list_ports};
 use scana_link::sim::SimLink;
 use scana_link::{Link, LinkEvent, OpenMode};
-use scana_proto::{Bitrate, CanId, Frame, candump, mode06, obd, pids};
+use scana_proto::obd::Reply;
+use scana_proto::{Bitrate, CanId, Frame, candump, mode06, obd, pids, uds};
 use scana_sim::VirtualCar;
 use std::fs::File;
 use std::io::{BufRead, BufWriter, Write};
@@ -106,6 +110,45 @@ enum Cmd {
         #[arg(long)]
         yes: bool,
     },
+    /// Find every module in the car (ABS, airbag, body...) with harmless read requests, then
+    /// read each one's name, part number and fault codes. Only while the car is still.
+    Modules {
+        /// Also try this gateway ID with every address byte (hex, for example 750). The
+        /// vehicle profile's maker family adds its own.
+        #[arg(long)]
+        gateway: Vec<String>,
+        /// Try both 11-bit and 29-bit request IDs, whatever the car's OBD-II uses.
+        #[arg(long)]
+        both: bool,
+        /// How long to wait for each module's answer, in ms.
+        #[arg(long, default_value_t = 60)]
+        window_ms: u64,
+    },
+    /// Read one module: identity and fault codes. ADDRESS is its request ID (7B0), with an
+    /// address byte after a slash for modules behind a gateway (750/40), or 29-bit (18DA28F1).
+    Module {
+        address: String,
+        /// Scan a range of data IDs, for example F180-F19F (UDS) or 00-FF (KWP local IDs).
+        #[arg(long)]
+        scan: Option<String>,
+        /// "did" (UDS 22) or "lid" (KWP 21). Default: whatever the module speaks.
+        #[arg(long)]
+        kind: Option<String>,
+        /// Watch these data IDs (comma-separated hex) and print each change.
+        #[arg(long)]
+        watch: Option<String>,
+        /// How long to watch, in seconds.
+        #[arg(long, default_value_t = 20)]
+        seconds: u64,
+    },
+    /// Send one read request to a module and show the answer, for example `send 7B0 21 01`.
+    /// Anything that changes a module is refused.
+    Send {
+        address: String,
+        /// The request in hex: 22 F1 90, or 22F190.
+        #[arg(required = true, num_args = 1..)]
+        request: Vec<String>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -151,6 +194,11 @@ fn run(cli: Cli) -> Result<()> {
         Cmd::Health => health(&mut client).map(|_| ()),
         Cmd::Clear { yes } => clear(&mut client, yes),
         Cmd::Record { .. } => Ok(()),
+        Cmd::Modules { gateway, both, window_ms } => find_modules(&mut client, &gateway, both, window_ms),
+        Cmd::Module { address, scan, kind, watch, seconds } => {
+            one_module(&mut client, &address, scan.as_deref(), kind.as_deref(), watch.as_deref(), seconds)
+        }
+        Cmd::Send { address, request } => send(&mut client, &address, &request.join(" ")),
     }
 }
 
@@ -559,13 +607,221 @@ fn codes(client: &mut Client) -> Result<()> {
                 println!("{label:<10} {ecu}: none");
             } else {
                 for c in codes {
-                    let kind = if c.is_manufacturer_specific() { "maker-specific" } else { "generic" };
-                    println!("{label:<10} {ecu}: {c}  ({}, {kind})", c.system().name());
+                    println!("{label:<10} {ecu}: {c}  {}", dtcdb::lookup(c).summary());
                 }
             }
         }
     }
-    println!("(Descriptions of each code come in stage 2.)");
+    Ok(())
+}
+
+/// The car's maker family, from the matching vehicle profile.
+fn family_of(client: &mut Client, d: &Detected) -> Result<Option<&'static str>> {
+    let ecus = ecus_with_pids(client, d)?;
+    Ok(ecus.first().and_then(|e| scana_db::profile::find_match(&e.1)).and_then(|p| p.family()))
+}
+
+fn print_module(m: &ModuleInfo) {
+    println!("\n{}  [{}, {}]", m.display_name(), m.channel.label(), m.dialect.name());
+    println!("  replies from {}", m.channel.rx);
+    for (k, v) in &m.identity {
+        println!("  {k}: {v}");
+    }
+    match &m.codes {
+        Ok(c) if c.is_empty() => println!("  Fault codes: none"),
+        Ok(c) => {
+            for d in c {
+                println!("  Code {}", report::module_code_line(d));
+            }
+        }
+        Err(e) => println!("  Fault codes not read: {e}"),
+    }
+}
+
+fn find_modules(client: &mut Client, gateways: &[String], both: bool, window_ms: u64) -> Result<()> {
+    let d = find_car(client, true)?;
+    let family = family_of(client, &d)?;
+    let ecus = ecus_with_pids(client, &d)?;
+    if let Some(note) = modules::check_still(client, &ecus)? {
+        println!("Note: {note}");
+    }
+    let mut opts = DiscoverOptions::for_car(d.addressing, family);
+    opts.window_ms = window_ms;
+    if both {
+        opts.standard = true;
+        opts.extended = true;
+    }
+    for g in gateways {
+        let id = u16::from_str_radix(g.trim_start_matches("0x"), 16)
+            .ok()
+            .filter(|x| *x <= 0x7FF)
+            .with_context(|| format!("{g} is not an 11-bit gateway ID"))?;
+        if !opts.gateways.contains(&id) {
+            opts.gateways.push(id);
+        }
+    }
+    if let Some(f) = family {
+        println!("Maker family: {f} (module names below are this family's usual ones until a module gives its own)");
+    }
+    println!("Looking for modules (one harmless request per address; Ctrl-C stops)...");
+    let start = Instant::now();
+    let discovery = modules::discover(client, &opts, |p| {
+        match p {
+            modules::Progress::Listening => eprintln!("  listening to the bus for 1 s first"),
+            modules::Progress::Probing { done, total, at } => {
+                if done % 32 == 0 {
+                    eprintln!("  {done} of {total} addresses (now {at})");
+                }
+            }
+            modules::Progress::Found(f) => {
+                eprintln!("  found a module at {} (replies from {})", f.channel.label(), f.channel.rx)
+            }
+        }
+        true
+    })?;
+    println!(
+        "Tried {} addresses in {:.0} s: {} module(s) answered.",
+        discovery.tried,
+        start.elapsed().as_secs_f64(),
+        discovery.found.len()
+    );
+    if !discovery.skipped.is_empty() {
+        println!(
+            "Left alone (already in use on the bus): {}",
+            discovery.skipped.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(", ")
+        );
+    }
+    for f in &discovery.found {
+        let m = modules::read_module(client, f.channel, Some(f), family)?;
+        print_module(&m);
+    }
+    Ok(())
+}
+
+fn parse_channel(address: &str) -> Result<Channel> {
+    Channel::parse(address).with_context(|| {
+        format!(
+            "{address} is not a module address. Use a request ID like 7B0, 750/40 (with an address byte) or 18DA28F1"
+        )
+    })
+}
+
+fn parse_range(s: &str) -> Result<(u16, u16)> {
+    let (a, b) = s.split_once('-').unwrap_or((s, s));
+    let p = |t: &str| u16::from_str_radix(t.trim().trim_start_matches("0x"), 16);
+    match (p(a), p(b)) {
+        (Ok(a), Ok(b)) => Ok((a.min(b), a.max(b))),
+        _ => bail!("{s} is not a range of hex IDs like F180-F19F"),
+    }
+}
+
+fn one_module(
+    client: &mut Client,
+    address: &str,
+    scan: Option<&str>,
+    kind: Option<&str>,
+    watch: Option<&str>,
+    seconds: u64,
+) -> Result<()> {
+    let ch = parse_channel(address)?;
+    let d = find_car(client, true)?;
+    let family = family_of(client, &d)?;
+    let m = modules::read_module(client, ch, None, family)?;
+    print_module(&m);
+    let kind = match kind.map(str::to_ascii_lowercase).as_deref() {
+        Some("did") => DataKind::Did,
+        Some("lid") => DataKind::Lid,
+        Some(other) => bail!("--kind is did or lid, not {other}"),
+        None => DataKind::for_dialect(m.dialect),
+    };
+    if let Some(r) = scan {
+        let (from, to) = parse_range(r)?;
+        println!(
+            "\nScanning {} {from:X}-{to:X} on {}...",
+            if kind == DataKind::Did { "DIDs" } else { "LIDs" },
+            ch.label()
+        );
+        let items = modules::scan_data(client, ch, kind, from..=to, |done, total| {
+            if done % 64 == 0 && done > 0 {
+                eprintln!("  {done} of {total}");
+            }
+            true
+        })?;
+        println!("{} answered:", items.len());
+        for i in &items {
+            let name = if kind == DataKind::Did { uds::did_name(i.id) } else { None };
+            let text = uds::text_of(&i.bytes).map(|t| format!("  \"{t}\"")).unwrap_or_default();
+            println!(
+                "  {:<9} {}{text}{}",
+                kind.label(i.id),
+                uds::hex(&i.bytes),
+                name.map(|n| format!("  ({n})")).unwrap_or_default()
+            );
+        }
+    }
+    if let Some(list) = watch {
+        let ids: Vec<u16> = list
+            .split(',')
+            .map(|t| u16::from_str_radix(t.trim().trim_start_matches("0x"), 16))
+            .collect::<std::result::Result<_, _>>()
+            .with_context(|| format!("--watch wants hex IDs separated by commas, not {list}"))?;
+        println!("\nWatching for {seconds} s. Do something (lights, doors, pedals) and see which bytes change.");
+        let end = Instant::now() + Duration::from_secs(seconds);
+        let mut last: std::collections::HashMap<u16, Vec<u8>> = std::collections::HashMap::new();
+        let start = Instant::now();
+        while Instant::now() < end {
+            for &id in &ids {
+                match modules::read_data(client, ch, kind, id) {
+                    Ok(bytes) => {
+                        if last.get(&id) != Some(&bytes) {
+                            let changed: Vec<usize> = match last.get(&id) {
+                                Some(old) => (0..bytes.len()).filter(|&i| old.get(i) != bytes.get(i)).collect(),
+                                None => vec![],
+                            };
+                            let marks = if changed.is_empty() {
+                                String::new()
+                            } else {
+                                format!(
+                                    "  changed byte{} {}",
+                                    if changed.len() == 1 { "" } else { "s" },
+                                    changed.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ")
+                                )
+                            };
+                            println!(
+                                "  {:>6.1} s  {:<9} {}{marks}",
+                                start.elapsed().as_secs_f64(),
+                                kind.label(id),
+                                uds::hex(&bytes)
+                            );
+                            last.insert(id, bytes);
+                        }
+                    }
+                    Err(e) if modules::is_fatal(&e) => return Err(e.into()),
+                    Err(e) => println!("  {}: {e}", kind.label(id)),
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn send(client: &mut Client, address: &str, hex: &str) -> Result<()> {
+    let ch = parse_channel(address)?;
+    let request = uds::parse_hex(hex).with_context(|| format!("{hex} is not hex bytes"))?;
+    find_car(client, true)?;
+    println!("Sending {} to {} ({})", uds::hex(&request), ch.label(), uds::service_name(request[0]));
+    match modules::console_request(client, ch, &request)? {
+        None => println!("No answer within {} ms.", client.options.physical_timeout_ms),
+        Some(Reply::Positive { service, data }) => {
+            println!("Answer: {:02X} {}", service + 0x40, uds::hex(&data));
+            if let Some(t) = uds::text_of(&data) {
+                println!("As text: {t}");
+            }
+        }
+        Some(Reply::Negative { service, code }) => {
+            println!("Refused (7F {service:02X} {code:02X}): {}", obd::negative_code_text(code));
+        }
+    }
     Ok(())
 }
 

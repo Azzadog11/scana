@@ -44,7 +44,12 @@ text = "What the car says about itself: VIN, software version and computer names
 [[page]]
 id = "modules"
 title = "Modules"
-text = "Every computer in the car (ABS, airbag, body, meter) and their codes. This comes in stage 3."
+text = "Find modules asks each likely address once whether a computer is there, and leaves alone any address already in use on the bus. Each module found is then asked for its name, part numbers and fault codes. A name marked 'probably' is the usual module at that address for the make, until the module gives its own. Module codes use the same letters as engine codes: B body, C chassis, U network."
+
+[[page]]
+id = "explorer"
+title = "Data explorer"
+text = "Modules hold many values that OBD-II doesn't cover: switches, sensors, counters. Scan reads every ID in a range once and lists the ones the module answers. Tick Watch, then change one thing at a time in the car (lights, a door, the brake) and see which byte lights up. Click a byte to see common ways to read it, and give it a name. Names stay on this computer."
 
 [[page]]
 id = "monitor"

@@ -1,0 +1,210 @@
+# Where modules usually answer diagnostic requests, by maker family. Scana uses these names
+# only as hints ("probably the ABS computer") until a module gives its own name.
+#
+# Addresses: an 11-bit request ID ("7B0", the reply comes from 7B8), an ID with an address
+# byte for modules behind a gateway ("750/40": request 750 with first byte 40, reply 758),
+# or a 29-bit request ID ("18DA28F1").
+#
+# Family "any" applies to every car. Family "toyota" covers Toyota, Lexus and Scion, and is
+# assumed for Daihatsu (part of the Toyota group) until discovery on a real Daihatsu confirms it.
+#
+# Sources:
+#   [iso]       ISO 15765-4 addressing as used by SAE J1979: 0x7E0-0x7E7 are the OBD-II ECUs.
+#   [opendbc]   openpilot's opendbc, opendbc/car/toyota/values.py and fingerprints.py
+#               (github.com/commaai/opendbc, read 2026-10-16): firmware query addresses.
+#   [toyotadx]  github.com/kaikozlov/toyota-diagnostics README (read 2026-10-16).
+
+[[gateway]]
+family = "toyota"
+id = "750"
+note = "Body, camera, radar and other modules answer through 750 with an address byte; replies come from 758 [opendbc]"
+
+[[address]]
+family = "any"
+at = "7E0"
+name = "Engine computer (ECM)"
+source = "iso"
+
+[[address]]
+family = "any"
+at = "7E1"
+name = "Gearbox computer (TCM), on most cars"
+source = "iso"
+
+[[address]]
+family = "any"
+at = "7E2"
+name = "Third OBD-II computer (often the hybrid system)"
+source = "iso"
+
+[[address]]
+family = "toyota"
+at = "7E2"
+name = "Hybrid control computer (older dialect)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "7D2"
+name = "Hybrid control computer"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "700"
+name = "Engine computer (second address on some models)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "701"
+name = "Gearbox computer (some models)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "7B0"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "730"
+name = "Second brake computer (brake booster or parking brake)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "780"
+name = "Airbag computer (SRS)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "784"
+name = "Second airbag computer"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "7A0"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "7A1"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "7B3"
+name = "Steering angle sensor"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "7C0"
+name = "Instrument cluster (combination meter)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "7C4"
+name = "Air conditioning"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "791"
+name = "Driving support computer (cruise and lane functions)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "792"
+name = "Forward recognition camera"
+source = "toyotadx"
+
+[[address]]
+family = "toyota"
+at = "713"
+name = "Hybrid battery computer"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "747"
+name = "Hybrid battery computer"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "716"
+name = "Motor generator computer"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "724"
+name = "Motor generator computer"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "750/40"
+name = "Body control (main body computer)"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "750/5F"
+name = "Central gateway"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "750/2C"
+name = "Electric parking brake"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "750/2A"
+name = "Tyre pressure monitor"
+source = "toyotadx"
+
+[[address]]
+family = "toyota"
+at = "750/C7"
+name = "Telematics"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "750/0F"
+name = "Forward radar"
+source = "opendbc"
+
+[[address]]
+family = "toyota"
+at = "750/6D"
+name = "Forward camera"
+source = "opendbc"
+
+[[make]]
+name = "Toyota"
+family = "toyota"
+
+[[make]]
+name = "Lexus"
+family = "toyota"
+
+[[make]]
+name = "Scion"
+family = "toyota"
+
+[[make]]
+name = "Daihatsu"
+family = "toyota"

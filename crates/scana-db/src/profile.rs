@@ -62,6 +62,9 @@ pub struct Baseline {
 pub struct Profile {
     pub id: String,
     pub name: String,
+    /// The maker ("Daihatsu"), for the module address book.
+    #[serde(default)]
+    pub make: Option<String>,
     pub model: String,
     pub bitrate: u32,
     pub addressing: String,
@@ -92,6 +95,10 @@ impl Profile {
     }
     pub fn ecu_name(&self, id: u16) -> Option<&str> {
         self.ecu.iter().find(|e| e.id == id).map(|e| e.name.as_str())
+    }
+    /// The diagnostic family for module discovery, from the make ("Daihatsu" -> "toyota").
+    pub fn family(&self) -> Option<&'static str> {
+        self.make.as_deref().and_then(crate::modules::family_of_make)
     }
 }
 

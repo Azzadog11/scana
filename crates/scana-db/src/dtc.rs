@@ -82,7 +82,7 @@ pub fn group_of(code: Dtc) -> String {
     let (first, second, third) = (b[0], b[1], b[2]);
     if code.is_manufacturer_specific() {
         return format!(
-            "a maker-specific {} code: its meaning depends on the make. For a Daihatsu, see the workshop manual",
+            "a maker-specific {} code: its meaning depends on the make. See the maker's workshop manual",
             code.system().name().to_lowercase()
         );
     }

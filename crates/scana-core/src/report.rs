@@ -2,6 +2,7 @@
 //! report page (HTML) to keep or print.
 
 use crate::client::{Client, CoreError};
+use crate::modules::ModuleInfo;
 use crate::readers::{self, FreezeFrame, PidReading, VehicleInfo};
 use scana_db::{dtc as dtcdb, profile::Profile};
 use scana_proto::mode06::{self, TestResult};
@@ -31,6 +32,8 @@ pub struct HealthReport {
     pub link: String,
     pub protocol: String,
     pub ecus: Vec<EcuReport>,
+    /// Every module found by module discovery, with its codes read during the check.
+    pub modules: Vec<ModuleInfo>,
 }
 
 /// How a summary line should look.
@@ -87,7 +90,20 @@ pub fn run_health_check(
         link: client.link().describe(),
         protocol: protocol.into(),
         ecus: out,
+        modules: vec![],
     })
+}
+
+/// A module code as one line: "U0100-87 (stored): Lost communication with the engine computer;
+/// a network message is missing".
+pub fn module_code_line(d: &scana_proto::uds::ModuleDtc) -> String {
+    let mut text = format!("{d} ({}): {}", d.state().words(), dtcdb::lookup(d.code).summary());
+    if let Some(ft) = d.failure_type
+        && ft != 0
+    {
+        text.push_str(&format!("; {}", scana_proto::uds::failure_type_text(ft)));
+    }
+    text
 }
 
 /// "Engine (7E8)" for the usual OBD IDs.
@@ -154,6 +170,22 @@ impl HealthReport {
                 lines.push((Tone::Good, format!("{who}: all {} on-board test results within limits.", e.tests.len())));
             }
         }
+        let mut quiet = 0;
+        for m in &self.modules {
+            match &m.codes {
+                Ok(c) if c.is_empty() => quiet += 1,
+                Ok(c) => {
+                    for d in c {
+                        let tone = if d.state().active { Tone::Bad } else { Tone::Note };
+                        lines.push((tone, format!("{}: code {}.", m.display_name(), module_code_line(d))));
+                    }
+                }
+                Err(e) => lines.push((Tone::Note, format!("{}: codes not read ({e}).", m.display_name()))),
+            }
+        }
+        if quiet > 0 {
+            lines.push((Tone::Good, format!("{quiet} other module(s): no fault codes.")));
+        }
         lines.sort_by_key(|(t, _)| match t {
             Tone::Bad => 0,
             Tone::Note => 1,
@@ -164,7 +196,8 @@ impl HealthReport {
 
     /// Every code in the report, for the session summary.
     pub fn all_codes(&self) -> Vec<String> {
-        self.ecus
+        let mut out: Vec<String> = self
+            .ecus
             .iter()
             .flat_map(|e| {
                 e.stored
@@ -174,7 +207,13 @@ impl HealthReport {
                     .chain(e.permanent.iter().map(|c| format!("{c} permanent")))
                     .collect::<Vec<_>>()
             })
-            .collect()
+            .collect();
+        for m in &self.modules {
+            if let Ok(codes) = &m.codes {
+                out.extend(codes.iter().map(|d| format!("{d} {} ({})", d.state().words(), m.channel.label())));
+            }
+        }
+        out
     }
 
     /// The report as one self-contained HTML page.
@@ -278,6 +317,23 @@ impl HealthReport {
                 }
                 h.push_str("</table>");
             }
+        }
+        if !self.modules.is_empty() {
+            h.push_str("<h2>All modules</h2><p class=\"small\">Every module that answered Scana's module search, with the fault codes it holds.</p>");
+            h.push_str("<table><tr><th>Module</th><th>Address</th><th>Fault codes</th></tr>");
+            for m in &self.modules {
+                let codes = match &m.codes {
+                    Ok(c) if c.is_empty() => "<span class=\"good\">none</span>".to_string(),
+                    Ok(c) => c.iter().map(|d| esc(&module_code_line(d))).collect::<Vec<_>>().join("<br>"),
+                    Err(e) => format!("<span class=\"note\">not read: {}</span>", esc(e)),
+                };
+                h.push_str(&format!(
+                    "<tr><td>{}</td><td>{}</td><td>{codes}</td></tr>",
+                    esc(&m.display_name()),
+                    esc(&m.channel.label())
+                ));
+            }
+            h.push_str("</table>");
         }
         h.push_str(&format!(
             "<p class=\"small\">Made by Scana {}. Code descriptions are general guidance: check the maker's workshop manual before replacing parts.</p>",

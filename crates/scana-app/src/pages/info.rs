@@ -64,19 +64,4 @@ impl ScanaApp {
             }
         });
     }
-
-    pub fn page_modules(&mut self, ui: &mut Ui) {
-        let pal = self.pal();
-        self.heading(ui, "Modules", "Every computer in the car, not only the engine: ABS, airbag, body, meter.");
-        ui.label("This comes in stage 3. Scana will:");
-        for l in [
-            "find every module that answers on the bus, with harmless read requests only;",
-            "read each module's name, part number and fault codes;",
-            "show each module's live values once they are known, from the workshop manual and the data explorer.",
-        ] {
-            ui.label(format!("  • {l}"));
-        }
-        ui.add_space(6.0);
-        ui.label(RichText::new("Until then, the engine computer's OBD-II data is on the other pages.").color(pal.dim));
-    }
 }

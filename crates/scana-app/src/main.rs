@@ -9,6 +9,7 @@
 
 mod app;
 mod chart;
+mod names;
 mod pages;
 mod screenshot;
 mod settings;

@@ -25,6 +25,7 @@ pub enum Page {
     Tests,
     Info,
     Modules,
+    Explorer,
     Monitor,
     Sessions,
     Learn,
@@ -32,7 +33,7 @@ pub enum Page {
 }
 
 impl Page {
-    pub const ALL: [Page; 13] = [
+    pub const ALL: [Page; 14] = [
         Page::Home,
         Page::Health,
         Page::Codes,
@@ -42,6 +43,7 @@ impl Page {
         Page::Tests,
         Page::Info,
         Page::Modules,
+        Page::Explorer,
         Page::Monitor,
         Page::Sessions,
         Page::Learn,
@@ -59,6 +61,7 @@ impl Page {
             Page::Tests => "tests",
             Page::Info => "info",
             Page::Modules => "modules",
+            Page::Explorer => "explorer",
             Page::Monitor => "monitor",
             Page::Sessions => "sessions",
             Page::Learn => "learn",
@@ -76,7 +79,8 @@ impl Page {
             Page::Readiness => "Readiness",
             Page::Tests => "Test results",
             Page::Info => "Vehicle info",
-            Page::Modules => "Modules (stage 3)",
+            Page::Modules => "Modules",
+            Page::Explorer => "Data explorer",
             Page::Monitor => "Bus monitor",
             Page::Sessions => "Sessions, reports",
             Page::Learn => "Learn",
@@ -130,6 +134,19 @@ pub struct ScanaApp {
     pub open_job: Option<String>,
     pub sessions_dir: std::path::PathBuf,
     pub shot: Option<ShotPlan>,
+    /// Stage 3: the module open on the Modules page.
+    pub module_selected: Option<scana_core::Channel>,
+    /// The data explorer's module, kind of ID, range, watch and chosen byte.
+    pub explore_channel: Option<scana_core::Channel>,
+    pub explore_kind: scana_core::modules::DataKind,
+    pub explore_from: String,
+    pub explore_to: String,
+    pub explore_watch: bool,
+    pub explore_byte: Option<(u16, usize)>,
+    pub name_text: String,
+    pub console_text: String,
+    /// Names the user gave to data explorer values.
+    pub names: crate::names::Names,
     applied: Option<(ThemeChoice, f32)>,
 }
 
@@ -162,8 +179,20 @@ impl ScanaApp {
             glossary_filter: String::new(),
             monitor_obd_only: false,
             open_job: None,
+            names: crate::names::Names::load(
+                persist.then(|| sessions_dir.parent().map(|d| d.join("names.toml"))).flatten(),
+            ),
             sessions_dir,
             shot,
+            module_selected: None,
+            explore_channel: None,
+            explore_kind: scana_core::modules::DataKind::Did,
+            explore_from: "F180".into(),
+            explore_to: "F19F".into(),
+            explore_watch: false,
+            explore_byte: None,
+            name_text: String::new(),
+            console_text: String::new(),
             applied: None,
         };
         app.push_gaps();
@@ -211,6 +240,10 @@ impl ScanaApp {
     }
 
     pub fn go(&mut self, page: Page) {
+        if self.page == Page::Explorer && page != Page::Explorer {
+            // Watching takes bus time from the live values: stop it when leaving.
+            self.stop_watch();
+        }
         self.page = page;
         if page == Page::Sessions {
             self.sessions = None; // rescan on entry
@@ -359,10 +392,7 @@ impl ScanaApp {
         ui.add_space(6.0);
         for p in Page::ALL {
             let selected = self.page == p;
-            let mut text = RichText::new(p.title());
-            if p == Page::Modules {
-                text = text.color(self.pal().dim);
-            }
+            let text = RichText::new(p.title());
             let w = ui.available_width();
             if ui
                 .add(
@@ -513,6 +543,7 @@ impl ScanaApp {
                 Page::Tests => self.page_tests(ui),
                 Page::Info => self.page_info(ui),
                 Page::Modules => self.page_modules(ui),
+                Page::Explorer => self.page_explorer(ui),
                 Page::Monitor => self.page_monitor(ui),
                 Page::Sessions => self.page_sessions(ui),
                 Page::Learn => self.page_learn(ui),

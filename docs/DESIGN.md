@@ -1,6 +1,6 @@
 # Scana design
 
-How Scana works, as built in version 0.1.0 (stages 1 and 2). Parts marked (draft) are still plans.
+How Scana works, as built in version 0.1.0 (stages 1, 2 and 3). Parts marked (draft) are still plans.
 
 | Section | |
 |---|---|
@@ -11,6 +11,7 @@ How Scana works, as built in version 0.1.0 (stages 1 and 2). Parts marked (draft
 | 5 | Laptop app: crates and threads |
 | 6 | Protocol stack |
 | 7 | Connecting to a car |
+| 7a | Finding and reading modules |
 | 8 | Polling |
 | 9 | Data: definitions and vehicle profiles |
 | 10 | Sessions, logs and reports |
@@ -147,13 +148,13 @@ Cargo workspace, seven crates:
 
 | Crate | Holds | Rules |
 |---|---|---|
-| `scana-proto` | CAN frames, the bridge's SLCAN protocol, ISO-TP, OBD-II services, the PID table, mode 06 (results, scaling, names), fault codes, candump lines | No I/O, no threads, no clock: time comes in as an argument. Deterministic |
-| `scana-db` | Scana's knowledge as text files in `data/`, built into the program: fault code descriptions and advice, what each value means, glossary, guided jobs, page help, the lesson, vehicle profiles | A file that fails to parse gives an empty list, never a crash; tests check every file parses |
+| `scana-proto` | CAN frames, the bridge's SLCAN protocol, ISO-TP (with address bytes), OBD-II services, the PID table, mode 06 (results, scaling, names), fault codes, candump lines, and the read-only parts of UDS and KWP2000 (`uds.rs`: services and their safety levels, module fault codes with status and failure type, identity data IDs) | No I/O, no threads, no clock: time comes in as an argument. Deterministic |
+| `scana-db` | Scana's knowledge as text files in `data/`, built into the program: fault code descriptions and advice, what each value means, glossary, guided jobs, page help, the lesson, vehicle profiles, and the module address book (`data/modules/addresses.toml`) | A file that fails to parse gives an empty list, never a crash; tests check every file parses |
 | `scana-link` | `SlcanLink` (the bridge over serial, `serialport` crate) and `SimLink` (the simulator); later replay and SocketCAN | One trait, `Link`. `SlcanLink` has a reader thread; replies and frames go down separate channels |
-| `scana-sim` | Virtual vehicles: the Hijet (healthy, with the dash, with faults), a two-ECU car, 29-bit and 250k variants; freeze frames, mode 06, clearing resets readiness | Used by tests, the demo cars and `--sim` |
-| `scana-core` | `Client`, `detect`, readers (supported PIDs, live values, codes, freeze frames, readiness, test results, vehicle info), the poller, the clear-codes gate (`safety`), the recorder and session store, the health report, frame descriptions, and the session worker | The worker owns the link on its own thread and talks to the app by channels |
-| `scana-app` | The egui 0.37 (eframe) desktop app: 13 pages, the Learn panel, status bar, themes, its own line charts (`chart.rs`), a screenshot mode | Never blocks: draws from the latest updates. Layouts reflow from 1366 x 768 up |
-| `scana-cli` | `scana`: `ports`, `probe`, `loopback`, `monitor`, `detect`, `pids`, `codes`, `info`, `freeze`, `tests`, `health`, `clear`; `--sim`, `--sim-dash`, `--sim-faults`, `--port`, `--log` | For headless checks by people and AI agents |
+| `scana-sim` | Virtual vehicles: the Hijet (healthy, with the dash, with faults), a two-ECU car, 29-bit and 250k variants; freeze frames, mode 06, clearing resets readiness; simulated modules (`modules.rs`: ABS, airbag, cluster, A/C, body behind a gateway, UDS and KWP2000) | Used by tests, the demo cars and `--sim`. The module layout is invented for testing |
+| `scana-core` | `Client` (with `Channel`s for any module), `detect`, readers (supported PIDs, live values, codes, freeze frames, readiness, test results, vehicle info), the poller, the clear-codes gate (`safety`), module discovery and module readers (`modules.rs`), the recorder and session store, the health report, frame descriptions, and the session worker | The worker owns the link on its own thread and talks to the app by channels |
+| `scana-app` | The egui 0.37 (eframe) desktop app: 14 pages (with Modules and the Data explorer), the Learn panel, status bar, themes, its own line charts (`chart.rs`), a screenshot mode | Never blocks: draws from the latest updates. Layouts reflow from 1366 x 768 up |
+| `scana-cli` | `scana`: `ports`, `probe`, `loopback`, `monitor`, `detect`, `pids`, `codes`, `info`, `freeze`, `tests`, `health`, `clear`, `record`, `modules`, `module`, `send`; `--sim`, `--sim-dash`, `--sim-faults`, `--port`, `--log` | For headless checks by people and AI agents |
 
 Threads:
 
@@ -177,7 +178,7 @@ Threads:
 | OBD-II addressing | ISO 15765-4 | 11-bit: functional 0x7DF, physical 0x7E0-0x7E7, replies 0x7E8-0x7EF. 29-bit: functional 0x18DB33F1, physical 0x18DAxxF1, replies 0x18DAF1xx |
 | OBD-II services | SAE J1979, ISO 15031-5 | 01 live data, 02 freeze frame, 03 stored codes, 04 clear, 06 test results, 07 pending codes, 09 vehicle info, 0A permanent codes |
 | Codes | SAE J2012, ISO 15031-6 | P, C, B, U codes; descriptions from openly licensed lists (see 9) |
-| Enhanced | ISO 14229-1 (UDS), and KWP2000 on CAN where a module needs it | Read-only services first: 0x10 01, 0x3E, 0x22, 0x19, 0x1A (KWP). 0x14 clear behind the gate |
+| Enhanced | ISO 14229-1 (UDS), and KWP2000 on CAN (ISO 14230-3) | Read only: UDS 0x3E, 0x22, 0x19; KWP 0x1A, 0x21, 0x18, 0x13. Modules behind a gateway use ISO 15765-2 extended addressing: an address byte in front of every frame, 7 bytes of ISO-TP after it |
 
 Mode 01 requests on CAN may ask for up to 6 PIDs at once. The scheduler groups PIDs to cut the request count.
 
@@ -191,6 +192,38 @@ Bus manners. These are hard rules:
 4. Once replies arrive, store the protocol, the replying ECU IDs and the supported PIDs (PIDs 00, 20, 40, 60, 80, A0, C0) in the session.
 5. Watch for **other testers**: requests on 0x7DF or 0x7E0-0x7E7 that Scana did not send, for example a dash display sharing the port through an OBD splitter at about 20 requests a second. Scana then lowers its own rate and matches replies to its own requests only. Simple dash displays often read only single-frame mode 01 replies, and may stop asking for a PID after a refusal (`7F 01`): so Scana only asks for mode 01 PIDs the ECU lists as supported. While another tester is active, warn before multi-frame requests (two testers sending flow control can confuse an ECU).
 6. If TEC rises above 96 (error warning) or the bus goes bus-off, drop to listen-only and tell the user.
+
+## 7a. Finding and reading modules
+
+Stage 3. **Discovery** finds every module that answers a scan tool, with one tester-present request (`3E 00`) per likely request ID. A UDS module answers `7E 00`; a module that speaks another dialect refuses (`7F 3E ..`). Either answer means a module is there. Hard rules:
+
+1. Only while the car is still, when an ECU reports vehicle speed (PID 0D). With no speed reading, discovery runs and says it couldn't check.
+2. Listen for 1 s first. Never send on an ID heard on the bus: it belongs to someone else. A gateway ID heard on the bus is skipped whole.
+3. Never send on the OBD-II functional ID (0x7DF) or the OBD-II reply IDs (0x7E8-0x7EF).
+4. One request at a time at the usual pace (section 8), a 60 ms wait for each answer, and a stop at the first bus error. The user can stop it at any time.
+5. At most 48 modules: more means something answers everything, so Scana stops.
+
+What it tries:
+
+| Car | Request IDs | Count |
+|---|---|---|
+| 11-bit OBD-II | 0x700-0x7F7, without the IDs above | about 238 |
+| A maker family with a gateway | the gateway ID with every address byte (Toyota family: 0x750, replies from 0x758) | 256 |
+| 29-bit OBD-II | 0x18DAxxF1 for every target xx | 255 |
+
+On the demo car it tries 494 addresses in about 35 s; with a dash display sharing the bus, expect about 50 s.
+
+**Names.** A module that gives its system name (UDS F197, KWP 1A 97) is shown by it. Otherwise the address book (`data/modules/addresses.toml`) gives the usual module at that address for the maker family, shown with "(probably)". The family comes from the vehicle profile's make (Daihatsu is assumed to follow the Toyota layout until a discovery on the truck shows otherwise). Each address book entry names its source.
+
+**Reading a module** (`modules::read_module`): identity first, which also settles the dialect. UDS: the identity data IDs F197, F187, F18A, F191-F195, F181, F188, F189, F18B, F18C, F190, one per request; `7F 22 11` means it isn't UDS. KWP: Toyota-style `1A 88 00` (lists sub-IDs), then `1A 88 nn`, then the common `1A` options. Then fault codes: UDS `19 02 FF` (or `19 02 08`), KWP `18 00 FF 00`, `18 02 FF 00` or `13`. OBD-II computers also give their service 03 and 07 codes, merged in.
+
+Module codes carry more than OBD-II codes: UDS adds a failure type byte (`C0035-11`: "the circuit is shorted to ground") and a status byte (failing now, stored, pending, happened earlier, warning light). KWP has a status byte too (ISO 14230-3; makers vary).
+
+**Data explorer**: `modules::scan_data` reads every ID in a range (UDS `22`, 16-bit IDs; KWP `21`, 8-bit) and keeps the ones answered. It stops if the module refuses the service itself, or after 5 silences in a row. Watching reads the found IDs in turn, taking turns with the live values, and the app lights up bytes that changed in the last 2 s. Names the user gives to bytes are kept in `$XDG_DATA_HOME/scana/names.toml`, on that computer only.
+
+**Console** (advanced mode): one request typed in hex, to the explorer's module. `uds::level_of` checks it first; only safety level 0 (read) is sent.
+
+Sessions: a discovery's frames are recorded like everything else, and `modules.toml` in the session folder lists what was found (without VINs). The health check reads every found module's codes again and adds an "All modules" section.
 
 ## 8. Polling
 
@@ -232,7 +265,7 @@ Every service Scana can send has a level. The UI shows the current level in the 
 | 2 Change (stage 4) | Actuator tests (UDS 0x2F), routines (0x31) and service resets, only from a vehicle profile entry with a source | Advanced mode on, per-action confirmation, vehicle conditions checked before and during, a time limit, and every step logged |
 | Never | Programming (0x34-0x37), security access (0x27), coding or writing data (0x2E), changing communication (0x28, 0x85) | Not in the code |
 
-Raw frame sending (bus monitor and UDS console) is level 2, advanced mode only, and refuses IDs and services outside the allowed list unless the user types the frame and confirms it.
+The console (data explorer, advanced mode) sends only level 0 requests: `uds::level_of` refuses anything else before it reaches the bus, with the reason. Raw frames on any ID can't be sent at all; module discovery's probes follow the rules in section 7a.
 
 ## 12. Reliability rules
 
@@ -247,7 +280,8 @@ Raw frame sending (bus monitor and UDS console) is level 2, advanced mode only, 
 | Kind | What | Where |
 |---|---|---|
 | Unit | Decoders against values from standards and from the truck's 2026-10-10 scan; data files parse | `scana-proto`, `scana-db` |
-| Session worker | Whole connections on the demo cars: live values, codes, recording, health check with its report, clearing with consent | `scana-core/src/session.rs` |
+| Session worker | Whole connections on the demo cars: live values, codes, recording, health check with its report, clearing with consent, module discovery (and stopping it), the data explorer, the console | `scana-core/src/session.rs` |
+| Modules | Discovery on 11-bit, gateway and 29-bit layouts, with a dash display on the bus; skipped IDs; reading UDS and KWP modules; data scans; the console refusing writes | `scana-core/src/modules.rs`, `scana-sim/src/modules.rs` |
 | Screens | `scana-app --screenshots DIR` drives every page on the demo cars at 1366 x 768 and once at 1024 x 700 and saves PNGs to look at; `--shot-bridge DIR` connects to the real bridge | By hand after UI changes |
 | Property and fuzz | ISO-TP framing round trips, random frame streams | `scana-proto`, `cargo fuzz` |
 | Simulator | Whole sessions against virtual ECUs, with faults: lost frames, late replies, negative responses, a second tester, wrong bit rate, cable pulled | `scana-sim`, `tests/` |

@@ -4,6 +4,9 @@
 
 id = "daihatsu-hijet-s510p-2024"
 name = "2024 Daihatsu Hijet Jumbo"
+# Daihatsu is part of the Toyota group: module discovery tries Toyota's address layout
+# (data/modules/addresses.toml) until a discovery on the truck shows what is really there.
+make = "Daihatsu"
 model = "S510P, KF-VE4 658 cc three-cylinder, 4WD 5-speed manual"
 bitrate = 500000
 addressing = "11-bit"

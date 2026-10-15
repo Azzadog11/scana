@@ -5,7 +5,9 @@
 use crate::app::{Page, ScanaApp, Topic};
 use crate::settings::ThemeChoice;
 use egui::{ColorImage, ViewportCommand};
-use scana_core::session::{Command, Source};
+use scana_core::Channel;
+use scana_core::modules::DataKind;
+use scana_core::session::{Command, Source, WatchSpec};
 use scana_proto::{CanId, Dtc};
 use std::fs::File;
 use std::io::BufWriter;
@@ -32,6 +34,16 @@ enum Act {
     WaitCodes,
     Wait(f64),
     Shot(&'static str),
+    FindModules,
+    WaitDiscovery,
+    SelectModule(&'static str),
+    /// Scan a module's data IDs in the explorer: address, kind, from, to.
+    Explore(&'static str, DataKind, u16, u16),
+    WaitScan,
+    Watch,
+    SelectByte(u16, usize),
+    Advanced(bool),
+    Console(&'static str),
 }
 
 pub struct ShotPlan {
@@ -109,6 +121,27 @@ impl ShotPlan {
             Wait(0.8),
             Shot("13-clear-dialog"),
             CloseClear,
+            FindModules,
+            Go(Page::Modules),
+            Wait(5.0),
+            Shot("18-modules-searching"),
+            WaitDiscovery,
+            SelectModule("7C0"),
+            Topic(Some(crate::app::Topic::Dtc(Dtc(0xC100)))),
+            Wait(1.0),
+            Shot("19-modules"),
+            Topic(None),
+            Explore("750/40", DataKind::Lid, 0x00, 0x10),
+            WaitScan,
+            Watch,
+            Wait(14.0),
+            SelectByte(1, 0),
+            Advanced(true),
+            Console("21 02"),
+            Wait(1.5),
+            Shot("20-explorer"),
+            Advanced(false),
+            Go(Page::Home),
             Go(Page::Sessions),
             Wait(1.0),
             Shot("14-sessions"),
@@ -204,6 +237,48 @@ pub fn step(app: &mut ScanaApp, mut plan: ShotPlan, ctx: &egui::Context) -> Opti
                 app.loaded = Some((s.name.clone(), l));
                 app.graph_window_s = f64::INFINITY;
                 app.go(Page::Graphs);
+            }
+            true
+        }
+        Act::FindModules => {
+            app.session.send(Command::FindModules);
+            true
+        }
+        Act::WaitDiscovery => (app.model.discovery.is_some() && app.model.busy.is_none()) || elapsed > 120.0,
+        Act::SelectModule(label) => {
+            app.module_selected = Channel::parse(label);
+            true
+        }
+        Act::Explore(label, kind, from, to) => {
+            if let Some(ch) = Channel::parse(label) {
+                app.open_explorer(ch, kind);
+                app.explore_from = format!("{from:02X}");
+                app.explore_to = format!("{to:02X}");
+                app.session.send(Command::ScanData { channel: ch, kind, from, to });
+            }
+            true
+        }
+        Act::WaitScan => (!app.model.explore.items.is_empty() && app.model.busy.is_none()) || elapsed > 30.0,
+        Act::Watch => {
+            if let Some(ch) = app.explore_channel {
+                let ids = app.model.explore.items.keys().copied().collect();
+                app.session.send(Command::Watch(Some(WatchSpec { channel: ch, kind: app.explore_kind, ids })));
+                app.explore_watch = true;
+            }
+            true
+        }
+        Act::SelectByte(id, byte) => {
+            app.explore_byte = Some((id, byte));
+            true
+        }
+        Act::Advanced(on) => {
+            app.settings.advanced = on;
+            true
+        }
+        Act::Console(hex) => {
+            if let (Some(ch), Some(req)) = (app.explore_channel, scana_proto::uds::parse_hex(hex)) {
+                app.console_text = hex.into();
+                app.session.send(Command::Console { channel: ch, request: req });
             }
             true
         }

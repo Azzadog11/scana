@@ -5,7 +5,13 @@
 //! 11-bit IDs, one engine ECU on 0x7E0/0x7E8, the same 30 live PIDs, readiness monitors and
 //! no codes. Values move over time (idle, revs, warming up) so screens and graphs have
 //! something to show. Time is passed in as milliseconds; nothing here reads a clock.
+//!
+//! Beyond OBD-II, the car carries simulated modules ([`modules`]): brakes, airbags, the
+//! instrument cluster, body control and air conditioning, answering UDS or KWP2000 reads.
 
+pub mod modules;
+
+use modules::Module;
 use scana_proto::isotp::{self, SendStep, Sender};
 use scana_proto::{Bitrate, CanId, Dtc, Frame};
 use std::collections::VecDeque;
@@ -280,6 +286,8 @@ pub struct VirtualCar {
     pub bitrate: Bitrate,
     pub extended_ids: bool,
     pub ecus: Vec<Ecu>,
+    /// Modules that answer enhanced (UDS or KWP) requests.
+    pub modules: Vec<Module>,
     pub faults: Faults,
     other_tester: Option<OtherTester>,
     /// Frames waiting to appear on the bus: (time, frame), in time order.
@@ -305,6 +313,7 @@ impl VirtualCar {
             bitrate: Bitrate::K500,
             extended_ids: false,
             ecus: vec![ecm],
+            modules: modules::hijet_demo_modules(),
             faults: Faults::default(),
             other_tester: None,
             out: VecDeque::new(),
@@ -322,7 +331,14 @@ impl VirtualCar {
         // Stored mid-blip, so the freeze frame shows revs above idle.
         e.freeze = Some((Dtc(0x0128), 11_500));
         e.tests = demo_tests(true);
+        car.modules = modules::hijet_demo_modules_with_faults();
         car
+    }
+
+    /// The car without its enhanced modules (OBD-II only).
+    pub fn without_modules(mut self) -> Self {
+        self.modules.clear();
+        self
     }
 
     /// A car with two OBD ECUs (engine 7E8, gearbox 7E9), with one stored and one pending code.
@@ -342,13 +358,22 @@ impl VirtualCar {
         car
     }
 
-    /// The same car on 29-bit IDs (ECU n: request 18DA(10+n)F1, reply 18DAF1(10+n)).
+    /// The same car on 29-bit IDs (ECU n: request 18DA(10+n)F1, reply 18DAF1(10+n)). Its
+    /// modules move to 29-bit too (module n at 18DA(20+n)F1), without address bytes; the
+    /// engine computer's enhanced side is dropped.
     pub fn extended(mut self) -> Self {
         self.extended_ids = true;
         for (i, e) in self.ecus.iter_mut().enumerate() {
             let addr = 0x10 + i as u32;
             e.request_id = CanId::Extended(0x18DA_00F1 | (addr << 8));
             e.reply_id = CanId::Extended(0x18DA_F100 | addr);
+        }
+        self.modules.retain(|m| m.request_id != CanId::Standard(0x7E0));
+        for (i, m) in self.modules.iter_mut().enumerate() {
+            let addr = 0x20 + i as u32;
+            m.request_id = CanId::Extended(0x18DA_00F1 | (addr << 8));
+            m.reply_id = CanId::Extended(0x18DA_F100 | addr);
+            m.ext_addr = None;
         }
         self
     }
@@ -374,9 +399,33 @@ impl VirtualCar {
     pub fn receive(&mut self, frame: &Frame, now_ms: u64) {
         let functional = if self.extended_ids { OBD_FUNCTIONAL_29 } else { OBD_FUNCTIONAL_11 };
         let data = frame.data();
+        // A single-frame request's service byte, if this is one.
+        let service = match isotp::kind_of(data) {
+            Some(isotp::FrameKind::Single) => data.get(1).copied(),
+            _ => None,
+        };
+        // Enhanced modules. Where one shares its ID with an OBD ECU (the engine computer's
+        // enhanced side), OBD services 01-0A go to the ECU and the rest to the module.
+        for m in 0..self.modules.len() {
+            let Some(payload) = self.modules[m].payload_of(frame) else { continue };
+            let payload = payload.to_vec();
+            let shared = self.modules[m].ext_addr.is_none()
+                && self.ecus.iter().any(|e| e.request_id == self.modules[m].request_id);
+            if shared && service.is_some_and(|s| s <= 0x0A) {
+                continue;
+            }
+            for (at, f) in self.modules[m].receive(&payload, now_ms) {
+                self.push_out(at + self.faults.extra_delay_ms, f);
+            }
+        }
         for i in 0..self.ecus.len() {
             let to_me = frame.id == self.ecus[i].request_id;
             if frame.id != functional && !to_me {
+                continue;
+            }
+            let enhanced_here =
+                self.modules.iter().any(|m| m.ext_addr.is_none() && m.request_id == self.ecus[i].request_id);
+            if to_me && enhanced_here && service.is_some_and(|s| s > 0x0A) {
                 continue;
             }
             match isotp::kind_of(data) {
@@ -570,6 +619,11 @@ impl VirtualCar {
         if let Some(o) = &self.other_tester {
             t = Some(t.map_or(o.next_ms, |x| x.min(o.next_ms)));
         }
+        for m in &self.modules {
+            if let Some(at) = m.next_due() {
+                t = Some(t.map_or(at, |x| x.min(at)));
+            }
+        }
         t
     }
 
@@ -609,6 +663,11 @@ impl VirtualCar {
                     SendStep::Wait => *at = if sender.is_waiting_for_flow_control() { u64::MAX } else { t + 1 },
                     SendStep::Done | SendStep::Failed(_) => self.ecus[i].tx = None,
                 }
+            }
+        }
+        for m in 0..self.modules.len() {
+            for (at, f) in self.modules[m].poll(now_ms) {
+                self.push_out(at, f);
             }
         }
         let mut bus = Vec::new();
@@ -674,6 +733,45 @@ mod tests {
         assert_eq!(car.poll(30)[0].data()[..4], [0x03, 0x7F, 0x01, 0x12]);
         car.receive(&req(0x7E0, &[0x01, 0x22]), 40);
         assert_eq!(car.poll(50)[0].data()[..4], [0x03, 0x7F, 0x22, 0x11]);
+    }
+
+    #[test]
+    fn the_engine_computer_shares_its_id_with_its_enhanced_side() {
+        let mut car = VirtualCar::hijet();
+        // An OBD request: answered once, by the OBD side.
+        car.receive(&req(0x7E0, &[0x02, 0x01, 0x0C]), 0);
+        let f = car.poll(10);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].data()[1], 0x41);
+        // An enhanced request: answered once, by the enhanced (KWP) side.
+        car.receive(&req(0x7E0, &[0x02, 0x21, 0x01]), 20);
+        let f = car.poll(30);
+        assert_eq!(f.len(), 1);
+        assert_eq!(&f[0].data()[..3], &[0x04, 0x61, 0x01]);
+        // Without modules, the OBD side refuses it.
+        let mut car = VirtualCar::hijet().without_modules();
+        car.receive(&req(0x7E0, &[0x02, 0x21, 0x01]), 0);
+        assert_eq!(car.poll(10)[0].data()[..4], [0x03, 0x7F, 0x21, 0x11]);
+    }
+
+    #[test]
+    fn modules_answer_on_the_bus_with_flow_control() {
+        let mut car = VirtualCar::hijet();
+        car.receive(&req(0x780, &[0x03, 0x22, 0xF1, 0x8A]), 0);
+        let f = car.poll(10);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].id, CanId::Standard(0x788));
+        assert_eq!(f[0].data()[0], 0x10);
+        car.receive(&req(0x780, &[0x30, 0, 0]), 20);
+        // 62 F1 8A + 18 characters = 21 bytes: a first frame (6) and three consecutive frames.
+        let f = car.poll(40);
+        assert_eq!(f.len(), 3);
+        // 29-bit modules.
+        let mut car = VirtualCar::hijet().extended();
+        assert!(car.modules.iter().all(|m| m.request_id.is_extended()));
+        let id = car.modules[0].request_id;
+        car.receive(&Frame::new(id, &[0x02, 0x3E, 0x00]).unwrap(), 0);
+        assert_eq!(car.poll(10).len(), 1);
     }
 
     #[test]

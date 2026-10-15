@@ -1,0 +1,225 @@
+# Diagnosis guide: fuel vapour (EVAP) purge and vent faults (P0441, P0443 to P0449,
+# P0450 to P0454, P0496, P0497). Written for Scana (2026-10-16) from the sources below.
+
+id = "evap-purge"
+title = "Fuel vapour purge or vent valve fault (EVAP)"
+codes = ["P0441", "P0443-P0449", "P0450-P0454", "P0496", "P0497"]
+summary = "Part of the fuel vapour system isn't working as commanded. P0441 and P0496 are about purge flow (too little, or flow when there should be none). P0443 to P0445 are the purge valve's circuit, P0446 to P0449 the vent valve's, and P0450 to P0454 the tank pressure sensor's. Circuit codes are often a plug or wire; flow codes are often a stuck valve."
+how_it_works = [
+  "The purge valve, near the engine, opens on command to let the engine draw fuel vapour from the charcoal canister and burn it.",
+  "The vent valve, usually near the canister, lets fresh air into the canister, and closes when the computer tests the system for leaks.",
+  "A tank pressure sensor tells the computer how the vacuum or pressure changes during the test.",
+  "A purge valve stuck open feeds vapour all the time: a rich mixture, rough idle and hard starting after refuelling. A blocked vent can make refuelling slow.",
+]
+terms = ["EVAP", "Charcoal canister", "Purge valve", "Vent valve", "Fuel trim"]
+safety = [
+  "Fuel vapour burns easily. No smoking, flames or sparks near the tank, canister and hoses.",
+]
+sources = [
+  "'P0441 Evaporative Emission Control System Incorrect Purge Flow', samarins.com (read 2026-10-16)",
+  "'P0446 Evaporative Emission Control System Vent Control Circuit Malfunction', samarins.com, and 'P0446 Code', apextechnation.com (vent solenoids often 20 to 40 ohms) (read 2026-10-16)",
+  "'P0172 System Too Rich' sources (purge valve stuck open causes rich running), samarins.com (read 2026-10-16)",
+]
+related = ["evap-leak", "rich"]
+
+[[cause]]
+id = "purge-stuck"
+name = "The purge valve is stuck open or shut"
+detail = "Dirt or charcoal dust from a failing canister jams the valve. Stuck open, it also makes the engine run rich."
+weight = 30
+fix = "Replace the purge valve. If charcoal dust is in the lines, replace the canister too."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A wiring or connector fault"
+detail = "Circuit codes (P0443 to P0449, P0450 to P0454) are often a corroded plug or a broken wire, not the valve."
+weight = 25
+fix = "Repair the plug or wire. Check the valve's power and the computer's control wire."
+cost = "low"
+
+[[cause]]
+id = "vent"
+name = "The vent valve is stuck, or its line is blocked"
+detail = "Dust, mud or spider webs block the vent line or filter, or the valve sticks. The tank can't breathe."
+weight = 20
+fix = "Clear the vent line and filter; replace a stuck vent valve."
+cost = "low"
+
+[[cause]]
+id = "hose"
+name = "A purge hose that is off, kinked or blocked"
+detail = "With no path from the canister to the engine, the computer sees no purge flow."
+weight = 12
+fix = "Refit or replace the hose."
+cost = "low"
+
+[[cause]]
+id = "canister"
+name = "A failing charcoal canister"
+detail = "A broken canister can shed charcoal into the lines and valves."
+weight = 8
+fix = "Replace the canister, and clean or replace the valves its charcoal reached."
+cost = "medium"
+
+[[cause]]
+id = "sensor"
+name = "The tank pressure sensor"
+detail = "For P0450 to P0454, the tank pressure sensor or its wiring."
+weight = 5
+fix = "Check the wiring; replace the sensor."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Which kind of code?"
+why = "Circuit codes point to wiring or a valve's coil; flow codes to a stuck valve or hose."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0450-P0454"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P0443-P0445", "P0447", "P0448", "P0458", "P0459"]
+result = "circuit"
+[[test.auto.group]]
+patterns = ["P0446", "P0449"]
+result = "vent"
+[[test.auto.group]]
+patterns = ["P0441", "P0496", "P0497"]
+result = "flow"
+[[test.result]]
+id = "circuit"
+text = "A purge or vent valve circuit code"
+effect = { wiring = 3, purge-stuck = -1 }
+[[test.result]]
+id = "vent"
+text = "Vent valve code (P0446, P0449)"
+effect = { vent = 2, wiring = 1 }
+[[test.result]]
+id = "flow"
+text = "Purge flow code (P0441, P0496, P0497)"
+effect = { purge-stuck = 2, hose = 1 }
+[[test.result]]
+id = "sensor"
+text = "Tank pressure sensor code (P0450 to P0454)"
+effect = { sensor = 4 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "rich-trim"
+title = "Check the fuel trims at idle"
+why = "Strongly negative trims at idle mean extra fuel vapour: a purge valve stuck open."
+needs = ["scan-tool"]
+steps = ["Warm the engine. At idle, add short and long term fuel trim."]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+below = -12.0
+result = "rich"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "rich"
+text = "Total below about -12 %"
+effect = { purge-stuck = 3 }
+[[test.result]]
+id = "normal"
+text = "Near zero"
+
+[[test]]
+id = "plug"
+title = "Look at the valves' plugs and wiring"
+why = "Circuit codes are often a plug or wire."
+steps = [
+  "Find the purge valve near the engine and the vent valve near the canister (often under the car near the tank).",
+  "Check each plug is on and clipped, without green corrosion, and the wires aren't damaged.",
+]
+[[test.result]]
+id = "bad"
+text = "A loose, corroded or damaged plug or wire"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "purge-blow"
+title = "Blow through the purge valve"
+why = "With no power the purge valve should be shut."
+steps = [
+  "With the engine off, take the hose to the canister off the purge valve.",
+  "Blow gently: air should not pass. Look inside for black charcoal grains.",
+]
+[[test.result]]
+id = "passes"
+text = "Air passes (stuck open)"
+effect = { purge-stuck = 4 }
+[[test.result]]
+id = "charcoal"
+text = "Charcoal grains inside"
+effect = { canister = 3, purge-stuck = 2 }
+[[test.result]]
+id = "shut"
+text = "Blocked, and clean"
+effect = { purge-stuck = -1 }
+
+[[test]]
+id = "vent-line"
+title = "Look at the vent line and filter"
+why = "A blocked vent stops the tank breathing."
+steps = ["Follow the vent hose from the canister: look for mud, dust, insects or webs blocking it or its filter."]
+[[test.result]]
+id = "blocked"
+text = "Blocked or dirty"
+effect = { vent = 4 }
+[[test.result]]
+id = "clear"
+text = "Clear"
+effect = { vent = -1 }
+
+[[test]]
+id = "refuel"
+title = "How does refuelling go?"
+why = "Hard starting just after refuelling points to purge stuck open; the pump clicking off early to a blocked vent."
+steps = ["Notice what happens when you fill up and start straight after."]
+[[test.result]]
+id = "hard-start"
+text = "Hard to start or rough right after refuelling"
+effect = { purge-stuck = 3 }
+[[test.result]]
+id = "clicks"
+text = "The fuel pump keeps clicking off early"
+effect = { vent = 3 }
+[[test.result]]
+id = "normal"
+text = "Normal"
+
+[[test]]
+id = "ohms"
+title = "Measure the valve's coil"
+why = "An open coil means the valve has failed; a normal one moves the blame to the wiring."
+needs = ["multimeter"]
+steps = [
+  "Unplug the valve and measure across its two pins.",
+  "Compare with the workshop manual. Many purge and vent valves read about 20 to 40 ohms.",
+]
+[[test.result]]
+id = "open"
+text = "No reading, or near zero"
+effect = { purge-stuck = 2, vent = 2, wiring = -1 }
+[[test.result]]
+id = "ok"
+text = "Within the specification"
+effect = { wiring = 2 }

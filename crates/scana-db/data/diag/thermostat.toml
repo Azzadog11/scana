@@ -1,0 +1,276 @@
+# Diagnosis guide: engine slow to warm up (P0128, P0125, P0126). Written for Scana
+# (2026-10-16) from the sources below. General guidance: check the maker's workshop manual.
+
+id = "thermostat"
+title = "Engine takes too long to warm up (thermostat)"
+codes = ["P0125", "P0126", "P0128"]
+summary = "The engine didn't reach its working temperature in the time the engine computer expects. P0128 is the usual code. Most often the thermostat is stuck partly open, so coolant flows through the radiator before the engine is warm. A coolant temperature sensor that reads low, low coolant, or a fan that never stops can do the same."
+how_it_works = [
+  "The thermostat is a valve between the engine and the radiator. It stays shut while the engine is cold so the engine warms quickly, then opens at its rated temperature, usually between about 82 and 95 °C.",
+  "The engine computer watches how fast the coolant warms after a start, allowing for the outside temperature. On many cars it expects about 70 to 75 °C within about 15 minutes of driving.",
+  "If the coolant is still too cool, on two drives in a row, it stores P0128 and turns on the check engine light.",
+  "A cold engine uses more fuel, heats the cabin poorly, and wears faster. It is not urgent, but worth fixing.",
+]
+terms = ["Thermostat", "Coolant temperature sensor", "Freeze frame"]
+fix_first = ["P0115-P0119", "P0480-P0485"]
+safety = [
+  "Never open the radiator cap or coolant tank cap on a hot engine: boiling coolant sprays out. Wait until it is cool to the touch.",
+  "Keep hands away from the radiator fan: it can start by itself even with the engine off.",
+  "Coolant is poisonous and tastes sweet to animals. Wipe up spills.",
+]
+sources = [
+  "'P0128 Code: Coolant Thermostat Below Temp', Identifix, identifix.com (read 2026-10-16)",
+  "'Code P0128 - Coolant Temperature Below Thermostat Regulating Temperature', samarins.com (read 2026-10-16)",
+  "'P0128: Coolant Temperature Below Thermostat Regulating Temperature', edmunds.com and repairpal.com (read 2026-10-16)",
+  "'P0128 Code: Coolant Temperature Below Thermostat Regulating Temperature', carparts.com (read 2026-10-16)",
+]
+related = ["coolant-sensor", "overheat"]
+
+[[cause]]
+id = "thermostat"
+name = "The thermostat is stuck partly open, or opens too early"
+detail = "Thermostats wear. Stuck open, it lets coolant through the radiator all the time, so the engine runs cool, worst on the highway and in cold weather."
+weight = 55
+fix = "Replace the thermostat (and its seal) with one of the rating the workshop manual gives. Bleed the air out of the cooling system afterwards."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "The coolant temperature sensor reads too low"
+detail = "A sensor that reads a few degrees low makes a warm engine look cool to the computer."
+weight = 15
+fix = "Replace the coolant temperature sensor, after checking its plug and wiring."
+cost = "low"
+
+[[cause]]
+id = "low-coolant"
+name = "Low coolant"
+detail = "With too little coolant, the sensor can sit in an air pocket and read wrongly, and the engine heats unevenly."
+weight = 10
+fix = "Top up with the right coolant, find and fix the leak, and bleed the air out."
+cost = "low"
+
+[[cause]]
+id = "fan"
+name = "The radiator fan runs all the time"
+detail = "A fan stuck on (a relay welded shut, or a fan switch fault) cools the radiator even when the engine is cold."
+weight = 8
+fix = "Find why the fan runs: the fan relay, its control, or a fan temperature switch."
+cost = "low"
+
+[[cause]]
+id = "wrong-part"
+name = "A replacement thermostat of the wrong rating"
+detail = "A cheap replacement may open at a lower temperature than the original, and the code comes back."
+weight = 7
+fix = "Fit a thermostat of the rating the workshop manual gives (often stamped on it)."
+cost = "low"
+
+[[cause]]
+id = "conditions"
+name = "Very cold weather with long idling or short trips"
+detail = "In very cold weather, long idling or short trips can keep a healthy engine cool for longer than the test allows."
+weight = 5
+fix = "Clear the code and see if it comes back in milder weather or on longer drives."
+cost = "low"
+
+[[test]]
+id = "other-codes"
+title = "Look for other codes"
+why = "A coolant sensor or fan code points straight at the cause."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["P0115-P0119"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P0480-P0485", "P0691-P0694"]
+result = "fan"
+[[test.result]]
+id = "none"
+text = "No other related codes"
+effect = { thermostat = 1 }
+[[test.result]]
+id = "sensor"
+text = "Coolant temperature sensor codes (P0115 to P0119)"
+effect = { sensor = 3 }
+goto = "coolant-sensor"
+[[test.result]]
+id = "fan"
+text = "Fan control codes"
+effect = { fan = 3 }
+
+[[test]]
+id = "warm-temp"
+title = "Coolant temperature after a drive"
+why = "A healthy engine reaches about 80 to 100 °C after 15 minutes of driving and stays there. One that stays lower runs too cool."
+needs = ["scan-tool"]
+steps = [
+  "Drive for at least 15 minutes, including some steady speed.",
+  "Read the coolant temperature while still driving, or just after you stop.",
+]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["05"]
+seconds = 10
+[[test.auto.outcome]]
+below = 70.0
+result = "cold"
+[[test.auto.outcome]]
+below = 80.0
+result = "cool"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "cold"
+text = "Below about 70 °C"
+effect = { thermostat = 2, fan = 1 }
+[[test.result]]
+id = "cool"
+text = "About 70 to 80 °C"
+effect = { thermostat = 1, wrong-part = 1 }
+[[test.result]]
+id = "normal"
+text = "About 80 °C or more"
+effect = { thermostat = -2, conditions = 2, sensor = 1 }
+note = "The engine warms up now. The fault may come and go, or it happened in very cold weather."
+
+[[test]]
+id = "cold-compare"
+title = "Compare coolant and air temperature on a cold engine"
+why = "After a night parked, coolant and intake air temperature should both read about the outside temperature."
+needs = ["scan-tool"]
+steps = [
+  "Leave the car parked for at least 6 hours.",
+  "Turn the key on and read coolant temperature and intake air temperature before starting.",
+]
+[test.auto]
+kind = "live"
+measure = "diff"
+pids = ["05", "0F"]
+seconds = 5
+hold = { pid = "05", to = 45.0, text = "Do this on a cold engine (parked for 6 hours)" }
+[[test.auto.outcome]]
+below = -6.0
+result = "low"
+[[test.auto.outcome]]
+result = "same"
+[[test.result]]
+id = "same"
+text = "Within a few degrees of each other"
+effect = { sensor = -1 }
+[[test.result]]
+id = "low"
+text = "Coolant reads clearly lower than the air"
+effect = { sensor = 3 }
+
+[[test]]
+id = "hose"
+title = "Feel the top radiator hose as the engine warms"
+why = "With a good thermostat the top hose stays cool for the first several minutes, then gets hot quickly when it opens. If it warms slowly from the start, the thermostat is open."
+steps = [
+  "Start the engine from cold and let it idle.",
+  "Every minute, touch the top radiator hose near the radiator, briefly and carefully.",
+]
+safety = ["The hose gets hot: touch it briefly with the back of your fingers. Keep clear of the fan and belts."]
+[[test.result]]
+id = "gradual"
+text = "It warms slowly from the start"
+effect = { thermostat = 3 }
+[[test.result]]
+id = "sudden"
+text = "It stays cool, then gets hot quickly after several minutes"
+effect = { thermostat = -2, sensor = 1 }
+[[test.result]]
+id = "unsure"
+text = "Can't tell"
+
+[[test]]
+id = "coolant-level"
+title = "Check the coolant level"
+why = "Low coolant upsets the sensor reading and the warm-up."
+steps = [
+  "With the engine cold, look at the coolant tank: the level should sit between the MIN and MAX marks.",
+  "Look for drips, wet hoses or white crust at hose joints and the radiator.",
+]
+safety = ["Engine cold only."]
+[[test.result]]
+id = "low"
+text = "Below MIN, or signs of a leak"
+effect = { low-coolant = 3 }
+[[test.result]]
+id = "ok"
+text = "Between the marks, no leaks"
+effect = { low-coolant = -2 }
+
+[[test]]
+id = "fan-cold"
+title = "Does the radiator fan run on a cold engine?"
+why = "The fan should stay off until the engine is warm (unless the air conditioning is on)."
+steps = [
+  "Start the engine from cold with the air conditioning and demister off.",
+  "Look and listen at the front of the engine: is the radiator fan turning?",
+]
+safety = ["Keep hands and loose clothing away from the fan."]
+[[test.result]]
+id = "runs"
+text = "The fan runs from a cold start"
+effect = { fan = 4 }
+[[test.result]]
+id = "off"
+text = "The fan stays off"
+effect = { fan = -2 }
+
+[[test]]
+id = "history"
+title = "Was the thermostat replaced recently?"
+why = "A recently fitted thermostat of the wrong rating brings the code back."
+steps = ["Check the service history or ask the owner."]
+[[test.result]]
+id = "recent"
+text = "Yes, with a non-original part"
+effect = { wrong-part = 3, thermostat = -1 }
+[[test.result]]
+id = "original"
+text = "No, or with an original part"
+effect = { wrong-part = -2 }
+[[test.result]]
+id = "unknown"
+text = "Not known"
+
+[[test]]
+id = "weather"
+title = "What were the conditions?"
+why = "Very cold weather with idling or short trips can set the code on a healthy engine."
+steps = ["Think about when the light came on: the weather, and how the car was being used."]
+[[test.result]]
+id = "cold-short"
+text = "Very cold weather, with long idling or short trips"
+effect = { conditions = 3 }
+[[test.result]]
+id = "normal"
+text = "Normal weather and driving"
+effect = { conditions = -2 }
+
+[[test]]
+id = "ir-check"
+title = "Check the real temperature with a thermometer"
+why = "If the engine is really warm but the scan tool reads low, the sensor is at fault."
+needs = ["ir-thermometer", "scan-tool"]
+steps = [
+  "After a 15-minute drive, read the coolant temperature on the scan tool.",
+  "Point the thermometer at the thermostat housing or the top hose where it leaves the engine.",
+]
+safety = ["The engine is hot: read from a distance and keep clear of the fan."]
+[[test.result]]
+id = "matches"
+text = "They agree within about 5 °C"
+effect = { sensor = -2 }
+[[test.result]]
+id = "sensor-low"
+text = "The thermometer reads clearly higher than the scan tool"
+effect = { sensor = 4 }

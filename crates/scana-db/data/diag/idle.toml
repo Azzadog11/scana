@@ -1,0 +1,222 @@
+# Diagnosis guide: idle speed control (P0505 to P0509). Written for Scana (2026-10-16).
+# General guidance: check the maker's workshop manual for the car's idle speed.
+
+id = "idle"
+title = "Idle speed wrong or unsteady"
+codes = ["P0505-P0509"]
+summary = "The engine computer couldn't hold the idle speed it wanted. P0506 means the idle is lower than wanted, P0507 higher; P0505, P0508 and P0509 are the idle control system or its circuit. Common causes are carbon in the throttle body or idle valve, an air leak (high idle), and a sticking idle control valve on older cars."
+how_it_works = [
+  "At idle the throttle is almost shut. The engine computer sets the idle speed by letting a little air past: with an idle air control valve on older cars, or by opening the electronic throttle a fraction on newer ones.",
+  "It aims for a target speed (often about 650 to 850 rpm when warm, higher when cold) and adjusts for loads such as the air conditioning and the headlights.",
+  "Carbon narrows the air path, so the idle drops. An air leak adds air the computer can't control, so the idle rises.",
+]
+terms = ["Throttle body", "Idle air control valve", "Electronic throttle", "Fuel trim"]
+safety = [
+  "Key out before touching the throttle body: the throttle plate can snap shut.",
+  "Keep hands, hair and clothing away from the fan and belts when the engine runs.",
+]
+sources = [
+  "Throttle body carbon and idle relearn: 'P2135 Code' sources (motorverso.com, axleaddict.com) and 'P0121' sources (go-parts.com) (read 2026-10-16)",
+  "Vacuum leaks raising idle and fuel trims: the lean guide's sources (kkrichardson.com, obdadvisor.com) (read 2026-10-16)",
+  "SAE J2012 code structure: P0506 idle lower than expected, P0507 higher than expected (descriptions in Scana's own words)",
+]
+related = ["throttle", "lean"]
+
+[[cause]]
+id = "carbon"
+name = "Carbon in the throttle body or idle air valve"
+detail = "Carbon narrows the small air path used at idle. The idle drops, may hunt, and the engine can stall when coming to a stop."
+weight = 35
+fix = "Clean the throttle body (and the idle air valve, where fitted) as the workshop manual says, then do the idle relearn if the car needs one."
+cost = "low"
+
+[[cause]]
+id = "air-leak"
+name = "An air leak"
+detail = "Air that gets in past the throttle (a split hose, the PCV valve, an intake gasket) raises the idle: P0507."
+weight = 25
+fix = "Find and repair the leak."
+cost = "low"
+
+[[cause]]
+id = "iac"
+name = "A sticking or failed idle air control valve (older cars)"
+detail = "On cars with a separate idle valve, carbon or wear makes it stick, or its coil fails (P0505, P0508, P0509)."
+weight = 15
+fix = "Clean or replace the idle valve; check its plug."
+cost = "medium"
+
+[[cause]]
+id = "load"
+name = "An extra load the engine computer doesn't expect"
+detail = "A dragging alternator, a failing air conditioning compressor, or a power steering fault can pull the idle down."
+weight = 10
+fix = "Find the load: check with the air conditioning off, and listen at the accessories."
+cost = "medium"
+
+[[cause]]
+id = "relearn"
+name = "The idle hasn't been relearnt after battery or throttle work"
+detail = "Some cars forget their learnt idle when the battery is disconnected, or need a relearn after the throttle is cleaned or replaced."
+weight = 10
+fix = "Do the idle relearn the workshop manual gives (often a set warm idle time with everything off)."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "For circuit codes, a plug or wire to the idle valve or throttle."
+weight = 5
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Low idle, high idle, or circuit?"
+why = "Low idle points to carbon or a load; high idle to an air leak; circuit codes to wiring or the valve."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0506"]
+result = "low"
+[[test.auto.group]]
+patterns = ["P0507"]
+result = "high"
+[[test.auto.group]]
+patterns = ["P0505", "P0508", "P0509"]
+result = "circuit"
+[[test.result]]
+id = "low"
+text = "Idle lower than wanted (P0506)"
+effect = { carbon = 2, load = 1, air-leak = -2 }
+[[test.result]]
+id = "high"
+text = "Idle higher than wanted (P0507)"
+effect = { air-leak = 3, carbon = -1 }
+[[test.result]]
+id = "circuit"
+text = "Idle control system or circuit (P0505, P0508, P0509)"
+effect = { iac = 3, wiring = 2 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "steady"
+title = "Is the idle steady?"
+why = "An idle that hunts up and down points to carbon, an air leak, or a sticking idle valve."
+needs = ["scan-tool"]
+steps = ["Warm the engine with everything switched off. Watch engine speed at idle for 30 seconds."]
+[test.auto]
+kind = "live"
+measure = "spread"
+pids = ["0C"]
+seconds = 30
+hold = { pid = "0C", to = 1500.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 200.0
+result = "hunts"
+[[test.auto.outcome]]
+result = "steady"
+[[test.result]]
+id = "steady"
+text = "Steady (it moves less than about 200 rpm)"
+effect = { iac = -1 }
+[[test.result]]
+id = "hunts"
+text = "It hunts up and down"
+effect = { carbon = 1, air-leak = 1, iac = 2 }
+
+[[test]]
+id = "trims"
+title = "Check the fuel trims at idle"
+why = "Trims well above zero at idle back up an air leak."
+needs = ["scan-tool"]
+steps = ["Warm the engine. At idle, add short and long term fuel trim."]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", to = 1500.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 10.0
+result = "lean"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "lean"
+text = "Above about +10 %"
+effect = { air-leak = 3 }
+goto = "lean"
+[[test.result]]
+id = "normal"
+text = "Near zero"
+effect = { air-leak = -1 }
+
+[[test]]
+id = "throttle-look"
+title = "Look inside the throttle body"
+why = "Carbon round the throttle plate is the most common cause of a low or unsteady idle."
+steps = ["Key out. Remove the intake duct and look at the throttle plate and bore for black, sticky carbon."]
+safety = ["Key out before putting fingers near the throttle plate."]
+[[test.result]]
+id = "dirty"
+text = "Carbon round the plate"
+effect = { carbon = 3 }
+[[test.result]]
+id = "clean"
+text = "Clean"
+effect = { carbon = -2 }
+
+[[test]]
+id = "listen"
+title = "Listen for an air leak"
+why = "A hiss at idle means air gets in where it shouldn't."
+steps = ["With the engine idling, listen around the intake manifold, its hoses and the PCV valve, and look for split hoses."]
+safety = ["Keep clear of the fan and belts."]
+[[test.result]]
+id = "hiss"
+text = "A hiss or a split hose"
+effect = { air-leak = 4 }
+[[test.result]]
+id = "none"
+text = "Nothing heard"
+effect = { air-leak = -1 }
+
+[[test]]
+id = "loads"
+title = "Does the idle change with loads?"
+why = "An idle that sags badly when the air conditioning or the steering is used points to that load."
+steps = [
+  "Warm idle: note the speed. Turn the air conditioning on, then the headlights, then turn the steering wheel to full lock (briefly).",
+  "A small dip that recovers is normal; a big drop or a stall is not.",
+]
+[[test.result]]
+id = "sags"
+text = "It drops a lot or stalls with one load"
+effect = { load = 3, carbon = 1 }
+[[test.result]]
+id = "fine"
+text = "Small dips that recover"
+effect = { load = -2 }
+
+[[test]]
+id = "battery-work"
+title = "Was the battery disconnected or the throttle worked on recently?"
+why = "Some cars need an idle relearn after that."
+steps = ["Think back: a new battery, a flat battery, or throttle body cleaning or replacement just before the problem?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { relearn = 4 }
+note = "Look up the idle relearn in the workshop manual. Often it means a warm idle for several minutes with everything off."
+[[test.result]]
+id = "no"
+text = "No"
+effect = { relearn = -2 }

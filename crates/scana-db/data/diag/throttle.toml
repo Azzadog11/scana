@@ -1,0 +1,223 @@
+# Diagnosis guide: throttle and accelerator pedal sensors and the electronic throttle
+# (P0120 to P0124, P0220 to P0229, P2100 to P2138, P0638). Written for Scana (2026-10-16)
+# from the sources below. General guidance: check the maker's workshop manual.
+
+id = "throttle"
+title = "Throttle or accelerator pedal sensor, or electronic throttle fault"
+codes = ["P0120-P0124", "P0220-P0229", "P2100-P2138", "P0638"]
+summary = "The engine computer doesn't trust the throttle position or the accelerator pedal reading, or the electronic throttle didn't move as commanded. Many cars then go into limp mode: little power, a fixed idle. P2135 means two throttle sensors disagree; P2138 two pedal sensors. P2111 and P2112 mean the throttle stuck open or shut; P0121 and P2101 that it doesn't respond as expected. Carbon in the throttle body and plug or wiring faults are common causes."
+how_it_works = [
+  "On most newer cars the accelerator pedal isn't connected to the throttle by a cable. Sensors in the pedal tell the engine computer how far it is pressed, and an electric motor opens the throttle (drive by wire).",
+  "The throttle has two position sensors, and the pedal has two. Each pair should always agree. If they don't, the computer can't be sure what the throttle is doing, so it limits power for safety (limp mode).",
+  "Carbon builds up around the throttle plate over time. It makes the throttle stick or sit at the wrong place at idle, which the computer can see as a fault.",
+  "Older cars with a cable have one throttle position sensor, reading about 0.5 V closed to about 4.5 V wide open on many models.",
+]
+terms = ["Throttle body", "Limp mode", "Electronic throttle"]
+safety = [
+  "Turn the ignition off and take the key out before touching the throttle body: the throttle plate can snap shut and trap fingers.",
+  "If the car is in limp mode, drive gently and get it checked: power can be very low when you need it, for example when joining traffic.",
+  "Throttle body cleaner is flammable: engine off and cool, no sparks.",
+]
+sources = [
+  "'P2135 Code: Throttle/Pedal Position Sensor Voltage Correlation', motorverso.com, and 'P2135 Code', axleaddict.com (read 2026-10-16)",
+  "Mitsubishi technical information 13A-DTC P2135 (main and sub sensor correlation criteria), mitsubishitechinfo.com (read 2026-10-16)",
+  "'OBD-II Code P0121: Throttle Position Sensor Performance Problem', go-parts.com, and carparts.com (read 2026-10-16)",
+]
+related = ["idle", "map"]
+
+[[cause]]
+id = "carbon"
+name = "Carbon in the throttle body"
+detail = "Black, sticky carbon round the throttle plate makes it stick or sit wrongly at idle."
+weight = 25
+fix = "Clean the throttle body as the workshop manual says (engine off, key out), then do the idle relearn the manual gives, if any."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault at the throttle or pedal"
+detail = "A loose or corroded plug, or a chafed wire, upsets one sensor's signal or the motor's power."
+weight = 25
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "throttle-body"
+name = "A faulty throttle body (its sensors or motor)"
+detail = "The sensors inside wear, or the motor or its gears fail. On most cars the sensors aren't sold on their own."
+weight = 25
+fix = "Replace the throttle body, then do the relearn the workshop manual gives."
+cost = "high"
+
+[[cause]]
+id = "pedal"
+name = "A faulty accelerator pedal sensor"
+detail = "The pedal's sensors wear with use. Pedal codes (P2120 to P2138, P2138 in particular) point here."
+weight = 15
+fix = "Replace the pedal assembly."
+cost = "medium"
+
+[[cause]]
+id = "power"
+name = "Low battery voltage or a supply fault"
+detail = "A weak battery or poor ground can upset the throttle motor and sensors, especially when starting."
+weight = 7
+fix = "Test and charge the battery; clean the battery and engine grounds."
+cost = "low"
+
+[[cause]]
+id = "computer"
+name = "An engine computer fault"
+detail = "Rare. The computer's throttle driver or sensor supply can fail."
+weight = 3
+fix = "Check after every other test passes."
+cost = "high"
+
+[[test]]
+id = "code-type"
+title = "Which kind of code?"
+why = "Pedal codes point to the pedal; throttle stuck or performance codes to carbon or the throttle body; sensor circuit codes to wiring or the throttle body."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P2120-P2134", "P2138", "P0225-P0229"]
+result = "pedal"
+[[test.auto.group]]
+patterns = ["P2111", "P2112", "P2101", "P0121", "P0638", "P2119"]
+result = "mechanical"
+[[test.auto.group]]
+patterns = ["P2135", "P0122", "P0123", "P0120", "P0124", "P0222", "P0223", "P0220", "P0221"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P2100", "P2102", "P2103"]
+result = "motor"
+[[test.result]]
+id = "pedal"
+text = "Pedal sensor codes (P2120 to P2134, P2138)"
+effect = { pedal = 4, carbon = -2 }
+[[test.result]]
+id = "mechanical"
+text = "Throttle stuck or slow (P2111, P2112, P2101, P0121, P0638)"
+effect = { carbon = 3, throttle-body = 1 }
+[[test.result]]
+id = "sensor"
+text = "Throttle sensor circuit or correlation (P2135, P0122, P0123, P0222, P0223)"
+effect = { wiring = 2, throttle-body = 2, carbon = 1 }
+[[test.result]]
+id = "motor"
+text = "Throttle motor circuit (P2100, P2102, P2103)"
+effect = { wiring = 2, throttle-body = 2, power = 1 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "carbon-look"
+title = "Look inside the throttle body"
+why = "Carbon round the throttle plate is common and cheap to fix."
+steps = [
+  "Engine off, key out.",
+  "Remove the intake duct from the throttle body.",
+  "Look at the throttle plate edge and the bore: black, sticky deposits?",
+]
+safety = ["Key out before putting fingers near the throttle plate: it can snap shut."]
+[[test.result]]
+id = "dirty"
+text = "Black, sticky carbon"
+effect = { carbon = 3 }
+[[test.result]]
+id = "clean"
+text = "Clean"
+effect = { carbon = -2 }
+
+[[test]]
+id = "plugs"
+title = "Look at the throttle and pedal plugs"
+why = "Corroded or loose plugs often cause sensor codes."
+steps = [
+  "Unplug the throttle body's plug and the pedal's plug (key out). Look for green corrosion, bent or pushed-back pins, and a broken lock.",
+  "Refit them firmly until they click.",
+]
+[[test.result]]
+id = "bad"
+text = "A bad plug or damaged wire"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "Both good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "sweep"
+title = "Sweep the pedal and watch the readings"
+why = "Each sensor should rise smoothly from closed to wide open, and its partner should follow. A step, a drop-out or a mismatch shows the faulty one."
+needs = ["scan-tool"]
+steps = [
+  "Key on, engine off. Show throttle position and pedal position values (both sensors of each, if the car reports them).",
+  "Press the pedal slowly to the floor and let it back slowly, watching every value.",
+]
+[[test.result]]
+id = "smooth"
+text = "All rise and fall smoothly together"
+effect = { pedal = -1, throttle-body = -1 }
+[[test.result]]
+id = "pedal-glitch"
+text = "A pedal value jumps or drops out"
+effect = { pedal = 3, wiring = 1 }
+[[test.result]]
+id = "throttle-glitch"
+text = "A throttle value jumps, drops out, or the two disagree"
+effect = { throttle-body = 3, wiring = 1 }
+
+[[test]]
+id = "wiggle"
+title = "Wiggle the wiring and watch"
+why = "A reading that jumps as the wiring moves means a loose connection, not a failed part."
+needs = ["scan-tool"]
+steps = ["Key on, engine off, watching the throttle and pedal values. Gently wiggle each plug and its wiring."]
+[[test.result]]
+id = "jumps"
+text = "A value jumps"
+effect = { wiring = 4 }
+[[test.result]]
+id = "steady"
+text = "All stay steady"
+effect = { wiring = -1 }
+
+[[test]]
+id = "battery"
+title = "Check the battery"
+why = "A weak battery upsets the electronic throttle."
+steps = [
+  "Is the engine slow to crank, or the battery old (over about 5 years)?",
+  "With a meter, the battery should read about 12.4 to 12.7 V after standing, and about 13.8 to 14.7 V with the engine running.",
+]
+[[test.result]]
+id = "weak"
+text = "Slow cranking, an old battery, or low voltage"
+effect = { power = 3 }
+[[test.result]]
+id = "good"
+text = "Cranks well, voltage normal"
+effect = { power = -2 }
+
+[[test]]
+id = "clean-it"
+title = "Clean the throttle body and see"
+why = "If cleaning cures it, carbon was the cause."
+steps = [
+  "Engine off, key out. Clean the plate and bore with throttle body cleaner on a cloth, as the workshop manual says. Don't force the plate open on an electronic throttle unless the manual allows it.",
+  "Refit the duct, clear the codes, and do the idle relearn the manual gives (some cars need one).",
+  "Drive for a day.",
+]
+[[test.result]]
+id = "fixed"
+text = "The code stayed away"
+effect = { carbon = 4 }
+[[test.result]]
+id = "back"
+text = "The code came back"
+effect = { carbon = -2, throttle-body = 1 }

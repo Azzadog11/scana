@@ -1,0 +1,233 @@
+# Diagnosis guide: mass air flow sensor (P0100 to P0104). Written for Scana (2026-10-16)
+# from the sources below. General guidance: check the maker's workshop manual.
+
+id = "maf"
+title = "Air flow sensor (MAF) fault"
+codes = ["P0100-P0104"]
+summary = "The engine computer doesn't trust the air flow sensor. P0101 means the reading doesn't fit how the engine runs (a dirty sensor or an air leak is common). P0102 means the signal is too low and P0103 too high: usually a plug, a wire or the sensor itself. P0100 and P0104 are circuit and intermittent faults."
+how_it_works = [
+  "The air flow sensor sits in the intake duct after the air filter and measures the air going into the engine, in grams per second (g/s).",
+  "The engine computer uses it to decide how much fuel to inject. A wrong reading gives a wrong mixture: poor running, hesitation, and lean or rich codes.",
+  "A heated wire or film inside cools as air flows past; dirt or oil on it makes it read low.",
+  "With the engine off it should read close to 0 g/s. At idle a warm engine often reads roughly 1 g/s per litre of engine size, but this rule is rough: small engines usually read more.",
+]
+terms = ["MAF", "Fuel trim", "Closed loop"]
+safety = [
+  "Clean the sensor only with spray made for air flow sensors: brake or carburettor cleaner ruins it. Never touch the element.",
+  "Engine off and key out before unplugging the sensor.",
+]
+sources = [
+  "'P0100 P0101 P0102 P0103 and P0104 MAF Sensor Codes Explained', mythinkcar.com (read 2026-10-16)",
+  "'Mass Air Flow Misconceptions!', Gears Magazine, gearsmagazine.com (the litre rule was about 27 % off on nine cars tested) (read 2026-10-16)",
+  "'P0101 Code: MAF Sensor Range/Performance', apextechnation.com and obdguides.com (read 2026-10-16)",
+  "'What Should My MAF Sensor Read at Idle?', engineerfix.com (read 2026-10-16)",
+]
+related = ["lean", "map"]
+
+[[cause]]
+id = "dirty"
+name = "The sensor is dirty"
+detail = "Dust past a poor air filter, or oil from an oiled filter or the crankcase vent, coats the element so it reads low."
+weight = 30
+fix = "Clean it with air flow sensor cleaner and let it dry fully. Replace the air filter if it is poor or badly fitted."
+cost = "low"
+
+[[cause]]
+id = "air-leak"
+name = "An air leak after the sensor"
+detail = "Air that gets in after the sensor (a split intake boot, a loose clamp, a vacuum leak) isn't measured, so the reading doesn't fit."
+weight = 25
+fix = "Repair the leak. Check the duct from the sensor to the throttle first."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "A loose or corroded plug, or a damaged wire, is common for P0102 and P0103."
+weight = 20
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "The sensor has failed"
+detail = "The element can break or drift with age."
+weight = 20
+fix = "Replace the sensor with a good-quality part made for the car; cheap ones often read wrongly."
+cost = "medium"
+
+[[cause]]
+id = "filter"
+name = "A blocked or badly fitted air filter"
+detail = "A very dirty filter, or one that lets air around its edge, upsets the flow past the sensor."
+weight = 5
+fix = "Fit a new filter correctly."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Which air flow code?"
+why = "Circuit codes point to wiring or the sensor; the performance code to dirt or an air leak."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0102", "P0103", "P0100", "P0104"]
+result = "circuit"
+[[test.auto.group]]
+patterns = ["P0101"]
+result = "performance"
+[[test.result]]
+id = "circuit"
+text = "Circuit low, high or intermittent (P0100, P0102, P0103, P0104)"
+effect = { wiring = 2, sensor = 1, dirty = -1, air-leak = -2 }
+[[test.result]]
+id = "performance"
+text = "Range or performance (P0101)"
+effect = { dirty = 1, air-leak = 1 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "lean-too"
+title = "Are there lean codes too?"
+why = "P0101 with a lean code (P0171, P0174) strongly suggests air getting in after the sensor."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "no"
+[[test.auto.group]]
+patterns = ["P0171", "P0174"]
+result = "yes"
+[[test.result]]
+id = "yes"
+text = "Yes, lean codes too"
+effect = { air-leak = 2, dirty = 1 }
+goto = "lean"
+[[test.result]]
+id = "no"
+text = "No"
+
+[[test]]
+id = "engine-off"
+title = "Air flow with the engine off"
+why = "With the key on and the engine off, no air flows: the sensor should read about 0 g/s. A clear reading means the sensor or its wiring is wrong."
+needs = ["scan-tool"]
+steps = ["Key on, engine off. Read the air flow rate."]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["10"]
+seconds = 5
+hold = { pid = "0C", to = 50.0, text = "Key on, engine off" }
+[[test.auto.outcome]]
+above = 0.6
+result = "reads"
+[[test.auto.outcome]]
+result = "zero"
+[[test.result]]
+id = "zero"
+text = "About 0 g/s"
+effect = { sensor = -1, wiring = -1 }
+[[test.result]]
+id = "reads"
+text = "It reads air flow with the engine off"
+effect = { sensor = 3, wiring = 2 }
+
+[[test]]
+id = "boot"
+title = "Look at the intake duct after the sensor"
+why = "A split or loose duct lets in unmeasured air."
+steps = [
+  "Follow the duct from the air flow sensor to the throttle body.",
+  "Look for splits in the folds (squeeze them), loose clamps, and small hoses off their pipes.",
+]
+[[test.result]]
+id = "found"
+text = "Found a split, a loose clamp or a loose hose"
+effect = { air-leak = 4 }
+[[test.result]]
+id = "fine"
+text = "All good"
+effect = { air-leak = -1 }
+
+[[test]]
+id = "look"
+title = "Look at the sensor and the air filter"
+why = "Dust or oil on the element, or a poor filter, are common causes."
+steps = [
+  "Engine off. Remove the air filter: is it dirty, oiled, or not seated properly?",
+  "Unplug and remove the sensor as the workshop manual shows. Look at the element (don't touch it): dust or an oily film?",
+  "Look at the plug for corrosion or a broken lock.",
+]
+[[test.result]]
+id = "dirty"
+text = "Dirty or oily sensor, or a poor filter"
+effect = { dirty = 3, filter = 1 }
+[[test.result]]
+id = "plug"
+text = "A bad plug"
+effect = { wiring = 4 }
+[[test.result]]
+id = "clean"
+text = "All clean"
+effect = { dirty = -2 }
+
+[[test]]
+id = "clean-it"
+title = "Clean the sensor and see"
+why = "Cheap and often enough."
+steps = [
+  "Spray the element with air flow sensor cleaner. Let it dry completely (10 minutes or more).",
+  "Refit it, clear the codes and drive for a day.",
+]
+[[test.result]]
+id = "fixed"
+text = "The code stayed away and it runs better"
+effect = { dirty = 4 }
+[[test.result]]
+id = "back"
+text = "The code came back"
+effect = { dirty = -2, sensor = 1 }
+
+[[test]]
+id = "wiggle"
+title = "Wiggle the plug and watch the reading"
+why = "A reading that jumps as the plug moves means a loose connection."
+needs = ["scan-tool"]
+steps = ["With the engine idling, watch the air flow rate while you gently wiggle the sensor's plug and wiring."]
+safety = ["Keep clear of the fan and belts."]
+[[test.result]]
+id = "jumps"
+text = "The reading jumps, or the engine stumbles"
+effect = { wiring = 4 }
+[[test.result]]
+id = "steady"
+text = "It stays steady"
+effect = { wiring = -1 }
+
+[[test]]
+id = "compare"
+title = "Compare the idle reading with a known value"
+why = "A sensor that reads far below a known-good figure for the same engine is dirty or failing."
+needs = ["scan-tool"]
+steps = [
+  "Warm the engine, switch off the air conditioning and lights, and read the air flow at idle.",
+  "Compare with the workshop manual, or with the same model in good order. The rule of about 1 g/s per litre is rough: small engines usually read more.",
+]
+[[test.result]]
+id = "low"
+text = "Clearly lower than expected"
+effect = { dirty = 2, sensor = 2 }
+[[test.result]]
+id = "high"
+text = "Clearly higher than expected"
+effect = { sensor = 2 }
+[[test.result]]
+id = "ok"
+text = "About as expected"
+effect = { sensor = -1, dirty = -1 }

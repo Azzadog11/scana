@@ -143,3 +143,47 @@ text = "Technical service bulletin: a maker's note to its dealers about a known 
 [[term]]
 name = "Reflash"
 text = "Loading new software into a car's computer, usually to fix a known fault. Done by a dealer or a workshop with the maker's tools. Scana never does this."
+
+[[term]]
+name = "Thermostat"
+text = "A valve between the engine and the radiator that stays shut while the engine is cold, so it warms quickly, and opens at its rated temperature (often about 82 to 95 °C). Stuck open, the engine runs cool; stuck shut, it overheats."
+
+[[term]]
+name = "Coolant temperature sensor"
+text = "A sensor in the engine's coolant whose resistance falls as it warms. The engine computer uses it for the mixture, idle speed, timing and the radiator fan. Also called the ECT sensor."
+
+[[term]]
+name = "Head gasket"
+text = "The seal between the engine block and the cylinder head. When it fails, combustion gas can push into the coolant, or coolant and oil can mix or burn: overheating, white sweet-smelling smoke, or milky oil."
+
+[[term]]
+name = "Charcoal canister"
+text = "A box of activated charcoal that soaks up fuel vapour from the tank, so it doesn't escape to the air. The engine later draws the vapour in through the purge valve and burns it."
+
+[[term]]
+name = "Purge valve"
+text = "An electric valve, usually near the engine, that the engine computer opens to let the engine draw fuel vapour from the charcoal canister. Stuck open, it makes the engine run rich, especially after refuelling."
+
+[[term]]
+name = "Vent valve"
+text = "A valve on the charcoal canister that lets fresh air in. The engine computer closes it to seal the fuel vapour system while it tests it for leaks."
+
+[[term]]
+name = "Throttle body"
+text = "The valve at the entry to the intake manifold that controls how much air the engine gets. A flat plate turns inside it: shut at idle, open when you press the accelerator."
+
+[[term]]
+name = "Electronic throttle"
+text = "A throttle opened by an electric motor instead of a cable from the pedal (drive by wire). Sensors in the pedal tell the engine computer what you want; it then opens the throttle. Two sensors each in the pedal and the throttle check each other."
+
+[[term]]
+name = "Limp mode"
+text = "A protective mode: when the engine computer finds a serious fault, it limits power (and often engine speed or gears) so the car can still be driven gently to a workshop."
+
+[[term]]
+name = "Barometric pressure"
+text = "The pressure of the outside air: about 100 kPa at sea level, falling about 1 kPa for every 100 m of height. The engine computer uses it to correct the fuel for altitude and weather."
+
+[[term]]
+name = "Idle air control valve"
+text = "On many older engines, a small electric valve that lets air past the closed throttle to set the idle speed. Newer engines do the same by opening the electronic throttle slightly."

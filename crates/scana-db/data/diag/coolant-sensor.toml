@@ -1,0 +1,238 @@
+# Diagnosis guide: coolant temperature sensor circuit (P0115 to P0119). Written for Scana
+# (2026-10-16) from the sources below. General guidance: check the maker's workshop manual.
+
+id = "coolant-sensor"
+title = "Coolant temperature sensor or its wiring"
+codes = ["P0115-P0119"]
+summary = "The engine computer doesn't trust the coolant temperature reading. P0117 means the signal is too low (it reads too hot, often a short to ground). P0118 means the signal is too high (it reads too cold, often a broken wire or unplugged sensor). P0116 means the reading doesn't make sense with how the engine behaves; P0119 means it comes and goes."
+how_it_works = [
+  "The coolant temperature sensor is a thermistor: its resistance falls as it warms. Typical sensors read about 2,300 to 3,500 ohms at 20 °C and about 300 ohms at 80 °C.",
+  "The engine computer feeds it about 5 V through a resistor and reads the voltage left: high when cold, low when hot.",
+  "A broken wire looks like a very cold engine (often shown as -40 °C). A short to ground looks like a boiling hot one.",
+  "The computer uses this reading for the mixture, idle, timing and the radiator fan, so a bad reading can cause hard starting, poor running or overheating.",
+]
+terms = ["Coolant temperature sensor", "Thermostat"]
+safety = [
+  "Never open the cooling system on a hot engine: boiling coolant sprays out.",
+  "Keep clear of the radiator fan: it can start by itself.",
+  "If the reading is lost, some cars run the fan all the time to protect the engine; others don't. Watch the temperature gauge and stop if it rises high.",
+]
+sources = [
+  "ECT resistance tables: GM and Bosch NTC M12 tables, and Toyota 1GR-FE values (2,320 to 2,590 ohms at 20 °C, 310 to 326 ohms at 80 °C), collected in 'Coolant Temp Sensor Resistance Chart', focusensing.com (read 2026-10-16)",
+  "'P0128 Code: Coolant Thermostat Below Temp', identifix.com (sensor checks against an infrared thermometer) (read 2026-10-16)",
+  "SAE J2012 code structure: P0117 circuit low, P0118 circuit high, P0116 range/performance, P0119 intermittent (descriptions in Scana's own words)",
+]
+related = ["thermostat", "overheat"]
+
+[[cause]]
+id = "sensor"
+name = "The sensor has failed"
+detail = "The sensor's element can crack, drift or go open with age and heat."
+weight = 35
+fix = "Replace the sensor. Let the engine cool first, and expect to top up and bleed the coolant."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A wiring or connector fault"
+detail = "A loose or corroded plug, or a wire broken or chafed near the hot engine, is very common, especially for P0118 and P0119."
+weight = 30
+fix = "Repair the plug or the wire. Check the plug's lock and the pins for green corrosion."
+cost = "low"
+
+[[cause]]
+id = "air-pocket"
+name = "Low coolant or an air pocket at the sensor"
+detail = "If the sensor sits in air instead of coolant it reads wrongly or jumps about (P0116, P0119)."
+weight = 12
+fix = "Top up and bleed the cooling system as the workshop manual shows; fix any leak."
+cost = "low"
+
+[[cause]]
+id = "thermostat"
+name = "A thermostat fault (for P0116)"
+detail = "A thermostat stuck open makes the coolant warm too slowly for the computer's model, which can show as a performance code."
+weight = 10
+fix = "Replace the thermostat; see the thermostat guide."
+cost = "low"
+
+[[cause]]
+id = "reference"
+name = "The shared 5 V sensor supply, or the engine computer"
+detail = "Several sensors share the computer's 5 V supply. A short in one sensor or its wiring can pull it down and upset others."
+weight = 8
+fix = "Find the shorted sensor or wire by unplugging sensors one at a time; rarely, the computer."
+cost = "medium"
+
+[[test]]
+id = "code-type"
+title = "Which coolant sensor code?"
+why = "Low and high codes point to a short or an open circuit; performance codes to coolant and the thermostat."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0641-P0643", "P0651-P0653", "P0697-P0699"]
+result = "reference"
+[[test.auto.group]]
+patterns = ["P0118"]
+result = "high"
+[[test.auto.group]]
+patterns = ["P0117"]
+result = "low"
+[[test.auto.group]]
+patterns = ["P0116", "P0128"]
+result = "performance"
+[[test.auto.group]]
+patterns = ["P0119", "P0115"]
+result = "intermittent"
+[[test.result]]
+id = "high"
+text = "P0118: signal high, reads too cold"
+effect = { wiring = 2, sensor = 1, air-pocket = -2, thermostat = -2 }
+[[test.result]]
+id = "low"
+text = "P0117: signal low, reads too hot"
+effect = { wiring = 1, sensor = 2, air-pocket = -2, thermostat = -2 }
+[[test.result]]
+id = "performance"
+text = "P0116 (or P0128 with it): reading doesn't make sense"
+effect = { thermostat = 2, air-pocket = 2, sensor = 1, wiring = -1 }
+[[test.result]]
+id = "intermittent"
+text = "P0119 or P0115: comes and goes, or general circuit"
+effect = { wiring = 2, air-pocket = 1 }
+[[test.result]]
+id = "reference"
+text = "Sensor supply (5 V reference) codes too"
+effect = { reference = 4 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "reading"
+title = "What does the coolant temperature read?"
+why = "A reading stuck at about -40 °C means an open circuit; one stuck very high means a short."
+needs = ["scan-tool"]
+steps = ["With the key on, read the coolant temperature, engine cold or warm."]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["05"]
+seconds = 5
+[[test.auto.outcome]]
+below = -30.0
+result = "minus40"
+[[test.auto.outcome]]
+above = 125.0
+result = "max"
+[[test.auto.outcome]]
+result = "plausible"
+[[test.result]]
+id = "minus40"
+text = "About -40 °C (or the lowest the tool shows)"
+effect = { wiring = 2, sensor = 2 }
+note = "An open circuit: an unplugged or broken plug, a broken wire, or the sensor itself. Check the plug first."
+[[test.result]]
+id = "max"
+text = "Very high (130 °C or more) on an engine that isn't that hot"
+effect = { wiring = 2, sensor = 2 }
+note = "A short: a wire shorted to ground, or the sensor."
+[[test.result]]
+id = "plausible"
+text = "A believable temperature"
+effect = { air-pocket = 1, thermostat = 1 }
+
+[[test]]
+id = "plug"
+title = "Look at the sensor's plug and wiring"
+why = "Loose or corroded plugs and damaged wires are a common cause."
+steps = [
+  "Find the sensor (on the engine near the thermostat housing; the workshop manual shows where).",
+  "Check the plug is fully on and its lock clipped. Unplug it and look for green corrosion or bent pins.",
+  "Follow the wires a short way for melting or chafing.",
+]
+safety = ["Engine off and cool enough to touch."]
+[[test.result]]
+id = "bad"
+text = "Loose, corroded or damaged"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "Clean and tight"
+effect = { wiring = -1 }
+
+[[test]]
+id = "wiggle"
+title = "Wiggle the wiring and watch the reading"
+why = "A reading that jumps when the wiring moves shows a loose connection."
+needs = ["scan-tool"]
+steps = [
+  "Key on, engine off, watching the coolant temperature on the scan tool.",
+  "Gently wiggle the sensor's plug and its wiring along its length.",
+]
+[[test.result]]
+id = "jumps"
+text = "The reading jumps"
+effect = { wiring = 4 }
+[[test.result]]
+id = "steady"
+text = "It stays steady"
+effect = { wiring = -1 }
+
+[[test]]
+id = "coolant"
+title = "Check the coolant level"
+why = "A sensor in an air pocket reads wrongly."
+steps = ["With the engine cold, check the coolant tank level and look for leaks."]
+safety = ["Engine cold only."]
+[[test.result]]
+id = "low"
+text = "Low, or recently refilled"
+effect = { air-pocket = 3 }
+[[test.result]]
+id = "ok"
+text = "Correct"
+effect = { air-pocket = -2 }
+
+[[test]]
+id = "ohms"
+title = "Measure the sensor's resistance"
+why = "Compares the sensor with its chart: about 2,300 to 3,500 ohms at 20 °C and about 300 ohms at 80 °C on many cars."
+needs = ["multimeter"]
+steps = [
+  "Unplug the sensor and measure across its two pins.",
+  "Note the engine temperature (cold: the air temperature; warm: after a drive).",
+  "Compare with the workshop manual's chart.",
+]
+[[test.result]]
+id = "open"
+text = "No reading (open), or near zero (short)"
+effect = { sensor = 4 }
+[[test.result]]
+id = "wrong"
+text = "Far from the chart for that temperature"
+effect = { sensor = 3 }
+[[test.result]]
+id = "ok"
+text = "Matches the chart"
+effect = { sensor = -2, wiring = 1 }
+
+[[test]]
+id = "ir"
+title = "Check the real temperature with a thermometer"
+why = "If the engine's real temperature and the scan tool's reading disagree, the sensor is wrong."
+needs = ["ir-thermometer", "scan-tool"]
+steps = ["After a drive, compare the scan tool's coolant reading with the thermometer pointed at the thermostat housing."]
+safety = ["Hot engine: read from a distance."]
+[[test.result]]
+id = "agree"
+text = "Within about 5 °C"
+effect = { sensor = -2 }
+[[test.result]]
+id = "differ"
+text = "Clearly different"
+effect = { sensor = 3 }

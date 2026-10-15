@@ -1,0 +1,210 @@
+# Diagnosis guide: manifold pressure and barometric pressure sensors (P0105 to P0109,
+# P2227 to P2230). Written for Scana (2026-10-16) from the sources below.
+
+id = "map"
+title = "Manifold pressure (MAP) or barometric pressure sensor fault"
+codes = ["P0105-P0109", "P2227-P2230"]
+summary = "The engine computer doesn't trust the manifold pressure (MAP) reading, or the barometric pressure (BARO) reading. P0106 means the reading doesn't fit how the engine runs, often a cracked vacuum hose to the sensor or an engine vacuum problem. P0107 is a low signal and P0108 a high one: usually a plug, a wire or the sensor. P2227 to P2230 are the barometric sensor's codes."
+how_it_works = [
+  "The MAP sensor measures the pressure inside the intake manifold. With the engine off it reads the outside air pressure: about 100 kPa at sea level, less high up (about 94 kPa at 600 m).",
+  "At idle the engine sucks the pressure down to roughly 20 to 48 kPa. Opening the throttle raises it toward the outside pressure.",
+  "Many cars use it to work out engine load and fuel. A wrong reading makes the engine run rich or lean, hesitate or idle poorly.",
+  "The barometric reading (sometimes from the MAP sensor at key on, sometimes from its own sensor) corrects for altitude and weather.",
+]
+terms = ["MAP", "Barometric pressure", "Fuel trim"]
+safety = [
+  "Engine off before unplugging the sensor or its hose.",
+  "Keep clear of the fan and belts when the engine runs.",
+]
+sources = [
+  "'OBD-II Code P0106: Manifold Absolute Pressure Sensor Performance Problem', go-parts.com (key on engine off MAP close to BARO; 30 to 45 kPa at idle) (read 2026-10-16)",
+  "'How to Diagnose & Fix Ford P0106 (MAP Sensor)', icarsoft-us.com (read 2026-10-16)",
+  "Hijet reference scan 2026-10-10: barometric pressure 94 kPa at about 580 m altitude (Scana's own vehicle profile)",
+]
+related = ["lean", "maf"]
+
+[[cause]]
+id = "hose"
+name = "A cracked, loose or blocked vacuum hose to the sensor"
+detail = "Many MAP sensors read the manifold through a small hose. Cracked or blocked, the sensor sees the wrong pressure."
+weight = 25
+fix = "Replace the hose; clear any blockage (oil or carbon) in the port."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "Loose or corroded plugs and damaged wires are common for P0107 and P0108."
+weight = 25
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "The sensor has failed"
+detail = "The sensor can drift, stick, or fail outright."
+weight = 25
+fix = "Replace the sensor."
+cost = "low"
+
+[[cause]]
+id = "engine-vacuum"
+name = "An engine problem that changes the vacuum"
+detail = "A large vacuum leak, a blocked exhaust, wrong valve timing or a misfire changes the real manifold pressure, so the reading looks wrong though the sensor is right."
+weight = 20
+fix = "Find the engine fault: vacuum leaks, a blocked converter, timing."
+cost = "medium"
+
+[[cause]]
+id = "reference"
+name = "The shared 5 V sensor supply, or the engine computer"
+detail = "Several sensors share the computer's 5 V supply; a short elsewhere can pull it down."
+weight = 5
+fix = "Find the shorted sensor or wire; rarely, the computer."
+cost = "medium"
+
+[[test]]
+id = "code-type"
+title = "Which code?"
+why = "Low and high codes point to wiring or the sensor; performance codes to the hose or the engine."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0641-P0643", "P0651-P0653"]
+result = "reference"
+[[test.auto.group]]
+patterns = ["P0107", "P0108", "P0105", "P0109", "P2228", "P2229", "P2230"]
+result = "circuit"
+[[test.auto.group]]
+patterns = ["P0106", "P2227"]
+result = "performance"
+[[test.result]]
+id = "circuit"
+text = "Circuit low, high or intermittent"
+effect = { wiring = 2, sensor = 2, hose = -1, engine-vacuum = -2 }
+[[test.result]]
+id = "performance"
+text = "Range or performance (P0106, P2227)"
+effect = { hose = 2, engine-vacuum = 1, sensor = 1 }
+[[test.result]]
+id = "reference"
+text = "Sensor supply (5 V reference) codes too"
+effect = { reference = 4 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "koeo"
+title = "Compare manifold and barometric pressure with the engine off"
+why = "With the engine off both read the outside air pressure, within a few kPa."
+needs = ["scan-tool"]
+steps = ["Key on, engine off. Read manifold pressure (MAP) and barometric pressure."]
+[test.auto]
+kind = "live"
+measure = "diff"
+pids = ["0B", "33"]
+seconds = 5
+hold = { pid = "0C", to = 50.0, text = "Key on, engine off" }
+[[test.auto.outcome]]
+below = -5.0
+result = "differ"
+[[test.auto.outcome]]
+above = 5.0
+result = "differ"
+[[test.auto.outcome]]
+result = "match"
+[[test.result]]
+id = "match"
+text = "Within about 5 kPa"
+effect = { sensor = -1, wiring = -1 }
+[[test.result]]
+id = "differ"
+text = "Clearly different"
+effect = { sensor = 3, wiring = 1 }
+[[test.result]]
+id = "no-baro"
+text = "The car doesn't report barometric pressure: compare MAP with the local air pressure (about 100 kPa at sea level)"
+
+[[test]]
+id = "idle"
+title = "Manifold pressure at idle"
+why = "At a warm idle a healthy engine pulls the pressure down to roughly 20 to 48 kPa. Much higher means a big leak, an engine fault, or a sensor reading high."
+needs = ["scan-tool"]
+steps = ["Warm the engine, then read manifold pressure at idle."]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["0B"]
+seconds = 10
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle" }
+need = { pid = "05", from = 70.0, text = "Warm the engine first: coolant above 70 °C" }
+[[test.auto.outcome]]
+above = 55.0
+result = "high"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "normal"
+text = "About 20 to 50 kPa"
+effect = { engine-vacuum = -1 }
+[[test.result]]
+id = "high"
+text = "Above about 55 kPa"
+effect = { engine-vacuum = 2, hose = 2, sensor = 1 }
+
+[[test]]
+id = "hose-look"
+title = "Look at the sensor's hose and plug"
+why = "A cracked hose or a corroded plug is the common, cheap cause."
+steps = [
+  "Find the sensor (on the intake manifold or the bulkhead, with a small hose, or plugged straight into the manifold).",
+  "Check the hose for cracks, softness and a tight fit; look into its port for oil or carbon.",
+  "Check the plug for corrosion and a firm lock.",
+]
+[[test.result]]
+id = "hose"
+text = "A cracked, loose or blocked hose"
+effect = { hose = 4 }
+[[test.result]]
+id = "plug"
+text = "A bad plug or wire"
+effect = { wiring = 4 }
+[[test.result]]
+id = "fine"
+text = "All good"
+effect = { hose = -2, wiring = -1 }
+
+[[test]]
+id = "snap"
+title = "Snap the throttle and watch the pressure"
+why = "The reading should jump up when the throttle opens and drop straight back. A slow or flat response means a blocked hose or a lazy sensor."
+needs = ["scan-tool"]
+steps = ["Engine warm and idling: open the throttle quickly and release it, watching manifold pressure."]
+safety = ["Park with the parking brake on, in park or neutral."]
+[[test.result]]
+id = "quick"
+text = "It jumps and drops back at once"
+effect = { sensor = -1, hose = -1 }
+[[test.result]]
+id = "slow"
+text = "Slow, small, or no change"
+effect = { hose = 2, sensor = 2 }
+
+[[test]]
+id = "vacuum"
+title = "Check the engine's vacuum with a gauge"
+why = "Tells the engine's real vacuum, so you know whether the sensor or the engine is wrong."
+needs = ["vacuum-gauge"]
+steps = ["Connect the gauge to a manifold port. Read it at a warm idle and compare with the scan tool."]
+[[test.result]]
+id = "agree"
+text = "The gauge agrees with the sensor, but both are poor"
+effect = { engine-vacuum = 4, sensor = -2 }
+[[test.result]]
+id = "good-engine"
+text = "The gauge shows good vacuum; the sensor disagrees"
+effect = { sensor = 3, hose = 1, engine-vacuum = -2 }

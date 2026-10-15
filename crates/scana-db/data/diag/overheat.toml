@@ -1,0 +1,286 @@
+# Diagnosis guide: engine overheating (P0217 and a high temperature gauge). Written for
+# Scana (2026-10-16). General guidance: check the maker's workshop manual.
+
+id = "overheat"
+title = "Engine overheating"
+codes = ["P0217"]
+summary = "The engine got hotter than it should. Stop as soon as it is safe and turn the engine off: driving an overheating engine can warp the cylinder head and ruin the head gasket within minutes. The usual causes are low coolant from a leak, a radiator fan that doesn't run, or a thermostat stuck shut."
+how_it_works = [
+  "The water pump pushes coolant through the engine, where it picks up heat, then through the radiator, where air carries the heat away. The thermostat opens to let coolant reach the radiator once the engine is warm.",
+  "At low speed and idle, the radiator fan pulls air through the radiator. At speed, the air flowing past does most of the work.",
+  "The system runs under pressure (the radiator cap holds it), which raises the boiling point well above 100 °C.",
+  "Overheating at idle or in traffic points to the fan. Overheating at speed points to coolant flow: low coolant, the thermostat, the water pump, or a blocked radiator.",
+]
+terms = ["Thermostat", "Coolant temperature sensor", "Head gasket"]
+fix_first = ["P0115-P0119", "P0480-P0485"]
+safety = [
+  "If the gauge goes high or steam appears: stop where safe, turn the engine off, and let it cool. Don't keep driving.",
+  "Never open the radiator or coolant tank cap on a hot engine: boiling coolant sprays out and scalds. Wait until the top hose is cool to touch, then open the cap slowly with a cloth over it.",
+  "Don't pour cold water into a hot engine: it can crack the head. Let it cool first.",
+  "Keep clear of the fan: it can start by itself with the engine off.",
+  "Coolant is poisonous and tastes sweet to animals. Wipe up spills.",
+]
+sources = [
+  "Cooling system operation and checks: general automotive practice, as in the thermostat guide's sources (identifix.com, samarins.com, read 2026-10-16)",
+  "Combustion leak (block) testing and cooling system pressure testing: tool makers' instructions (general practice, unverified for any one car)",
+]
+related = ["thermostat", "coolant-sensor"]
+
+[[cause]]
+id = "low-coolant"
+name = "Low coolant from a leak"
+detail = "A leaking hose, radiator, water pump seal, heater core or tank lets coolant escape until there is too little to carry the heat."
+weight = 30
+fix = "Find and fix the leak, then refill with the right coolant and bleed the air out."
+cost = "low"
+
+[[cause]]
+id = "fan"
+name = "The radiator fan doesn't run"
+detail = "A failed fan motor, relay, fuse or fan control leaves the radiator without air at low speed. It overheats in traffic but cools on the highway."
+weight = 20
+fix = "Find the fault: fuse, relay, fan motor, or its control (often a code or a temperature switch)."
+cost = "medium"
+
+[[cause]]
+id = "thermostat"
+name = "The thermostat is stuck shut"
+detail = "A thermostat that doesn't open keeps coolant out of the radiator. The engine overheats quickly while the radiator stays cool."
+weight = 12
+fix = "Replace the thermostat and bleed the system."
+cost = "low"
+
+[[cause]]
+id = "water-pump"
+name = "The water pump is failing"
+detail = "A worn impeller, a slipping belt or a leaking seal stops the coolant moving well."
+weight = 10
+fix = "Replace the water pump (often with the timing belt, where the pump is driven by it)."
+cost = "medium"
+
+[[cause]]
+id = "radiator"
+name = "A blocked radiator, inside or outside"
+detail = "Dirt, bugs or leaves block the fins outside; scale or old coolant blocks the tubes inside."
+weight = 10
+fix = "Clean the fins gently; flush or replace a radiator blocked inside."
+cost = "medium"
+
+[[cause]]
+id = "head-gasket"
+name = "A leaking head gasket"
+detail = "Combustion gas forced into the coolant pushes it out and forms air pockets; coolant may be burnt too."
+weight = 10
+fix = "Confirm with a combustion leak test, then replace the head gasket (often with a machined head)."
+cost = "high"
+
+[[cause]]
+id = "air"
+name = "Air trapped after a coolant change or repair"
+detail = "An air pocket stops coolant reaching parts of the engine and the sensor."
+weight = 5
+fix = "Bleed the cooling system as the workshop manual shows."
+cost = "low"
+
+[[cause]]
+id = "false-reading"
+name = "The sensor or gauge reads high when it isn't"
+detail = "A faulty sensor or gauge shows overheating that isn't real."
+weight = 3
+fix = "Check the real temperature; replace the faulty sensor or gauge."
+cost = "low"
+
+[[test]]
+id = "level"
+title = "Check the coolant level (engine cold)"
+why = "Low coolant is the most common cause."
+steps = [
+  "Let the engine cool completely.",
+  "Look at the coolant tank: the level should be between MIN and MAX.",
+  "If the tank is empty, open the radiator cap (cold only) and look whether the radiator is full.",
+]
+safety = ["Only on a cold engine."]
+[[test.result]]
+id = "low"
+text = "Low or empty"
+effect = { low-coolant = 3, head-gasket = 1 }
+note = "Top up, then find where it went: look for leaks, and watch the level over the next few days."
+[[test.result]]
+id = "full"
+text = "Full"
+effect = { low-coolant = -2 }
+
+[[test]]
+id = "leaks"
+title = "Look for leaks"
+why = "Coolant leaves wet patches, white or coloured crust, and a sweet smell."
+steps = [
+  "Look under the car after it has been parked: coloured fluid (green, pink, orange or blue) on the ground.",
+  "Look at the hoses, radiator, water pump (a weep hole near the pulley), and the coolant tank for wetness or crust.",
+  "A wet carpet or a sweet smell inside the car, or a misted windscreen, points to the heater core.",
+]
+safety = ["Engine cool. Keep clear of the fan."]
+[[test.result]]
+id = "found"
+text = "Found a leak"
+effect = { low-coolant = 4 }
+[[test.result]]
+id = "none"
+text = "No leak found"
+effect = { low-coolant = -1, head-gasket = 1 }
+
+[[test]]
+id = "when"
+title = "When does it overheat?"
+why = "At idle and in traffic points to the fan; at speed points to coolant flow."
+steps = ["Think about when the gauge rises: stopped in traffic, or driving at speed or uphill."]
+[[test.result]]
+id = "idle"
+text = "Stopped or in slow traffic, better when moving"
+effect = { fan = 3, radiator = 1 }
+[[test.result]]
+id = "speed"
+text = "At speed or uphill"
+effect = { thermostat = 1, water-pump = 2, radiator = 2, low-coolant = 1 }
+[[test.result]]
+id = "both"
+text = "All the time"
+effect = { thermostat = 2, low-coolant = 1, head-gasket = 1 }
+
+[[test]]
+id = "fan-hot"
+title = "Does the fan run when the engine is hot?"
+why = "The fan should cut in when the engine reaches its working temperature, and with the air conditioning on."
+steps = [
+  "Let the engine idle until the gauge reaches the middle (watch it: stop if it rises high).",
+  "Look and listen for the radiator fan.",
+  "Turn the air conditioning on: on most cars the fan starts.",
+]
+safety = ["Keep hands and clothing away from the fan. Turn the engine off if the gauge goes high."]
+[[test.result]]
+id = "runs"
+text = "The fan runs"
+effect = { fan = -3 }
+[[test.result]]
+id = "never"
+text = "The fan never runs, even with the air conditioning on"
+effect = { fan = 4 }
+
+[[test]]
+id = "hoses"
+title = "Feel the radiator hoses when warm"
+why = "If the engine is hot but the top radiator hose stays cool, coolant isn't reaching the radiator: the thermostat or the pump."
+steps = ["With the engine warm (gauge in the middle), carefully touch the top radiator hose, then the bottom one."]
+safety = ["Hoses get very hot: touch briefly. Keep clear of the fan and belts."]
+[[test.result]]
+id = "cool-top"
+text = "The top hose stays cool while the gauge is hot"
+effect = { thermostat = 3, water-pump = 1 }
+[[test.result]]
+id = "hot-both"
+text = "The top hose is hot, the bottom one much cooler"
+effect = { radiator = 2, fan = 1 }
+[[test.result]]
+id = "hot"
+text = "Both hot"
+effect = { thermostat = -1 }
+
+[[test]]
+id = "radiator-look"
+title = "Look at the front of the radiator"
+why = "Blocked fins can't pass air."
+steps = ["Look through the grille at the radiator (and the air conditioning condenser in front of it): leaves, bugs, mud, or bent fins."]
+[[test.result]]
+id = "blocked"
+text = "Badly blocked or damaged"
+effect = { radiator = 3 }
+[[test.result]]
+id = "clean"
+text = "Fairly clean"
+effect = { radiator = -1 }
+
+[[test]]
+id = "bubbles"
+title = "Watch for bubbles in the coolant tank"
+why = "A steady stream of bubbles with the engine running means combustion gas is getting into the coolant: a head gasket."
+steps = [
+  "With the engine cold, check the level, then start it and watch the coolant tank (cap on, if it is the pressurised kind) for several minutes.",
+  "Also look for white, sweet-smelling exhaust smoke after warm-up, and milky oil on the dipstick or under the oil filler cap.",
+]
+safety = ["Never open a pressurised cap with the engine running or warm."]
+[[test.result]]
+id = "yes"
+text = "Steady bubbles, white sweet smoke, or milky oil"
+effect = { head-gasket = 4 }
+[[test.result]]
+id = "no"
+text = "None of these"
+effect = { head-gasket = -2 }
+
+[[test]]
+id = "recent-work"
+title = "Was the coolant changed or the system opened recently?"
+why = "Air left in the system after work is a common cause."
+steps = ["Check the service history: a coolant change, a new hose, radiator, pump or thermostat."]
+[[test.result]]
+id = "yes"
+text = "Yes, recently"
+effect = { air = 3 }
+[[test.result]]
+id = "no"
+text = "No"
+effect = { air = -2 }
+
+[[test]]
+id = "real-temp"
+title = "Is it really hot?"
+why = "A faulty sensor or gauge can show overheating that isn't real."
+needs = ["scan-tool", "ir-thermometer"]
+steps = [
+  "Read the coolant temperature on the scan tool, and point the thermometer at the thermostat housing.",
+  "Compare both with the dashboard gauge.",
+]
+safety = ["Read from a distance; don't touch hot parts."]
+[[test.result]]
+id = "real"
+text = "Yes, the engine really is hot"
+effect = { false-reading = -3 }
+[[test.result]]
+id = "false"
+text = "No, the engine is at a normal temperature"
+effect = { false-reading = 4 }
+
+[[test]]
+id = "pressure"
+title = "Pressure test the cooling system"
+why = "Finds leaks that only show under pressure, and checks the radiator cap."
+needs = ["cooling-tester"]
+steps = [
+  "With the engine cold, fit the tester to the coolant tank or radiator neck.",
+  "Pump to the pressure on the cap and watch the gauge for 15 minutes. Look for drips.",
+]
+safety = ["Engine cold only."]
+[[test.result]]
+id = "drops"
+text = "The pressure drops"
+effect = { low-coolant = 3, head-gasket = 1 }
+[[test.result]]
+id = "holds"
+text = "It holds"
+effect = { low-coolant = -2 }
+
+[[test]]
+id = "block-test"
+title = "Test for exhaust gas in the coolant"
+why = "Confirms or rules out a head gasket leak."
+needs = ["combustion-leak-tester"]
+steps = ["Follow the tester's instructions: the fluid turns from blue to yellow if exhaust gas is in the coolant."]
+safety = ["Open the cooling system only when cool enough, and keep the fluid out of the coolant."]
+[[test.result]]
+id = "yellow"
+text = "The fluid changes colour"
+effect = { head-gasket = 4 }
+[[test.result]]
+id = "blue"
+text = "It stays blue"
+effect = { head-gasket = -3 }

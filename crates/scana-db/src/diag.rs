@@ -233,6 +233,16 @@ const FILES: &[(&str, &str)] = &[
     ("lean", include_str!("../data/diag/lean.toml")),
     ("rich", include_str!("../data/diag/rich.toml")),
     ("o2-sensor", include_str!("../data/diag/o2-sensor.toml")),
+    ("thermostat", include_str!("../data/diag/thermostat.toml")),
+    ("coolant-sensor", include_str!("../data/diag/coolant-sensor.toml")),
+    ("overheat", include_str!("../data/diag/overheat.toml")),
+    ("evap-leak", include_str!("../data/diag/evap-leak.toml")),
+    ("evap-purge", include_str!("../data/diag/evap-purge.toml")),
+    ("maf", include_str!("../data/diag/maf.toml")),
+    ("map", include_str!("../data/diag/map.toml")),
+    ("iat", include_str!("../data/diag/iat.toml")),
+    ("throttle", include_str!("../data/diag/throttle.toml")),
+    ("idle", include_str!("../data/diag/idle.toml")),
 ];
 
 static GUIDES: LazyLock<Vec<Guide>> =
@@ -337,8 +347,9 @@ mod tests {
                     assert!(n == "scan-tool" || tool(n).is_some(), "{}/{}: unknown tool {n}", g.id, t.id);
                 }
                 for r in &t.result {
-                    for k in r.effect.keys() {
+                    for (k, v) in &r.effect {
                         assert!(causes.contains(&k.as_str()), "{}/{}/{}: unknown cause {k}", g.id, t.id, r.id);
+                        assert!((-4..=4).contains(v), "{}/{}/{}: effect {v} beyond -4..4", g.id, t.id, r.id);
                     }
                     if let Some(to) = &r.goto {
                         assert!(guide(to).is_some() || to == &g.id, "{}/{}/{}: no guide {to}", g.id, t.id, r.id);

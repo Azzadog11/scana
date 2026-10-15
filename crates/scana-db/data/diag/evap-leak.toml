@@ -1,0 +1,247 @@
+# Diagnosis guide: fuel vapour (EVAP) system leaks (P0440, P0442, P0455, P0456, P0457).
+# Written for Scana (2026-10-16) from the sources below. General guidance: check the
+# maker's workshop manual.
+
+id = "evap-leak"
+title = "Fuel vapour system leak (EVAP)"
+codes = ["P0440", "P0442", "P0455", "P0456", "P0457"]
+summary = "The engine computer tested the sealed system that holds fuel tank vapour and found a leak. P0455 is a large leak (often a fuel cap left off or loose), P0442 a small one (about 1 mm), P0456 a very small one (about 0.5 mm). P0457 says the fuel cap is loose or off. The engine runs normally; the code is about vapour escaping to the air. Start with the fuel cap."
+how_it_works = [
+  "Fuel gives off vapour. Instead of venting it to the air, the car stores it in a charcoal canister, then the purge valve lets the engine draw it in and burn it.",
+  "Now and then, when the engine has been off for a while or at a steady speed, the computer closes the vent valve and checks that the tank, canister and hoses hold a vacuum or a pressure.",
+  "How fast the vacuum or pressure leaks away tells the size of the leak. The code tells the size, not the place.",
+  "Leaks can be anywhere from the fuel cap to the canister and the hoses to the engine. A smoke machine finds the small ones.",
+]
+terms = ["EVAP", "Charcoal canister", "Purge valve", "Vent valve"]
+fix_first = ["P0441", "P0443-P0449", "P0450-P0454", "P0496", "P0497"]
+safety = [
+  "Fuel and fuel vapour burn easily. No smoking, flames or sparks near the fuel tank and hoses.",
+  "Never pressure-test a fuel system with compressed air or a flame-producing device. Use a smoke machine made for EVAP testing.",
+]
+sources = [
+  "'EVAP System Diagnosis - P0440, P0442, P0456 and Smoke Testing', apextechnation.com (read 2026-10-16)",
+  "'EVAP Fault Diagnosis: Leaks, P0455 & P0442 Explained', autodtcs.com (read 2026-10-16)",
+  "'EVAP Leak Codes (P0442, P0455, P0456): The Complete Guide', steer.so (read 2026-10-16)",
+  "'P0442 Code' and 'P0455 Code', autolinepro.com (read 2026-10-16)",
+]
+related = ["evap-purge"]
+
+[[cause]]
+id = "cap"
+name = "The fuel cap is loose, off, worn or the wrong type"
+detail = "The cap seals the tank. A worn seal, a cap not clicked tight, or a cheap cap that doesn't seal causes a large share of these codes."
+weight = 35
+fix = "Tighten the cap until it clicks. If the seal is cracked or flattened, fit a new cap made for the car."
+cost = "low"
+
+[[cause]]
+id = "hose"
+name = "A cracked or loose vapour hose"
+detail = "Rubber hoses age and crack, and hoses get left off after other work (fuel pump, intake, battery)."
+weight = 25
+fix = "Replace the cracked hose or refit the loose one."
+cost = "low"
+
+[[cause]]
+id = "purge-valve"
+name = "The purge valve leaks when shut"
+detail = "A purge valve that doesn't seal lets the test vacuum or pressure escape into the engine."
+weight = 12
+fix = "Replace the purge valve."
+cost = "low"
+
+[[cause]]
+id = "vent-valve"
+name = "The vent valve doesn't close fully"
+detail = "The vent valve seals the canister during the test. Dirt or wear stops it closing."
+weight = 10
+fix = "Replace the vent valve; clear any dirt in the vent line."
+cost = "low"
+
+[[cause]]
+id = "canister"
+name = "A cracked charcoal canister"
+detail = "The canister can crack with age or impact, or its seams can leak."
+weight = 8
+fix = "Replace the canister."
+cost = "medium"
+
+[[cause]]
+id = "filler-neck"
+name = "A rusty or leaking filler neck or tank seal"
+detail = "The pipe from the fuel flap to the tank can rust through, and the fuel pump's tank seal can leak."
+weight = 7
+fix = "Replace the filler neck or the tank seal."
+cost = "medium"
+
+[[cause]]
+id = "sensor"
+name = "The tank pressure sensor reads wrongly"
+detail = "A faulty tank pressure sensor can make a sealed system look leaky."
+weight = 3
+fix = "Replace the tank pressure sensor, after the leak tests come up clean."
+cost = "low"
+
+[[test]]
+id = "size"
+title = "Which leak code?"
+why = "A large leak is usually the cap or a hose off; a very small one is a hairline crack or a seal."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0455", "P0457"]
+result = "large"
+[[test.auto.group]]
+patterns = ["P0442"]
+result = "small"
+[[test.auto.group]]
+patterns = ["P0456"]
+result = "tiny"
+[[test.result]]
+id = "large"
+text = "Large leak or loose cap (P0455, P0457)"
+effect = { cap = 2, hose = 1, vent-valve = 1, filler-neck = -1, sensor = -1 }
+[[test.result]]
+id = "small"
+text = "Small leak (P0442)"
+effect = { hose = 1, purge-valve = 1, cap = 1 }
+[[test.result]]
+id = "tiny"
+text = "Very small leak (P0456)"
+effect = { hose = 1, purge-valve = 1, vent-valve = 1, cap = 1 }
+[[test.result]]
+id = "other"
+text = "P0440 or none of these"
+
+[[test]]
+id = "cap"
+title = "Check the fuel cap"
+why = "The cheapest and most common fix."
+steps = [
+  "Remove the cap. Look at its rubber seal: cracked, flattened, torn or missing?",
+  "Check it is the right cap for the car (not a cheap universal one).",
+  "Refit it and turn until it clicks several times.",
+  "If the code was P0455 or P0457 and the cap was loose, clear the code and drive for a few days.",
+]
+safety = ["No smoking or flames near the open filler."]
+[[test.result]]
+id = "loose"
+text = "It was loose, or the seal is damaged"
+effect = { cap = 4 }
+note = "Fix or replace the cap, clear the code and drive normally. The system test runs again over a few days."
+[[test.result]]
+id = "fine"
+text = "Tight, with a good seal"
+effect = { cap = -2 }
+
+[[test]]
+id = "recent-work"
+title = "Was anything done near the tank or engine recently?"
+why = "Vapour hoses are often left off after other work."
+steps = ["Think back: a fuel pump, fuel filter, intake, battery or other work just before the light came on?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { hose = 3 }
+[[test.result]]
+id = "no"
+text = "No"
+
+[[test]]
+id = "hoses"
+title = "Look at the vapour hoses"
+why = "Cracked or loose hoses are common on older cars."
+steps = [
+  "With the engine off, follow the hoses from the purge valve (near the engine) back toward the canister and the tank.",
+  "Look for cracks, splits, loose joints and hoses off their pipes. Bend the rubber gently: old rubber shows cracks when bent.",
+]
+[[test.result]]
+id = "found"
+text = "Found a crack or a loose hose"
+effect = { hose = 4 }
+[[test.result]]
+id = "none"
+text = "All look good"
+effect = { hose = -1 }
+
+[[test]]
+id = "filler"
+title = "Look at the filler neck"
+why = "The filler pipe can rust through, especially near the fuel flap and under the car."
+steps = ["Look at the filler pipe behind the fuel flap and under the car for rust, holes or a loose clamp."]
+[[test.result]]
+id = "rust"
+text = "Rusty or damaged"
+effect = { filler-neck = 4 }
+[[test.result]]
+id = "ok"
+text = "Looks sound"
+effect = { filler-neck = -1 }
+
+[[test]]
+id = "refuel"
+title = "Any fuel smell, or trouble refuelling?"
+why = "A fuel smell points to a leak at the tank, filler or canister. Pumps that click off early point to a blocked vent."
+steps = ["Notice any fuel smell near the car, and whether the fuel pump keeps clicking off when you fill up."]
+[[test.result]]
+id = "smell"
+text = "A fuel smell near the tank or filler"
+effect = { filler-neck = 2, canister = 1, hose = 1 }
+[[test.result]]
+id = "clicks"
+text = "The fuel pump keeps clicking off early"
+effect = { vent-valve = 2, canister = 1 }
+[[test.result]]
+id = "none"
+text = "Neither"
+
+[[test]]
+id = "purge-seal"
+title = "Check whether the purge valve seals"
+why = "A purge valve that leaks when shut lets the test escape."
+steps = [
+  "With the engine off, find the purge valve (two hoses, between the canister and the intake).",
+  "Take off the hose to the canister and blow gently through the valve: it should block the air.",
+]
+[[test.result]]
+id = "leaks"
+text = "Air passes through"
+effect = { purge-valve = 4 }
+[[test.result]]
+id = "seals"
+text = "It blocks the air"
+effect = { purge-valve = -2 }
+
+[[test]]
+id = "smoke"
+title = "Smoke test the vapour system"
+why = "The way to find small leaks: smoke shows where it escapes."
+needs = ["smoke-machine"]
+steps = [
+  "Connect the smoke machine to the EVAP service port (often on the purge line near the engine), as its instructions say.",
+  "On cars with an electric vent valve, it may need closing with a scan tool command, or by blocking the vent line.",
+  "Look for smoke at the cap, the filler neck, the hoses, the canister and the valves. A torch helps.",
+]
+[[test.result]]
+id = "cap"
+text = "Smoke at the cap"
+effect = { cap = 4 }
+[[test.result]]
+id = "hose"
+text = "Smoke at a hose"
+effect = { hose = 4 }
+[[test.result]]
+id = "canister"
+text = "Smoke at the canister or a valve"
+effect = { canister = 2, vent-valve = 2, purge-valve = 1 }
+[[test.result]]
+id = "filler"
+text = "Smoke at the filler neck or tank"
+effect = { filler-neck = 4 }
+[[test.result]]
+id = "none"
+text = "No smoke escapes"
+effect = { sensor = 3, vent-valve = 1 }

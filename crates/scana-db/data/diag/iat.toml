@@ -1,0 +1,173 @@
+# Diagnosis guide: intake air temperature sensor (P0110 to P0114, P0095 to P0099).
+# Written for Scana (2026-10-16). General guidance: check the maker's workshop manual.
+
+id = "iat"
+title = "Intake air temperature sensor fault"
+codes = ["P0110-P0114", "P0095-P0099"]
+summary = "The engine computer doesn't trust the intake air temperature reading. P0112 is a low signal (it reads too hot, often a short to ground); P0113 is a high signal (it reads too cold, often an unplugged sensor or a broken wire). P0111 means the reading doesn't fit; P0114 that it comes and goes. P0095 to P0099 are the same for a second intake air sensor."
+how_it_works = [
+  "The intake air temperature sensor is a thermistor, like the coolant sensor: its resistance falls as it warms. On many cars it is built into the air flow sensor.",
+  "The engine computer uses it to correct the fuel for air density, and on some cars to judge the coolant warm-up test.",
+  "After a night parked, it should read about the same as the coolant sensor and the outside air.",
+  "An open circuit often shows as -40 °C; a short as a very high temperature.",
+]
+terms = ["MAF", "Coolant temperature sensor"]
+safety = ["Engine off before unplugging the sensor."]
+sources = [
+  "Thermistor sensor behaviour and cold-engine comparison: as in the coolant sensor guide's sources (focusensing.com resistance tables, identifix.com) (read 2026-10-16)",
+  "SAE J2012 code structure: P0112 circuit low, P0113 circuit high, P0111 range/performance, P0114 intermittent (descriptions in Scana's own words)",
+]
+related = ["coolant-sensor", "maf"]
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "An unplugged or corroded plug, or a broken wire, is the most common cause, especially for P0113."
+weight = 40
+fix = "Repair the plug or wire. If the sensor is in the air flow sensor, check that plug."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "The sensor has failed"
+detail = "The sensor can go open, short or drift."
+weight = 35
+fix = "Replace the sensor (or the air flow sensor it is built into)."
+cost = "low"
+
+[[cause]]
+id = "heat"
+name = "Heat soak or a misplaced sensor"
+detail = "After a hot stop the intake heats up and the reading rises; a sensor moved or a duct changed can read hot engine-bay air."
+weight = 15
+fix = "Check the sensor and the intake duct are as the maker fitted them."
+cost = "low"
+
+[[cause]]
+id = "reference"
+name = "The shared sensor supply, or the engine computer"
+detail = "Rare. A fault in the computer's sensor circuits."
+weight = 5
+fix = "Check after every wire and sensor test passes."
+cost = "medium"
+
+[[test]]
+id = "code-type"
+title = "Which code?"
+why = "Low and high codes point to a short or an open; performance codes to a drifting sensor or heat."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0113", "P0098"]
+result = "high"
+[[test.auto.group]]
+patterns = ["P0112", "P0097"]
+result = "low"
+[[test.auto.group]]
+patterns = ["P0111", "P0096"]
+result = "performance"
+[[test.result]]
+id = "high"
+text = "Signal high, reads too cold (P0113, P0098)"
+effect = { wiring = 2, sensor = 1, heat = -2 }
+[[test.result]]
+id = "low"
+text = "Signal low, reads too hot (P0112, P0097)"
+effect = { sensor = 1, wiring = 1, heat = -1 }
+[[test.result]]
+id = "performance"
+text = "Range or performance (P0111, P0096)"
+effect = { sensor = 2, heat = 2, wiring = -1 }
+[[test.result]]
+id = "other"
+text = "Intermittent, or none of these"
+effect = { wiring = 1 }
+
+[[test]]
+id = "cold-compare"
+title = "Compare air and coolant temperature on a cold engine"
+why = "After a night parked, both should read about the outside temperature."
+needs = ["scan-tool"]
+steps = [
+  "Leave the car parked for at least 6 hours.",
+  "Key on, engine off. Read intake air temperature and coolant temperature.",
+]
+[test.auto]
+kind = "live"
+measure = "diff"
+pids = ["0F", "05"]
+seconds = 5
+hold = { pid = "05", to = 45.0, text = "Do this on a cold engine (parked for 6 hours)" }
+[[test.auto.outcome]]
+below = -30.0
+result = "minus40"
+[[test.auto.outcome]]
+below = -8.0
+result = "differ"
+[[test.auto.outcome]]
+above = 8.0
+result = "differ"
+[[test.auto.outcome]]
+result = "same"
+[[test.result]]
+id = "same"
+text = "Within a few degrees"
+effect = { sensor = -2, wiring = -1 }
+[[test.result]]
+id = "differ"
+text = "Clearly different"
+effect = { sensor = 3 }
+[[test.result]]
+id = "minus40"
+text = "The air temperature reads about -40 °C"
+effect = { wiring = 3, sensor = 1 }
+note = "An open circuit: check the plug first."
+
+[[test]]
+id = "plug"
+title = "Look at the sensor's plug"
+why = "An unplugged or corroded plug is the most common cause."
+steps = [
+  "Find the sensor (in the air filter box, the intake duct, or built into the air flow sensor).",
+  "Check its plug is on and clipped, with no corrosion or bent pins.",
+]
+[[test.result]]
+id = "bad"
+text = "Unplugged, loose or corroded"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "Clean and tight"
+effect = { wiring = -1 }
+
+[[test]]
+id = "fitting"
+title = "Is the sensor fitted as original?"
+why = "A sensor moved, or an aftermarket intake, can read hot engine-bay air."
+steps = ["Check for an aftermarket air intake or a sensor that isn't in its original place."]
+[[test.result]]
+id = "changed"
+text = "Aftermarket intake, or the sensor was moved"
+effect = { heat = 3 }
+[[test.result]]
+id = "original"
+text = "As original"
+effect = { heat = -1 }
+
+[[test]]
+id = "ohms"
+title = "Measure the sensor's resistance"
+why = "Compares the sensor with its chart (often about 2,000 to 3,000 ohms at 20 °C; check the workshop manual)."
+needs = ["multimeter"]
+steps = ["Unplug the sensor, measure across its two temperature pins, and compare with the chart for the air temperature."]
+[[test.result]]
+id = "bad"
+text = "Open, shorted, or far from the chart"
+effect = { sensor = 4 }
+[[test.result]]
+id = "ok"
+text = "Matches the chart"
+effect = { sensor = -2, wiring = 1 }

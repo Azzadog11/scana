@@ -89,6 +89,7 @@ impl ScanaApp {
     fn code_row(&mut self, ui: &mut Ui, label: &str, code: Dtc, color: egui::Color32) {
         let info = dtcdb::lookup(code);
         let selected = self.topic == Some(Topic::Dtc(code));
+        let mut diagnose = false;
         ui.horizontal(|ui| {
             ui.label(RichText::new(format!("{label:<9}")).color(color).monospace());
             let text = RichText::new(format!("{code}  {}", info.summary())).size(16.0);
@@ -97,6 +98,14 @@ impl ScanaApp {
             }
             let kind = if info.manufacturer_specific { "maker-specific" } else { "generic" };
             ui.label(RichText::new(kind).small().color(self.pal().dim));
+            if scana_db::diag::guide_for(code).is_some()
+                && ui.small_button("Diagnose").on_hover_text("Work through the likely causes step by step").clicked()
+            {
+                diagnose = true;
+            }
         });
+        if diagnose {
+            self.start_diagnosis(code);
+        }
     }
 }

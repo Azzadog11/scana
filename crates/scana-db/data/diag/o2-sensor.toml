@@ -1,0 +1,334 @@
+# Diagnosis guide: oxygen sensor and air-fuel ratio sensor faults (signal, slow response,
+# heater). Written for Scana (2026-10-16) from the sources below. General guidance: check
+# the maker's workshop manual for the car's values.
+
+id = "o2-sensor"
+title = "Oxygen sensor or air-fuel ratio sensor fault"
+codes = ["P0030-P0064", "P0130-P0167", "P2195-P2198", "P2237-P2254", "P2A00-P2A07", "P2270-P2273"]
+summary = "An oxygen sensor (or air-fuel ratio sensor), or its heater, isn't working as the engine computer expects. The code says which: sensor 1 is before the catalytic converter, sensor 2 after it; bank 1 has cylinder 1. Heater codes are usually the sensor's heater or its fuse. Signal codes can be the sensor, its wiring, an exhaust leak, or a real mixture fault the sensor is reporting correctly."
+how_it_works = [
+  "A normal oxygen sensor makes about 0.1 V when the exhaust is lean and about 0.9 V when it is rich. In front of the converter it should swing between the two several times a second once warm.",
+  "An air-fuel ratio sensor (many Toyotas and most newer cars use one in front) reports the exact mixture instead. A scan tool shows it as a current near 0 mA, or on Toyota tools a voltage near 3.3 V, when the mixture is right.",
+  "Sensors only work hot. Each has a heater, powered through a fuse, so it starts working soon after a cold start. A heater code usually means the heater, its fuse or its wiring.",
+  "Codes that say 'stuck lean' or 'stuck rich' can be true: an air leak, an exhaust leak or a fuel fault really makes the mixture lean or rich. Check those before you buy a sensor.",
+]
+terms = ["Oxygen sensor", "Air-fuel ratio sensor", "Sensor 1, sensor 2", "Bank", "Fuel trim", "Closed loop", "Catalyst"]
+fix_first = ["P0171", "P0172", "P0174", "P0175", "P0300-P0312"]
+safety = [
+  "Exhaust sensors sit in the hot exhaust: let it cool before touching them or their wires.",
+  "Run the engine outdoors only, with the parking brake on, in park or neutral.",
+]
+sources = [
+  "'Wide Range Air/Fuel Ratio Sensor Diagnostic and DTC', alflash.com.ua/o2calif.htm (read 2026-10-16)",
+  "Toyota A/F sensor heater resistance 1.8 to 3.4 ohms at 20 °C (planar type): 'Toyota A/F Ratio Sensor + Planar A/F Sensor Review', autoequipment.com.au, and Toyota RAV4 repair manual extract at toyotaguru.us (read 2026-10-16)",
+  "Toyota P2195 detection conditions and the 3.3 V reference: Toyota service manual extracts at ttundra.com and tovenza.com (read 2026-10-16)",
+  "'OBD-II Code P0135: O2 Sensor Heater Circuit Malfunction', go-parts.com, and 'Testing P0135, P0141, P0155, P0161', troubleshootmyvehicle.com (read 2026-10-16)",
+  "'P0133 & P0134: O2 Sensor Slow Response / No Activity', apextechnation.com (read 2026-10-16)",
+]
+related = ["lean", "rich", "catalyst"]
+
+[[cause]]
+id = "sensor"
+name = "The sensor is worn out or has failed"
+detail = "Sensors age: they slow down, read wrongly, or their heater burns out. Front sensors work hardest."
+weight = 35
+fix = "Replace the sensor with the correct part for its position (bank and sensor number). Use the anti-seize the new one comes with."
+cost = "medium"
+
+[[cause]]
+id = "wiring"
+name = "Damaged wiring or a poor connection"
+detail = "Sensor wires run near the hot exhaust and can melt, chafe through, or corrode at the plug."
+weight = 15
+fix = "Repair the wire or the plug, and route it away from the exhaust."
+cost = "low"
+
+[[cause]]
+id = "mixture"
+name = "A real lean or rich mixture that the sensor reports correctly"
+detail = "An air leak, a fuel supply fault or a leaking injector really changes the mixture. The sensor is right, and a new one won't help."
+weight = 15
+fix = "Find the mixture fault with the lean or rich guide."
+cost = "medium"
+
+[[cause]]
+id = "heater-power"
+name = "The heater's fuse, relay or power supply"
+detail = "The heaters share a fuse. A blown fuse gives heater codes on several sensors at once."
+weight = 12
+fix = "Replace the fuse, and find why it blew (a shorted heater or wire) if it blows again."
+cost = "low"
+
+[[cause]]
+id = "exhaust-leak"
+name = "An exhaust leak near the sensor"
+detail = "Air drawn in at a leak makes the sensor read lean, or slow."
+weight = 10
+fix = "Repair the exhaust leak."
+cost = "low"
+
+[[cause]]
+id = "contamination"
+name = "The sensor is poisoned by oil, coolant or sealant"
+detail = "Burnt oil, coolant from a head gasket leak, or the wrong silicone sealant coats the sensor and slows it down."
+weight = 8
+fix = "Fix the source (oil burning, coolant leak), then replace the sensor."
+cost = "medium"
+
+[[cause]]
+id = "computer"
+name = "An engine computer fault"
+detail = "Rare. The computer's heater driver or sensor input can fail."
+weight = 5
+fix = "Have it checked after every wire, fuse and sensor test passes."
+cost = "high"
+
+[[test]]
+id = "code-type"
+title = "Which kind of sensor code?"
+why = "Heater, slow-response, circuit and 'stuck' codes point to different causes."
+needs = ["scan-tool"]
+steps = ["Read the codes. Note each code's sensor position: bank 1 or 2, sensor 1 or 2."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0030-P0064", "P0135", "P0141", "P0147", "P0155", "P0161", "P0167"]
+result = "heater"
+[[test.auto.group]]
+patterns = ["P2195-P2198"]
+result = "stuck"
+[[test.auto.group]]
+patterns = ["P2270-P2273"]
+result = "rear-stuck"
+[[test.auto.group]]
+patterns = ["P0133", "P0134", "P0139", "P0140", "P0153", "P0154", "P0159", "P0160", "P2A00-P2A07"]
+result = "slow"
+[[test.auto.group]]
+patterns = ["P0130-P0167", "P2237-P2254"]
+result = "circuit"
+[[test.result]]
+id = "heater"
+text = "A heater code (for example P0135, P0141, P0030 to P0064)"
+effect = { heater-power = 2, sensor = 1, wiring = 1, mixture = -2, exhaust-leak = -2 }
+[[test.result]]
+id = "slow"
+text = "Slow response or no activity (for example P0133, P0134)"
+effect = { sensor = 2, exhaust-leak = 1, contamination = 1 }
+[[test.result]]
+id = "circuit"
+text = "Circuit low, high or out of range (for example P0131, P0132)"
+effect = { wiring = 2, sensor = 1 }
+[[test.result]]
+id = "stuck"
+text = "Front sensor stuck lean or rich (P2195 to P2198)"
+effect = { mixture = 2, exhaust-leak = 1, sensor = 1 }
+note = "Toyota's own list for these includes air leaks, exhaust leaks, fuel pressure and injectors. Check the mixture before buying a sensor."
+[[test.result]]
+id = "rear-stuck"
+text = "Rear sensor stuck lean or rich (P2270 to P2273)"
+effect = { exhaust-leak = 2, mixture = 1, sensor = 1 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "several"
+title = "One sensor, or several?"
+why = "Heater codes on several sensors at once nearly always mean their shared fuse or power feed."
+steps = ["Count the sensors named in the codes."]
+[[test.result]]
+id = "several"
+text = "Two or more sensors have codes"
+effect = { heater-power = 3, wiring = 1, sensor = -2 }
+[[test.result]]
+id = "one"
+text = "One sensor only"
+effect = { heater-power = -1, sensor = 1 }
+
+[[test]]
+id = "fuse"
+title = "Check the sensor heater fuse"
+why = "A blown fuse is the cheapest fix of all."
+steps = [
+  "Find the fuse for the oxygen sensor or air-fuel sensor heaters (often marked O2 HTR or A/F HTR) in the fuse box chart.",
+  "Pull it out and look at the metal strip inside: a gap means it has blown.",
+]
+[[test.result]]
+id = "blown"
+text = "The fuse has blown"
+effect = { heater-power = 4 }
+note = "Replace it with the same rating. If it blows again, a heater or wire is shorted."
+[[test.result]]
+id = "ok"
+text = "The fuse is fine"
+effect = { heater-power = -2 }
+[[test.result]]
+id = "not-found"
+text = "Couldn't find it"
+
+[[test]]
+id = "wiring-look"
+title = "Look at the sensor's wiring and plug"
+why = "Wires near the exhaust melt or chafe, and plugs corrode."
+steps = [
+  "With the exhaust cold, follow the sensor's wire from the sensor to its plug.",
+  "Look for melted or shiny worn spots, wires touching the exhaust, and a loose or green-corroded plug.",
+]
+[[test.result]]
+id = "damaged"
+text = "Damaged wire or a bad plug"
+effect = { wiring = 4 }
+[[test.result]]
+id = "fine"
+text = "Wiring and plug look fine"
+effect = { wiring = -1 }
+
+[[test]]
+id = "trims"
+title = "Check the fuel trims"
+why = "Trims far from zero mean the mixture really is lean or rich, and the sensor may be telling the truth."
+needs = ["scan-tool"]
+steps = ["Warm the engine. At idle, add short and long term fuel trim."]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 15.0
+result = "far"
+[[test.auto.outcome]]
+below = -15.0
+result = "far"
+[[test.auto.outcome]]
+result = "near"
+[[test.result]]
+id = "near"
+text = "Total within about 15 % of zero"
+effect = { mixture = -1 }
+[[test.result]]
+id = "far"
+text = "Total more than about 15 % from zero"
+effect = { mixture = 2 }
+note = "Follow the lean or rich guide first."
+
+[[test]]
+id = "front-switching"
+title = "Watch the front sensor switch"
+why = "A good front oxygen sensor swings across 0.45 V often once warm. A slow or flat one is worn, cold or unpowered."
+needs = ["scan-tool"]
+steps = [
+  "Warm the engine fully.",
+  "Hold about 2500 rpm and watch the front (sensor 1) oxygen sensor voltage for 30 seconds.",
+  "This works for normal oxygen sensors. An air-fuel ratio sensor doesn't swing.",
+]
+[test.auto]
+kind = "live"
+measure = "switches"
+pids = ["14"]
+seconds = 30
+hold = { pid = "0C", from = 2200.0, to = 2800.0, text = "Hold the engine at about 2500 rpm" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 30.0
+result = "active"
+[[test.auto.outcome]]
+above = 6.0
+result = "slow"
+[[test.auto.outcome]]
+result = "flat"
+[[test.result]]
+id = "active"
+text = "It swings across 0.45 V often (more than about 30 times a minute)"
+effect = { sensor = -2, wiring = -1 }
+[[test.result]]
+id = "slow"
+text = "It swings, but slowly (about 6 to 30 times a minute)"
+effect = { sensor = 2, contamination = 1, exhaust-leak = 1 }
+[[test.result]]
+id = "flat"
+text = "It hardly moves"
+effect = { sensor = 2, wiring = 1, heater-power = 1 }
+[[test.result]]
+id = "af"
+text = "The car has an air-fuel ratio sensor in front (no swinging to watch)"
+
+[[test]]
+id = "snap"
+title = "Snap the throttle"
+why = "A good sensor responds within a fraction of a second when the mixture changes suddenly."
+needs = ["scan-tool"]
+steps = [
+  "Warm the engine. Hold about 2000 rpm, close the throttle quickly, then open it quickly.",
+  "A normal oxygen sensor should drop to about 0.1 V when you close it and rise to about 0.9 V when you open it, at once.",
+  "An air-fuel ratio sensor reading should jump the same way, lean then rich.",
+]
+[[test.result]]
+id = "quick"
+text = "It follows at once"
+effect = { sensor = -1 }
+[[test.result]]
+id = "slow"
+text = "It lags, or barely moves"
+effect = { sensor = 2, contamination = 1 }
+
+[[test]]
+id = "heater-ohms"
+title = "Measure the heater's resistance"
+why = "An open heater (no reading) means the sensor has failed. A normal reading moves the blame to the fuse or the wiring."
+needs = ["multimeter"]
+steps = [
+  "With the engine off and cold, unplug the sensor.",
+  "Measure across the two heater pins on the sensor side (often the two wires of the same colour).",
+  "Compare with the workshop manual. Normal oxygen sensors often read about 2 to 15 ohms; Toyota air-fuel ratio sensor heaters about 1.8 to 3.4 ohms at 20 °C.",
+]
+[[test.result]]
+id = "open"
+text = "No reading (open circuit)"
+effect = { sensor = 4 }
+[[test.result]]
+id = "ok"
+text = "Within the specification"
+effect = { sensor = -1, heater-power = 1, wiring = 1 }
+[[test.result]]
+id = "low"
+text = "Far below the specification (near zero)"
+effect = { sensor = 3, heater-power = 1 }
+note = "A shorted heater can blow its fuse again: replace the sensor before the fuse."
+
+[[test]]
+id = "exhaust-leak"
+title = "Look for an exhaust leak near the sensor"
+why = "A leak pulls air in past the sensor, making it read lean or slow."
+steps = [
+  "Start from cold and listen for ticking or puffing near the sensor and the joints before it.",
+  "Look for soot marks at gaskets and flanges.",
+]
+[[test.result]]
+id = "found"
+text = "Found a leak"
+effect = { exhaust-leak = 3 }
+[[test.result]]
+id = "none"
+text = "No leak found"
+effect = { exhaust-leak = -1 }
+
+[[test]]
+id = "contamination"
+title = "Is the engine burning oil or coolant?"
+why = "Oil or coolant in the exhaust coats and slows the sensor."
+steps = [
+  "Check oil use between services, and the coolant level when cold.",
+  "If the sensor has been removed, look at its tip: white or green crust (coolant, sealant) or oily black soot.",
+]
+[[test.result]]
+id = "yes"
+text = "Uses oil or coolant, or the tip is crusted"
+effect = { contamination = 3 }
+[[test.result]]
+id = "no"
+text = "No"
+effect = { contamination = -1 }

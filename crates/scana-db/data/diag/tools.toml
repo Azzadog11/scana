@@ -1,0 +1,144 @@
+# Tools a diagnosis test may need. The guides assume none of them: a test that needs a
+# tool says which one could check, and the test can be skipped.
+#
+# cost: a rough class for the cheapest usable kind, not a price (prices change):
+#   low     about the price of a meal out
+#   medium  about the price of a tank of fuel to a few tanks
+#   high    more than that, or usually hired or left to a workshop
+# Written for Scana (2026-10-16).
+
+[[tool]]
+id = "multimeter"
+name = "Digital multimeter"
+what = "Measures voltage, resistance and current. The basic electrical test tool."
+use = "Set it to volts DC to read sensor signals and battery voltage, or to ohms (with the part unplugged) to check a sensor, heater or wire for an open or a short."
+cost = "low"
+safety = "Never probe airbag wiring or connectors: a meter can set off an airbag."
+
+[[tool]]
+id = "back-probe"
+name = "Back-probe pins"
+what = "Thin pins that slide into the back of a plugged-in connector, so a meter can read a sensor while it works."
+use = "Push the pin in beside the wire, from the back of the connector, until it touches the terminal. Clip the meter lead to the pin. Don't force it: a bent terminal makes a new fault."
+cost = "low"
+
+[[tool]]
+id = "ir-thermometer"
+name = "Infrared thermometer"
+what = "Reads surface temperature from a distance when you point it at something."
+use = "Point it at the same kind of surface each time (bare metal, not a heat shield). Compare two places, for example before and after the catalytic converter, or the top and bottom of the radiator."
+cost = "low"
+safety = "Exhaust parts and radiators get hot enough to burn. Read from a distance; don't touch."
+
+[[tool]]
+id = "vacuum-gauge"
+name = "Vacuum gauge"
+what = "Measures intake manifold vacuum with the engine running."
+use = "Connect it to a vacuum port on the intake manifold. A steady reading at idle is normal; a low, falling or flickering needle points to leaks, a blocked exhaust or valve trouble."
+cost = "low"
+
+[[tool]]
+id = "fuel-pressure-gauge"
+name = "Fuel pressure gauge"
+what = "Measures fuel pressure at the engine's fuel rail."
+use = "Fit it to the fuel rail's test port (or in line, with the right adaptor). Compare the reading with the workshop manual, at idle and with the engine revved."
+cost = "medium"
+safety = "Fuel under pressure sprays. Work outdoors, engine cold, no flames or sparks, and relieve the pressure as the workshop manual says before opening anything."
+
+[[tool]]
+id = "smoke-machine"
+name = "Smoke machine (leak tester)"
+what = "Pumps visible, harmless smoke into a closed system so leaks show as wisps of smoke."
+use = "Connect it to the intake, the exhaust or the fuel vapour (EVAP) system with the right adaptor, and look for smoke coming out where it shouldn't."
+cost = "medium"
+
+[[tool]]
+id = "compression-tester"
+name = "Compression tester"
+what = "A gauge that screws into a spark plug hole and shows the pressure a cylinder makes while the engine turns over."
+use = "Remove all spark plugs, disable fuel and ignition as the workshop manual says, and crank the engine for each cylinder in turn. Cylinders should read within about 10 % of each other."
+cost = "low"
+safety = "Disable fuel and ignition first. Keep hands clear of the fan and belts while cranking."
+
+[[tool]]
+id = "leakdown-tester"
+name = "Leak-down tester"
+what = "Puts compressed air into a cylinder at top dead centre and shows how much leaks out, and where you can hear it escape."
+use = "Air heard at the oil filler means piston rings; at the exhaust pipe, an exhaust valve; at the intake, an intake valve; bubbles in the radiator, a head gasket."
+cost = "medium"
+
+[[tool]]
+id = "test-light"
+name = "Test light"
+what = "A probe with a bulb or LED that lights when it touches a live wire."
+use = "Clip it to ground and touch a fuse or terminal: lit means power is there. A bright light also shows the circuit can carry current, which a meter alone doesn't."
+cost = "low"
+safety = "Never use a test light on airbag wiring or on computer signal wires: it can draw enough current to damage them."
+
+[[tool]]
+id = "noid-light"
+name = "Noid light"
+what = "A small light that plugs into a fuel injector's connector and flashes when the engine computer pulses the injector."
+use = "Unplug an injector, plug in the noid light, and crank the engine. Flashing means the wiring and the computer's driver work."
+cost = "low"
+
+[[tool]]
+id = "spark-tester"
+name = "Spark tester"
+what = "Plugs in place of a spark plug and shows whether the coil makes a strong spark."
+use = "Fit it to the coil or plug lead, ground its clip, and crank the engine. A strong blue spark across the gap means the coil works."
+cost = "low"
+safety = "Ignition systems carry very high voltage. Don't hold the tester while cranking."
+
+[[tool]]
+id = "stethoscope"
+name = "Mechanic's stethoscope"
+what = "A listening probe that picks up sounds from one part at a time."
+use = "Touch the probe on an injector (a steady clicking means it works), a bearing, a pump or a pulley, and compare with similar parts."
+cost = "low"
+safety = "Keep the probe and your hands away from belts, pulleys and the fan."
+
+[[tool]]
+id = "cooling-tester"
+name = "Cooling system pressure tester"
+what = "A hand pump that fits the radiator or coolant tank neck and pressurises the cold cooling system."
+use = "Pump to the pressure on the radiator cap and watch the gauge for 15 minutes. A falling needle means a leak; look for drips."
+cost = "medium"
+safety = "Only on a cold engine. Opening a hot cooling system sprays boiling coolant."
+
+[[tool]]
+id = "combustion-leak-tester"
+name = "Combustion leak tester (block tester)"
+what = "A tube of blue fluid that turns yellow when exhaust gas is in the coolant."
+use = "With the engine running and the coolant a little below the neck, draw air from the radiator neck through the fluid. A colour change means a head gasket or cracked head leaks combustion gas into the coolant."
+cost = "low"
+safety = "Only open the cooling system when the engine is cool enough, and keep the fluid out of the coolant."
+
+[[tool]]
+id = "backpressure-gauge"
+name = "Exhaust back-pressure gauge"
+what = "A gauge that screws into the front oxygen sensor's hole and shows the pressure in the exhaust."
+use = "Remove the front oxygen sensor, fit the gauge, and read it at idle and at 2500 rpm. A high or climbing reading means the exhaust is blocked, often a melted converter."
+cost = "low"
+safety = "The exhaust is hot. Let it cool before removing the sensor."
+
+[[tool]]
+id = "battery-tester"
+name = "Battery tester"
+what = "Checks a battery's health under load, not just its voltage."
+use = "Connect it to the battery terminals and follow its steps. A battery can show 12.6 V and still fail under load."
+cost = "medium"
+
+[[tool]]
+id = "oscilloscope"
+name = "Oscilloscope"
+what = "Draws a signal's voltage over time, fast enough to see each pulse from a sensor or an ignition coil."
+use = "For signals a meter averages away: crank and cam sensor patterns, injector and coil pulses, fast oxygen sensor switching."
+cost = "medium"
+
+[[tool]]
+id = "refractometer"
+name = "Coolant refractometer"
+what = "Measures how much antifreeze is in the coolant from a few drops."
+use = "Put a drop of coolant on the glass, look through the eyepiece, and read the freeze protection."
+cost = "low"

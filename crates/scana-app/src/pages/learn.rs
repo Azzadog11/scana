@@ -99,6 +99,16 @@ impl ScanaApp {
                     if ui.link("What's a freeze frame?").clicked() {
                         self.topic = Some(Topic::Term("Freeze frame".into()));
                     }
+                    if let Some(g) = scana_db::diag::guide_for(code) {
+                        ui.add_space(4.0);
+                        if ui
+                            .button(RichText::new(format!("Diagnose {code} step by step")).strong())
+                            .on_hover_text(&g.title)
+                            .clicked()
+                        {
+                            self.start_diagnosis(code);
+                        }
+                    }
                 }
                 Some(Topic::Term(name)) => {
                     if let Some(t) = learn::term(&name) {

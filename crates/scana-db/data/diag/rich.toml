@@ -1,0 +1,313 @@
+# Diagnosis guide: system too rich (P0172, P0175 and relatives). Written for Scana
+# (2026-10-16) from the sources below. General guidance: check the maker's workshop manual.
+
+id = "rich"
+title = "Engine running rich: too much fuel or too little air"
+codes = ["P0172", "P0175", "P2188", "P2190", "P2178", "P2180", "P2097", "P2099"]
+summary = "The engine computer is taking a lot of fuel away and the mixture is still rich: more fuel, or less air, than it expects. P0172 is bank 1, P0175 bank 2. Common causes are a fuel vapour purge valve stuck open, a leaking injector, too much fuel pressure, or a coolant temperature sensor that reads cold."
+how_it_works = [
+  "The engine computer measures the air coming in and injects fuel to match. The front oxygen sensor reports the result, and the computer corrects it with the fuel trim: minus means taking fuel away.",
+  "When the long term trim reaches its limit (often somewhere between -15 % and -25 %) and the mixture is still rich, it stores a rich code.",
+  "Extra fuel can come from an injector that leaks, fuel pressure that is too high, fuel vapour from the tank's purge valve, or fuel in the oil drawn in through the crankcase vent. A sensor that tells the computer the engine is colder, or that more air flows, than it really does also makes it inject too much.",
+]
+terms = ["Fuel trim", "EVAP", "MAF", "Oxygen sensor", "Air-fuel ratio sensor", "Bank", "Catalyst"]
+fix_first = ["P0115-P0119", "P0100-P0104", "P0130-P0167", "P2195-P2198", "P0441", "P0443", "P0496"]
+safety = [
+  "Run the engine outdoors only, with the parking brake on, in park or neutral.",
+  "A strong fuel smell means a leak: don't run the engine until you find it, and keep sparks and flames away.",
+  "Fuel under pressure sprays: leave fuel line work to someone with the workshop manual and the right tools.",
+]
+sources = [
+  "'Code P0172 - System Too Rich: Symptoms, causes, common problems, diagnostic', samarins.com (read 2026-10-16)",
+  "'P0172: System Too Rich Bank 1 - What's Dumping Fuel', apextechnation.com (read 2026-10-16)",
+  "'OBD-II Code P0172: System Too Rich (Bank 1)', go-parts.com (read 2026-10-16)",
+  "'P0172 Code: System Too Rich (Bank 1)', themotorguy.com (read 2026-10-16)",
+]
+related = ["lean", "catalyst", "o2-sensor"]
+
+[[cause]]
+id = "purge"
+name = "The fuel vapour purge valve is stuck open"
+detail = "The purge valve lets fuel vapour from the tank's charcoal canister into the engine, only when the computer opens it. Stuck open, it feeds vapour all the time, worst just after refuelling."
+weight = 20
+fix = "Replace the purge valve (purge solenoid)."
+cost = "low"
+
+[[cause]]
+id = "injector"
+name = "A leaking fuel injector"
+detail = "An injector that drips or sticks open adds fuel the computer didn't ask for. A misfire on one cylinder with a rich code often points to that cylinder's injector."
+weight = 20
+fix = "Replace the leaking injector, and clear the learned fuel trims afterwards."
+cost = "medium"
+
+[[cause]]
+id = "pressure"
+name = "Fuel pressure too high (regulator or return line)"
+detail = "A faulty pressure regulator, or a pinched return line, raises the fuel pressure so every injector sprays too much."
+weight = 15
+fix = "Test the fuel pressure; replace the regulator or clear the return line."
+cost = "medium"
+
+[[cause]]
+id = "ect"
+name = "The coolant temperature sensor reads too cold"
+detail = "If the sensor tells the computer the engine is cold, it keeps adding cold-start fuel when the engine is warm."
+weight = 15
+fix = "Replace the coolant temperature sensor, after checking its wiring."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "The front oxygen or air-fuel ratio sensor reads wrongly"
+detail = "An old or contaminated front sensor can report rich when the mixture is right, so the computer takes fuel away."
+weight = 10
+fix = "Replace the front sensor, after ruling out the fuel causes."
+cost = "medium"
+
+[[cause]]
+id = "air"
+name = "Too little air: a blocked air filter or an air flow sensor fault"
+detail = "A badly blocked air filter, or an air flow sensor that reads more air than flows, upsets the mixture."
+weight = 10
+fix = "Replace the air filter; clean or replace the air flow sensor."
+cost = "low"
+
+[[cause]]
+id = "oil-fuel"
+name = "Fuel in the engine oil"
+detail = "Fuel that gets past the rings (or a leaking high-pressure pump on direct-injection engines) collects in the oil, and the crankcase vent draws its vapour back in."
+weight = 10
+fix = "Change the oil, then find how fuel reaches it (injector, pump, rings, many short trips)."
+cost = "medium"
+
+[[test]]
+id = "other-codes"
+title = "Look for other codes"
+why = "Coolant sensor, purge valve and oxygen sensor codes point at the cause."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["P0115-P0119", "P0125", "P0128"]
+result = "ect"
+[[test.auto.group]]
+patterns = ["P0441", "P0443-P0449", "P0496", "P0497"]
+result = "purge"
+[[test.auto.group]]
+patterns = ["P0300-P0312"]
+result = "misfire"
+[[test.auto.group]]
+patterns = ["P0130-P0167", "P2195-P2198", "P2237-P2254"]
+result = "sensor"
+[[test.result]]
+id = "none"
+text = "No other related codes"
+[[test.result]]
+id = "ect"
+text = "Coolant temperature or thermostat codes"
+effect = { ect = 3 }
+[[test.result]]
+id = "purge"
+text = "Fuel vapour (EVAP) purge codes"
+effect = { purge = 3 }
+[[test.result]]
+id = "misfire"
+text = "Misfire codes"
+effect = { injector = 2 }
+note = "A misfire on one cylinder plus a rich code often means that cylinder's injector leaks."
+[[test.result]]
+id = "sensor"
+text = "Oxygen or air-fuel ratio sensor codes"
+effect = { sensor = 3 }
+goto = "o2-sensor"
+
+[[test]]
+id = "refuel"
+title = "Is it worse just after filling the tank?"
+why = "A stuck purge valve floods the engine with vapour after refuelling: hard starting and a rough idle."
+steps = ["Think back: is the engine hard to start, or rough, right after filling up?"]
+[[test.result]]
+id = "yes"
+text = "Yes, worse after refuelling"
+effect = { purge = 3 }
+[[test.result]]
+id = "no"
+text = "No difference"
+effect = { purge = -1 }
+
+[[test]]
+id = "coolant-cold"
+title = "Compare coolant and intake air temperature on a cold engine"
+why = "After a night parked, both sensors should read about the outside temperature. A coolant sensor reading far colder is faulty."
+needs = ["scan-tool"]
+steps = [
+  "Leave the car parked for at least 6 hours.",
+  "Turn the key on (engine off, or just started) and read coolant temperature and intake air temperature.",
+]
+[test.auto]
+kind = "live"
+measure = "diff"
+pids = ["05", "0F"]
+seconds = 5
+hold = { pid = "05", to = 45.0, text = "Do this on a cold engine (parked for 6 hours)" }
+[[test.auto.outcome]]
+below = -8.0
+result = "colder"
+[[test.auto.outcome]]
+above = 8.0
+result = "warmer"
+[[test.auto.outcome]]
+result = "same"
+[[test.result]]
+id = "same"
+text = "Within a few degrees of each other"
+effect = { ect = -2 }
+[[test.result]]
+id = "colder"
+text = "Coolant reads clearly colder than the intake air"
+effect = { ect = 3 }
+[[test.result]]
+id = "warmer"
+text = "Coolant reads warmer (the engine wasn't fully cold)"
+
+[[test]]
+id = "warm-coolant"
+title = "Check the coolant temperature when warm"
+why = "A fully warm engine should read about 80 to 105 °C. A coolant reading stuck low keeps the mixture rich."
+needs = ["scan-tool"]
+steps = ["Drive for 15 minutes, then read the coolant temperature at idle."]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["05"]
+seconds = 10
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle after a drive" }
+[[test.auto.outcome]]
+below = 70.0
+result = "low"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "normal"
+text = "About 80 °C or more"
+effect = { ect = -1 }
+[[test.result]]
+id = "low"
+text = "Stays below about 70 °C"
+effect = { ect = 2 }
+note = "Also see the thermostat: a thermostat stuck open keeps the engine cold too."
+
+[[test]]
+id = "trim-speed"
+title = "Do the trims improve at 2500 rpm?"
+why = "Rich mostly at idle points to a leaking injector or the purge valve; rich everywhere points to fuel pressure or a sensor."
+needs = ["scan-tool"]
+steps = ["Warm the engine. Add short and long term trim at idle, then at 2500 rpm."]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", from = 2200.0, to = 2800.0, text = "Hold the engine at about 2500 rpm" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+below = -10.0
+result = "still"
+[[test.auto.outcome]]
+result = "better"
+[[test.result]]
+id = "better"
+text = "Trims move close to zero at 2500 rpm"
+effect = { injector = 1, purge = 1, pressure = -1 }
+[[test.result]]
+id = "still"
+text = "Still below about -10 % at 2500 rpm"
+effect = { pressure = 1, sensor = 1, air = 1 }
+
+[[test]]
+id = "air-filter"
+title = "Look at the air filter"
+why = "A badly blocked filter starves the engine of air."
+steps = ["Open the air filter box and hold the filter up to a light."]
+[[test.result]]
+id = "blocked"
+text = "Dark and blocked: little light through it"
+effect = { air = 2 }
+[[test.result]]
+id = "ok"
+text = "Fairly clean"
+effect = { air = -1 }
+
+[[test]]
+id = "oil-smell"
+title = "Smell the engine oil"
+why = "Oil that smells of fuel, or a rising oil level, means fuel is reaching the crankcase."
+steps = ["Pull the dipstick and smell it. Check whether the oil level has risen since the last change."]
+[[test.result]]
+id = "fuel"
+text = "Smells of fuel, or the level has risen"
+effect = { oil-fuel = 3, injector = 1 }
+[[test.result]]
+id = "normal"
+text = "Normal oil smell"
+effect = { oil-fuel = -1 }
+
+[[test]]
+id = "regulator-hose"
+title = "Check the fuel pressure regulator's vacuum hose"
+why = "On engines whose regulator has a vacuum hose, fuel in that hose means its diaphragm has split."
+steps = [
+  "With the engine off, find the pressure regulator on the fuel rail (not every engine has one with a hose).",
+  "Pull its small vacuum hose off and look inside, and smell it.",
+]
+safety = ["Engine off, no sparks or flames."]
+[[test.result]]
+id = "fuel"
+text = "Fuel in the hose"
+effect = { pressure = 4 }
+[[test.result]]
+id = "dry"
+text = "Dry"
+effect = { pressure = -1 }
+[[test.result]]
+id = "none"
+text = "No such hose on this engine"
+
+[[test]]
+id = "purge-pinch"
+title = "Check whether the purge valve seals"
+why = "A purge valve should be shut with the engine idling cold or off."
+steps = [
+  "With the engine off, find the purge valve (a small valve with two hoses, between the charcoal canister and the intake).",
+  "Remove the hose that goes to the canister and blow gently through the valve.",
+]
+[[test.result]]
+id = "leaks"
+text = "Air passes through with the engine off"
+effect = { purge = 4 }
+[[test.result]]
+id = "seals"
+text = "It blocks the air"
+effect = { purge = -2 }
+
+[[test]]
+id = "fuel-pressure"
+title = "Test the fuel pressure"
+why = "Shows whether the pressure is too high."
+needs = ["fuel-pressure-gauge"]
+steps = [
+  "Fit the gauge as the workshop manual shows.",
+  "Read the pressure at idle and compare with the workshop manual.",
+]
+safety = ["Fuel sprays under pressure. Work outdoors with no flames or sparks, and relieve the pressure first."]
+[[test.result]]
+id = "high"
+text = "Above the specification"
+effect = { pressure = 4 }
+[[test.result]]
+id = "ok"
+text = "Within the specification"
+effect = { pressure = -3 }

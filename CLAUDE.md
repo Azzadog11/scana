@@ -23,6 +23,15 @@ This repo is public. Keep it about the software:
 - No vehicle identification numbers. Recorded logs can contain a VIN (service 09): mask it before a log becomes a test or an example.
 - Write neutrally: "runs on an Uno R3", not "runs on my Uno".
 
+## Writing diagnosis guides
+
+- One guide per code family in `crates/scana-db/data/diag/`, added to `FILES` in `diag.rs`. DESIGN section 15 has the format.
+- Every fact needs a source in `sources` (or a make note's `source`); write "unverified" where a source is weak. Never copy SAE wording or a maker's manual text: write it in Scana's own words.
+- Simplified technical English: short sentences, one instruction per step, the same word for the same thing. No em or en dashes.
+- Weights are rough shares from the sources. Effects stay between -4 and +4. A test needs at least two answers; tests needing no tools come first.
+- Thresholds in `auto` are estimates unless a source gives them: say so in the step text ("about"). Values differ by car: point to the workshop manual.
+- Safety first: warn about hot exhausts, running engines, fuel pressure, high voltage, airbags.
+
 ## Tools
 
 | Tool | Command |

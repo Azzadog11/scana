@@ -17,6 +17,11 @@ title = "Fault codes"
 text = "Stored codes are confirmed faults; pending codes were seen once; permanent codes can't be cleared by a tool. Click a code to learn what it means. Clearing codes is safety level 1: Scana checks the engine is off and saves a report first."
 
 [[page]]
+id = "diagnose"
+title = "Diagnose"
+text = "A guide for a fault code: what it means, how the system works, the likely causes, and tests that tell them apart. Each answer moves the causes up or down, and hovering over a cause shows why. Tests that need no tools come first. On a connected car Scana can measure some tests itself; without a car, answer from what you see or another scan tool's readings. Save the report when you're done."
+
+[[page]]
 id = "live"
 title = "Live data"
 text = "Tick the values to watch. Scana asks for up to six at a time and shows how often each one really updates. Click a value to learn about it here."

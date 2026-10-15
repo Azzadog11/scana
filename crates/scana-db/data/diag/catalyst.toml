@@ -1,0 +1,415 @@
+# Diagnosis guide: catalytic converter efficiency (P0420, P0430 and their relatives).
+# Written for Scana (2026-10-16) from the sources listed below. General guidance: check the
+# maker's workshop manual for the car's own values and procedures.
+
+id = "catalyst"
+title = "Catalytic converter not cleaning the exhaust well enough"
+codes = ["P0420", "P0421", "P0422", "P0423", "P0424", "P0430", "P0431", "P0432", "P0433", "P0434"]
+summary = "The engine computer tested the catalytic converter and found it stores too little oxygen to clean the exhaust properly. P0420 is bank 1, P0430 is bank 2 (V engines only). The converter itself is the most common cause, but an exhaust leak, a slow rear oxygen sensor or an engine fault can set the same code. Rule those out first: a converter is expensive."
+how_it_works = [
+  "The catalytic converter cleans the exhaust. To do that it stores oxygen when the mixture is lean and gives it back when the mixture is rich.",
+  "An oxygen sensor before the converter (sensor 1) sees the mixture swing quickly between rich and lean. A second sensor after the converter (sensor 2) should see a steady signal, because a good converter smooths out the swings.",
+  "As the converter wears out it stores less oxygen. The rear sensor then starts to copy the front sensor. When the two signals are too alike, the engine computer stores P0420 or P0430.",
+  "Some cars use an air-fuel ratio sensor at the front instead. It doesn't swing like a normal oxygen sensor, but the rear sensor still tells the story.",
+]
+terms = ["Catalyst", "Oxygen sensor", "Sensor 1, sensor 2", "Bank", "Air-fuel ratio sensor", "Fuel trim", "Misfire", "Mode 06", "Readiness monitor", "TSB", "Reflash"]
+fix_first = ["P0300-P0312", "P0171", "P0172", "P0174", "P0175", "P0130-P0167", "P2195-P2198", "P2270-P2273", "P0030-P0064"]
+safety = [
+  "The exhaust and the converter get hot enough to burn skin and start a grass fire. Let them cool before you touch them, and don't park on dry grass.",
+  "Run the engine outdoors only: exhaust gas can kill in a closed space.",
+  "For tests with the engine running, park on level ground, apply the parking brake, and select park or neutral.",
+]
+sources = [
+  "Toyota TSB EG028-04 'M.I.L. ON DTC P0420' for 2003-2004 Corolla 1ZZ-FE, revised 2004-10-08, as transcribed at converterwarehouse.com/tech-tips (read 2026-10-16)",
+  "toyotanation.com forum threads 'Regarding TSB: EG026-04 and P0420' and '2004 Corolla P0420 Code' (owner reports, read 2026-10-16)",
+  "Walker Exhaust tech tip 'How to Access Mode $06 Diagnostic Data', walkerexhaust.com (read 2026-10-16)",
+  "'Checking into Mode $06', Brake & Front End, brakeandfrontend.com (read 2026-10-16)",
+  "'Avoid an $800 to $2,500 Converter Replacement: 7 Steps to Diagnose P0420', kkrichardson.com (read 2026-10-16)",
+  "'Can an Exhaust Leak Cause P0420?', torqvo.com (read 2026-10-16)",
+  "SAE J1979 / ISO 15031-5: service 06 monitor IDs 21-24 are the catalyst monitors for banks 1-4",
+]
+
+[[cause]]
+id = "converter"
+name = "The catalytic converter is worn out"
+detail = "Age, heat and contamination slowly kill the converter's coating. Most original converters last a long time, so a worn one usually means high distance, or an engine fault that overheated or poisoned it."
+weight = 40
+fix = "Replace the converter with one approved for the car. Cheap universal converters often hold too little catalyst and set the code again within months. Find and fix whatever killed the old one first."
+cost = "high"
+
+[[cause]]
+id = "leak"
+name = "An exhaust leak before or near the rear oxygen sensor"
+detail = "A leak lets outside air into the exhaust between pulses. The rear sensor sees the extra oxygen and reads lean, so the converter looks worse than it is."
+weight = 15
+fix = "Repair the leak: a new gasket, flex joint or pipe section. Then clear the codes and drive."
+cost = "low"
+
+[[cause]]
+id = "rear-sensor"
+name = "The rear oxygen sensor is slow or faulty"
+detail = "An old rear sensor can respond slowly or read wrongly, which makes a good converter look bad. Owners report P0420 cured by a new rear sensor alone."
+weight = 15
+fix = "Replace the rear (sensor 2) oxygen sensor with the correct part for the car."
+cost = "medium"
+
+[[cause]]
+id = "engine"
+name = "Misfires or a wrong mixture hurt or fool the converter"
+detail = "Misfires send unburnt fuel into the converter, where it burns and overheats it. A rich or lean mixture, or a faulty front sensor, upsets the test. A new converter fitted before this is fixed can fail within weeks."
+weight = 12
+fix = "Fix the misfire or the mixture fault first, with its own code and guide. Then retest the converter."
+cost = "medium"
+
+[[cause]]
+id = "oil-coolant"
+name = "The engine burns oil or coolant"
+detail = "Oil burnt by worn rings or valve seals, or coolant from a leaking head gasket, coats the converter and poisons it."
+weight = 6
+fix = "Repair the oil or coolant leak into the engine first (rings, valve seals, head gasket). Then replace the converter."
+cost = "high"
+
+[[cause]]
+id = "software"
+name = "The engine computer's software is too strict"
+detail = "On some models the maker later released new engine computer software with a fairer catalyst test. A dealer can check whether a newer calibration exists for the car."
+weight = 6
+fix = "Have the engine computer updated (reflashed) to the newest calibration, if one exists."
+cost = "low"
+
+[[cause]]
+id = "aftermarket"
+name = "A non-original converter that holds too little catalyst"
+detail = "A cheap replacement converter may pass at first, then fail the test as it ages, much sooner than an original."
+weight = 6
+fix = "Fit a converter approved for the car (original or a quality direct-fit part)."
+cost = "high"
+
+[[test]]
+id = "other-codes"
+title = "Look for other codes first"
+why = "Misfire, mixture and oxygen sensor codes often cause P0420. Fix them first, or a new converter can fail too."
+needs = ["scan-tool"]
+steps = [
+  "Read the stored and pending codes from the engine computer.",
+  "Write them down before you change or clear anything.",
+]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["P0300-P0312", "P0316"]
+result = "misfire"
+[[test.auto.group]]
+patterns = ["P0171", "P0172", "P0174", "P0175", "P2187-P2190"]
+result = "mixture"
+[[test.auto.group]]
+patterns = ["P0130-P0167", "P2195-P2198", "P2270-P2273", "P0030-P0064", "P2237-P2254", "P2A00-P2A07"]
+result = "sensor"
+[[test.result]]
+id = "none"
+text = "P0420 or P0430 is the only code"
+effect = { converter = 1, engine = -2 }
+[[test.result]]
+id = "misfire"
+text = "There are misfire codes (P0300 to P0312)"
+effect = { engine = 3 }
+note = "Fix the misfires first. Unburnt fuel overheats the converter, and a new converter would fail too."
+goto = "misfire"
+stop = true
+[[test.result]]
+id = "mixture"
+text = "There are lean or rich codes (P0171, P0172, P0174, P0175)"
+effect = { engine = 3 }
+note = "Fix the mixture fault first, then retest the converter."
+goto = "lean"
+stop = true
+[[test.result]]
+id = "sensor"
+text = "There are oxygen sensor or sensor heater codes"
+effect = { rear-sensor = 3, engine = 1 }
+note = "Fix the sensor fault first: the converter test depends on both sensors."
+goto = "o2-sensor"
+stop = true
+
+[[test]]
+id = "age"
+title = "How far has the converter done?"
+why = "Original converters usually last a long time. A worn one at low distance points to an engine problem that killed it."
+steps = [
+  "Find out the car's distance, and whether the converter was ever replaced.",
+]
+[[test.result]]
+id = "high"
+text = "More than about 150,000 km on the original converter"
+effect = { converter = 1 }
+[[test.result]]
+id = "low"
+text = "Less than about 100,000 km, or a fairly new converter"
+effect = { converter = -1, engine = 1, oil-coolant = 1, software = 1 }
+[[test.result]]
+id = "unknown"
+text = "Not known"
+
+[[test]]
+id = "mode06"
+title = "Read the converter's test result"
+why = "The engine computer keeps its last converter test result and the limit (service 06). How far past the limit it is shows a worn-out converter or one just on the edge."
+needs = ["scan-tool"]
+steps = [
+  "Read the on-board test results (Test results page).",
+  "Find the catalyst monitor: bank 1 for P0420, bank 2 for P0430.",
+  "Compare the value with its limit.",
+]
+[test.auto]
+kind = "mode06"
+mid = "21,22"
+[[test.auto.outcome]]
+above = 1.3
+result = "far"
+[[test.auto.outcome]]
+above = 1.0
+result = "just"
+[[test.auto.outcome]]
+result = "pass"
+[[test.result]]
+id = "far"
+text = "Failed by a wide margin (more than about 30 % past the limit)"
+effect = { converter = 2 }
+[[test.result]]
+id = "just"
+text = "Failed, but only just past the limit"
+effect = { converter = 1, software = 1, rear-sensor = 1, leak = 1 }
+note = "A converter just past the limit may be fine for a while. Check the cheaper causes first."
+[[test.result]]
+id = "pass"
+text = "Passes now"
+effect = { converter = -1, leak = 1, rear-sensor = 1 }
+note = "The fault comes and goes, or the test hasn't run since the codes were cleared. Drive normally and read it again."
+[[test.result]]
+id = "none"
+text = "The car doesn't report it"
+
+[[test]]
+id = "rear-compare"
+title = "Compare the front and rear oxygen sensors"
+why = "A good converter keeps the rear sensor steady while the front one swings. A worn one lets the rear copy the front."
+needs = ["scan-tool"]
+steps = [
+  "Warm the engine fully (coolant above about 80 °C).",
+  "Watch the front (sensor 1) and rear (sensor 2) oxygen sensor voltages for the bank with the code.",
+  "Hold the engine at about 2500 rpm for 30 seconds while you watch.",
+  "Count how often each one crosses 0.45 V.",
+]
+safety = ["Park on level ground with the parking brake on, in park or neutral. Don't hold high revs for more than about 2 minutes at a time."]
+[test.auto]
+kind = "live"
+measure = "switch_ratio"
+pids = ["14", "15"]
+seconds = 30
+hold = { pid = "0C", from = 2200.0, to = 2800.0, text = "Hold the engine at about 2500 rpm" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+below = 0.3
+result = "steady"
+[[test.auto.outcome]]
+below = 0.7
+result = "some"
+[[test.auto.outcome]]
+result = "copies"
+[[test.result]]
+id = "steady"
+text = "The rear sensor stays fairly steady while the front swings"
+effect = { converter = -2, software = 1, leak = -1 }
+note = "The converter is storing oxygen now. Look at a leak that comes and goes, the software, or a converter just on the edge."
+[[test.result]]
+id = "some"
+text = "The rear sensor moves now and then, less than the front"
+effect = { converter = 1 }
+[[test.result]]
+id = "copies"
+text = "The rear sensor swings nearly as often as the front"
+effect = { converter = 2, rear-sensor = -1 }
+note = "The rear sensor works (it follows the swings), and the converter isn't smoothing them: the converter is the likely fault, once leaks are ruled out."
+[[test.result]]
+id = "front-flat"
+text = "The front sensor doesn't swing (or the car has an air-fuel ratio sensor at the front)"
+note = "This comparison needs a switching front sensor. Use the rear sensor test below instead."
+
+[[test]]
+id = "rear-level"
+title = "Check the rear sensor's voltage level"
+why = "The rear sensor's average shows whether it sees normal exhaust, extra air (a leak, or a dead sensor), or a rich mixture."
+needs = ["scan-tool"]
+steps = [
+  "Warm the engine fully.",
+  "Hold about 2500 rpm and watch the rear (sensor 2) oxygen sensor voltage for 20 seconds.",
+]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["15"]
+seconds = 20
+hold = { pid = "0C", from = 2200.0, to = 2800.0, text = "Hold the engine at about 2500 rpm" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+below = 0.3
+result = "low"
+[[test.auto.outcome]]
+below = 0.85
+result = "normal"
+[[test.auto.outcome]]
+result = "high"
+[[test.result]]
+id = "normal"
+text = "Mostly between about 0.5 and 0.8 V"
+[[test.result]]
+id = "low"
+text = "Stays low, under about 0.3 V"
+effect = { leak = 2, rear-sensor = 2, converter = -1 }
+note = "A rear sensor that stays low sees extra oxygen: air from a leak, or the sensor is dead."
+[[test.result]]
+id = "high"
+text = "Stays high, over about 0.85 V"
+effect = { engine = 1, rear-sensor = 1 }
+note = "The engine may run rich, or the sensor is stuck high."
+
+[[test]]
+id = "leak-check"
+title = "Listen and look for exhaust leaks"
+why = "A leak before or near the rear sensor is a cheap fix that sets the same code."
+steps = [
+  "Start the engine from cold. A leak often ticks or puffs until the metal warms and expands.",
+  "Listen along the exhaust from the engine back to the rear sensor: the manifold, the flexible joint, every flange and gasket.",
+  "Look for black soot marks at joints, and for rust holes, cracks and broken hangers.",
+  "With the engine off and cold, push the pipe gently: it shouldn't knock or move a lot.",
+]
+safety = ["Keep hands away from the exhaust once it warms, and from the fan and belts. Don't put your hand over the tailpipe of a hot engine."]
+[[test.result]]
+id = "found"
+text = "Found a leak, soot marks or a hole"
+effect = { leak = 3 }
+note = "Repair the leak first, clear the codes, and drive for a few days before you decide about the converter."
+[[test.result]]
+id = "none"
+text = "No leak found"
+effect = { leak = -1 }
+[[test.result]]
+id = "unsure"
+text = "Not sure"
+
+[[test]]
+id = "oil-coolant"
+title = "Does the engine burn oil or coolant?"
+why = "Burnt oil or coolant poisons the converter. A new converter would fail too."
+steps = [
+  "Ask how often oil is topped up between services.",
+  "Look for blue smoke at start-up or when accelerating after a long idle.",
+  "Check the coolant level when cold. Look for white, sweet-smelling exhaust smoke after the engine warms.",
+]
+[[test.result]]
+id = "yes"
+text = "It uses oil (more than about 1 litre in 2,000 km) or loses coolant"
+effect = { oil-coolant = 3, converter = 1 }
+note = "Fix the oil or coolant use first. Then a new converter will last."
+[[test.result]]
+id = "no"
+text = "No oil or coolant use"
+effect = { oil-coolant = -2 }
+[[test.result]]
+id = "unknown"
+text = "Not known"
+
+[[test]]
+id = "rattle"
+title = "Tap the converter"
+why = "A rattle means the inside of the converter has broken up."
+steps = [
+  "With the exhaust cold, tap the converter with the side of your fist or a rubber mallet.",
+  "Listen for a rattle, like loose stones inside.",
+]
+[[test.result]]
+id = "rattle"
+text = "It rattles"
+effect = { converter = 2 }
+note = "The converter's core is broken. Pieces can also block the exhaust: expect a loss of power too."
+[[test.result]]
+id = "quiet"
+text = "No rattle"
+
+[[test]]
+id = "converter-type"
+title = "Is the converter original?"
+why = "Cheap replacement converters often fail this test sooner."
+steps = [
+  "Look at the converter under the car. An original usually carries the car maker's marks or part number.",
+  "Check the service history for a replacement converter.",
+]
+[[test.result]]
+id = "aftermarket"
+text = "It is a replacement, not original"
+effect = { aftermarket = 2 }
+[[test.result]]
+id = "original"
+text = "It is original"
+effect = { aftermarket = -2 }
+[[test.result]]
+id = "unsure"
+text = "Not sure"
+
+[[test]]
+id = "software"
+title = "Ask about an engine computer update"
+why = "Some makers released new engine computer software for this code. A dealer can check the VIN."
+steps = [
+  "Ask a dealer for the brand whether a newer engine computer calibration or a technical service bulletin exists for this car and this code.",
+  "Give them the VIN and the code.",
+]
+[[test.result]]
+id = "update"
+text = "An update or bulletin exists"
+effect = { software = 3 }
+note = "Do the update first. Some bulletins also replace the converter."
+[[test.result]]
+id = "none"
+text = "No update exists, or it is already done"
+effect = { software = -2 }
+[[test.result]]
+id = "unknown"
+text = "Not asked yet"
+
+[[test]]
+id = "temperature"
+title = "Compare the temperature before and after the converter"
+why = "A working converter usually runs hotter at its outlet than its inlet. This supports the other tests but proves nothing on its own."
+needs = ["ir-thermometer"]
+steps = [
+  "Warm the engine fully, then hold about 2500 rpm for 2 minutes.",
+  "Point the thermometer at bare metal just before the converter, then just after it.",
+]
+safety = ["The converter can be hotter than 500 °C. Read from a distance and don't touch."]
+[[test.result]]
+id = "hotter"
+text = "The outlet is clearly hotter than the inlet"
+effect = { converter = -1 }
+[[test.result]]
+id = "same"
+text = "About the same, or the outlet is cooler"
+effect = { converter = 1 }
+[[test.result]]
+id = "unsure"
+text = "Can't tell"
+
+[[note]]
+make = "Toyota"
+models = "Corolla with the 1ZZ-FE engine (US market)"
+years = "2003-2004"
+text = "Toyota bulletin EG028-04 covers P0420 on these cars built before a production change: the fix was new engine computer software and a new converter (the same repair as bulletin EG016-04 for a sulphur smell). Owners say the old software compared the two oxygen sensors too strictly. For a car from another market, ask a Toyota dealer to check the VIN for updates."
+source = "Toyota TSB EG028-04 (converterwarehouse.com transcription) and toyotanation.com owner reports, read 2026-10-16"
+
+[[note]]
+make = "Toyota"
+models = "Corolla with the 1ZZ-FE engine"
+years = "early 2000s"
+text = "Owners report that some early 1ZZ-FE engines burn oil through sticking piston rings, which can coat the converter. Check oil use before fitting a new converter. Owners also report P0420 cured by a new rear oxygen sensor on high-distance cars."
+source = "toyotanation.com owner reports, read 2026-10-16 (unverified)"

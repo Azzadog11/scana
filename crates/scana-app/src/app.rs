@@ -19,6 +19,7 @@ pub enum Page {
     Home,
     Health,
     Codes,
+    Diagnose,
     Live,
     Graphs,
     Readiness,
@@ -33,10 +34,11 @@ pub enum Page {
 }
 
 impl Page {
-    pub const ALL: [Page; 14] = [
+    pub const ALL: [Page; 15] = [
         Page::Home,
         Page::Health,
         Page::Codes,
+        Page::Diagnose,
         Page::Live,
         Page::Graphs,
         Page::Readiness,
@@ -55,6 +57,7 @@ impl Page {
             Page::Home => "home",
             Page::Health => "health",
             Page::Codes => "codes",
+            Page::Diagnose => "diagnose",
             Page::Live => "live",
             Page::Graphs => "graphs",
             Page::Readiness => "readiness",
@@ -74,6 +77,7 @@ impl Page {
             Page::Home => "Home",
             Page::Health => "Health check",
             Page::Codes => "Fault codes",
+            Page::Diagnose => "Diagnose",
             Page::Live => "Live data",
             Page::Graphs => "Graphs",
             Page::Readiness => "Readiness",
@@ -147,6 +151,13 @@ pub struct ScanaApp {
     pub console_text: String,
     /// Names the user gave to data explorer values.
     pub names: crate::names::Names,
+    /// The diagnosis open on the Diagnose page, the code typed, the open test card,
+    /// a live measurement in progress, and a read waiting to answer a test.
+    pub diag: Option<scana_core::diagnose::Diagnosis>,
+    pub diag_code_text: String,
+    pub diag_open: Option<String>,
+    pub diag_measure: Option<crate::pages::diagnose::DiagMeasure>,
+    pub diag_wait: Option<crate::pages::diagnose::DiagWait>,
     applied: Option<(ThemeChoice, f32)>,
 }
 
@@ -193,6 +204,11 @@ impl ScanaApp {
             explore_byte: None,
             name_text: String::new(),
             console_text: String::new(),
+            diag: None,
+            diag_code_text: String::new(),
+            diag_open: None,
+            diag_measure: None,
+            diag_wait: None,
             applied: None,
         };
         app.push_gaps();
@@ -537,6 +553,7 @@ impl ScanaApp {
                 Page::Home => self.page_home(ui),
                 Page::Health => self.page_health(ui),
                 Page::Codes => self.page_codes(ui),
+                Page::Diagnose => self.page_diagnose(ui),
                 Page::Live => self.page_live(ui),
                 Page::Graphs => self.page_graphs(ui),
                 Page::Readiness => self.page_readiness(ui),
@@ -578,8 +595,10 @@ impl eframe::App for ScanaApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         for u in self.session.poll() {
+            self.diag_hook(&u);
             self.model.apply(u);
         }
+        self.diag_after_updates();
         self.apply_look(&ctx);
         self.keys(&ctx);
 
@@ -597,7 +616,7 @@ impl eframe::App for ScanaApp {
         if let Some(plan) = self.shot.take() {
             self.shot = crate::screenshot::step(self, plan, &ctx);
         }
-        if self.model.connected() || self.model.busy.is_some() || self.shot.is_some() {
+        if self.model.connected() || self.model.busy.is_some() || self.shot.is_some() || self.diag_measure.is_some() {
             ctx.request_repaint_after(Duration::from_millis(200));
         }
     }

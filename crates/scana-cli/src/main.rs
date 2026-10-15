@@ -149,6 +149,28 @@ enum Cmd {
         #[arg(required = true, num_args = 1..)]
         request: Vec<String>,
     },
+    /// Work through a fault code step by step: what it means, the likely causes, and tests that
+    /// tell them apart. Works without a car (you answer from what you see, or another scan
+    /// tool's readings); with --car, Scana measures what it can.
+    Diagnose {
+        /// The fault code, for example P0420.
+        code: String,
+        /// Connect to the car (the bridge, or --sim) and let Scana measure tests itself.
+        #[arg(long)]
+        car: bool,
+        /// Answers given in advance: test=result,test=result (for scripts).
+        #[arg(long)]
+        answers: Option<String>,
+        /// Only list the guide's tests and the current ranking; ask nothing.
+        #[arg(long)]
+        list: bool,
+    },
+    /// Explain a fault code, a word, or a tool: Scana's knowledge base.
+    Explain {
+        /// A code (P0420), or words (fuel trim, oxygen sensor).
+        #[arg(required = true, num_args = 1..)]
+        what: Vec<String>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -165,6 +187,18 @@ fn main() -> ExitCode {
 fn run(cli: Cli) -> Result<()> {
     if let Cmd::Ports = cli.cmd {
         return ports();
+    }
+    if let Cmd::Explain { what } = &cli.cmd {
+        return explain(&what.join(" "));
+    }
+    if let Cmd::Diagnose { code, car, answers, list } = &cli.cmd {
+        let client = if *car {
+            let link = open_link(&cli)?;
+            Some(Client::new(link))
+        } else {
+            None
+        };
+        return diagnose(code, client, answers.as_deref(), *list);
     }
     if let Cmd::Record { minutes, pids, dir } = &cli.cmd {
         // The session worker opens its own link.
@@ -199,7 +233,405 @@ fn run(cli: Cli) -> Result<()> {
             one_module(&mut client, &address, scan.as_deref(), kind.as_deref(), watch.as_deref(), seconds)
         }
         Cmd::Send { address, request } => send(&mut client, &address, &request.join(" ")),
+        Cmd::Diagnose { .. } | Cmd::Explain { .. } => Ok(()),
     }
+}
+
+/// Word-wraps text at about 90 columns with an indent, for the terminal.
+fn wrap(text: &str, indent: &str) -> String {
+    let mut out = String::new();
+    let mut line = String::from(indent);
+    for word in text.split_whitespace() {
+        if line.len() + word.len() > 92 && !line.trim().is_empty() {
+            out.push_str(line.trim_end());
+            out.push('\n');
+            line = String::from(indent);
+        }
+        line.push_str(word);
+        line.push(' ');
+    }
+    out.push_str(line.trim_end());
+    out
+}
+
+fn explain(what: &str) -> Result<()> {
+    use scana_db::{diag, learn};
+    let mut said = false;
+    if let Some(code) = scana_proto::Dtc::parse(what.trim()) {
+        let info = dtcdb::lookup(code);
+        println!("{code}: {}", info.summary());
+        println!("{}", wrap(&format!("Group: {}. System: {}.", info.group, info.system.name()), "  "));
+        if info.manufacturer_specific {
+            println!(
+                "{}",
+                wrap(
+                    "Maker-specific: its exact meaning depends on the make. The maker's workshop manual has it.",
+                    "  "
+                )
+            );
+        }
+        if let Some(a) = info.advice {
+            println!("\nWhat it usually means:\n{}", wrap(&a.means, "  "));
+            println!("What to check first:");
+            for c in &a.check {
+                println!("{}", wrap(&format!("- {c}"), "  "));
+            }
+        }
+        if let Some(g) = diag::guide_for(code) {
+            println!("\nScana has a step-by-step guide: {}.", g.title);
+            println!("  Run: scana diagnose {code}");
+        }
+        return Ok(());
+    }
+    let q = what.to_lowercase();
+    if let Some(t) = learn::term(what) {
+        println!("{}\n{}", t.name, wrap(&t.text, "  "));
+        said = true;
+    }
+    let near: Vec<_> = learn::glossary()
+        .iter()
+        .filter(|t| {
+            !t.name.eq_ignore_ascii_case(what)
+                && (t.name.to_lowercase().contains(&q) || t.text.to_lowercase().contains(&q))
+        })
+        .collect();
+    if !near.is_empty() {
+        println!("{}Glossary words that mention \"{what}\":", if said { "\n" } else { "" });
+        for t in near.iter().take(8) {
+            println!("{}", wrap(&format!("{}: {}", t.name, t.text), "  "));
+        }
+        said = true;
+    }
+    for t in diag::tools().iter().filter(|t| t.name.to_lowercase().contains(&q) || t.id.contains(&q)) {
+        println!(
+            "\nTool: {} (cost: {})\n{}\n{}",
+            t.name,
+            t.cost,
+            wrap(&t.what, "  "),
+            wrap(&format!("How: {}", t.how), "  ")
+        );
+        if let Some(s) = &t.safety {
+            println!("{}", wrap(&format!("Safety: {s}"), "  "));
+        }
+        said = true;
+    }
+    let guides = diag::search(what);
+    if !guides.is_empty() {
+        println!("\nDiagnosis guides:");
+        for g in guides {
+            println!("  {}: {} (codes {})", g.id, g.title, g.codes.join(", "));
+        }
+        said = true;
+    }
+    if !said {
+        println!("Scana has nothing on \"{what}\" yet. Try a code (P0420) or a shorter word.");
+    }
+    Ok(())
+}
+
+/// Collects live samples for a test: waits for its precondition, then samples while its hold
+/// condition is met, until enough seconds are collected (or 3 minutes pass).
+fn measure_live(
+    client: &mut Client,
+    ecu: CanId,
+    auto: &scana_db::diag::Auto,
+) -> Result<scana_core::diagnose::Measured> {
+    use scana_core::diagnose::{self, Sample};
+    let pids = diagnose::live_pids(auto);
+    let want_s = f64::from(auto.seconds.unwrap_or(20));
+    let start = Instant::now();
+    let mut samples: Vec<Sample> = Vec::new();
+    let mut good_s = 0.0;
+    let mut last_good: Option<Instant> = None;
+    let mut last_msg = String::new();
+    while good_s < want_s {
+        if start.elapsed() > Duration::from_secs(180) {
+            bail!("the test's conditions weren't met within 3 minutes");
+        }
+        let mut now_vals: std::collections::HashMap<u8, f64> = std::collections::HashMap::new();
+        for chunk in pids.chunks(obd::MAX_PIDS_PER_REQUEST) {
+            for r in readers::read_pids(client, ecu, chunk)? {
+                if let Some(v) = r.decoded.as_ref().and_then(|d| d.main()).map(|q| q.value) {
+                    now_vals.insert(r.pid, v);
+                }
+            }
+        }
+        let t_ms = client.now_ms();
+        let need_ok =
+            auto.need.as_ref().is_none_or(|n| n.pid().and_then(|p| now_vals.get(&p)).is_some_and(|v| n.holds(*v)));
+        let hold_ok =
+            auto.hold.as_ref().is_none_or(|h| h.pid().and_then(|p| now_vals.get(&p)).is_some_and(|v| h.holds(*v)));
+        let msg = if !need_ok {
+            auto.need.as_ref().map(|n| format!("Waiting: {}", n.text)).unwrap_or_default()
+        } else if !hold_ok {
+            auto.hold.as_ref().map(|h| format!("{} (now outside the range)", h.text)).unwrap_or_default()
+        } else {
+            String::new()
+        };
+        if !msg.is_empty() && msg != last_msg {
+            println!("    {msg}");
+        }
+        last_msg = msg;
+        if need_ok && hold_ok {
+            let now = Instant::now();
+            if let Some(prev) = last_good {
+                good_s += now.duration_since(prev).as_secs_f64().min(1.0);
+            }
+            last_good = Some(now);
+            for (&pid, &value) in &now_vals {
+                samples.push(Sample { t_ms, pid, value });
+            }
+        } else {
+            last_good = None;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    Ok(diagnose::evaluate_live(auto, &samples))
+}
+
+fn diagnose(code_text: &str, client: Option<Client>, answers: Option<&str>, list: bool) -> Result<()> {
+    use scana_core::diagnose::{self, Diagnosis};
+    use scana_db::diag;
+    let code =
+        scana_proto::Dtc::parse(code_text).with_context(|| format!("{code_text} is not a fault code like P0420"))?;
+    let Some(mut d) = Diagnosis::for_code(code) else {
+        println!("{code}: {}", dtcdb::lookup(code).summary());
+        println!("Scana has no step-by-step guide for {code} yet. `scana explain {code}` shows what it knows.");
+        return Ok(());
+    };
+    let g = d.guide;
+    println!("{code}: {}\n", g.title);
+    println!("{}\n", wrap(&g.summary, ""));
+    println!("How it works:");
+    for p in &g.how_it_works {
+        println!("{}", wrap(p, "  "));
+    }
+    if !g.safety.is_empty() {
+        println!("\nSafety:");
+        for s in &g.safety {
+            println!("{}", wrap(&format!("! {s}"), "  "));
+        }
+    }
+    for n in &g.note {
+        println!(
+            "\nNote for {} {}{}:",
+            n.make,
+            n.models.as_deref().unwrap_or(""),
+            n.years.as_deref().map(|y| format!(" ({y})")).unwrap_or_default()
+        );
+        println!("{}", wrap(&n.text, "  "));
+        println!("{}", wrap(&format!("Source: {}", n.source), "  "));
+    }
+    if let Some(list) = answers {
+        for pair in list.split(',').filter(|p| !p.trim().is_empty()) {
+            let (t, r) = pair.split_once('=').with_context(|| format!("answers look like test=result, not {pair}"))?;
+            if d.test(t.trim()).and_then(|x| x.result(r.trim())).is_none() {
+                bail!("the guide has no test {t} with a result {r}");
+            }
+            d.answer(t.trim(), r.trim());
+        }
+    }
+
+    // With a car: read what Scana can, and measure the quick tests.
+    let mut car_codes: Vec<scana_proto::Dtc> = Vec::new();
+    let mut live: Option<(Client, CanId, Vec<u8>)> = None;
+    if let Some(mut client) = client {
+        println!("\nConnecting to the car to measure what Scana can...");
+        let det = find_car(&mut client, true)?;
+        let ecus = ecus_with_pids(&mut client, &det)?;
+        for service in [obd::STORED_CODES, obd::PENDING_CODES] {
+            for (_, list) in readers::read_codes(&mut client, service)? {
+                car_codes.extend(list);
+            }
+        }
+        car_codes.sort();
+        car_codes.dedup();
+        let mut tests = Vec::new();
+        let mut statuses = Vec::new();
+        let mut frames = Vec::new();
+        for (ecu, supported) in &ecus {
+            tests.push((*ecu, readers::test_results(&mut client, *ecu).unwrap_or_default()));
+            if supported.contains(&0x01) {
+                statuses.push(readers::readiness(&mut client, *ecu)?);
+            }
+            if let Some(f) = readers::freeze_frame(&mut client, *ecu)? {
+                frames.push(f);
+            }
+        }
+        let first = d.fix_first_present(&car_codes);
+        if !first.is_empty() {
+            println!(
+                "\nFix these codes first, they often cause {code}: {}",
+                first.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(", ")
+            );
+        }
+        for t in &g.test {
+            let Some(a) = &t.auto else { continue };
+            let m = match a.kind.as_str() {
+                "codes" => diagnose::evaluate_codes(a, &car_codes),
+                "mode06" => diagnose::evaluate_mode06(a, &tests),
+                "readiness" => diagnose::evaluate_readiness(a, &statuses),
+                "freeze" => diagnose::evaluate_freeze(a, &frames),
+                _ => continue,
+            };
+            if let Some(r) = m.result.as_deref().filter(|r| t.result(r).is_some())
+                && !d.answers.contains_key(&t.id)
+            {
+                d.answer(&t.id, r);
+            }
+            d.measured.insert(t.id.clone(), m);
+        }
+        if let Some((ecu, supported)) = ecus.first() {
+            live = Some((client, *ecu, supported.clone()));
+        }
+    }
+
+    let print_ranking = |d: &Diagnosis| {
+        println!("\nLikely causes now:");
+        for r in d.ranking().iter().take(4) {
+            let bar = "#".repeat((r.share * 30.0).round() as usize);
+            println!("  {:>3.0} % {bar:<30} {}", r.share * 100.0, r.cause.name);
+        }
+    };
+    if list {
+        println!("\nTests in this guide:");
+        for t in &g.test {
+            let needs: Vec<String> = t
+                .needs
+                .iter()
+                .filter(|n| *n != "scan-tool")
+                .map(|n| diag::tool(n).map_or(n.clone(), |x| x.name.clone()))
+                .collect();
+            let auto = if t.auto.is_some() { " [Scana can measure]" } else { "" };
+            let tools = if needs.is_empty() { String::new() } else { format!(" (needs: {})", needs.join(", ")) };
+            let answer = d.chosen(&t.id).map(|r| format!(" -> {}", r.text)).unwrap_or_default();
+            println!("  {}: {}{tools}{auto}{answer}", t.id, t.title);
+        }
+        print_ranking(&d);
+        return Ok(());
+    }
+
+    println!("\nAnswer each test with its number. s skips a test, q finishes.");
+    let stdin = std::io::stdin();
+    let mut skipped: Vec<String> = Vec::new();
+    loop {
+        let next = g.test.iter().filter(|t| !d.answers.contains_key(&t.id) && !skipped.contains(&t.id));
+        let next: Vec<&scana_db::diag::Test> = next.collect();
+        let Some(t) = next.iter().find(|t| t.no_tools()).or_else(|| next.first()).copied() else { break };
+        print_ranking(&d);
+        println!("\n== {} ==", t.title);
+        println!("{}", wrap(&t.why, "  "));
+        let tools: Vec<&str> = t
+            .needs
+            .iter()
+            .filter(|n| *n != "scan-tool")
+            .filter_map(|n| diag::tool(n).map(|x| x.name.as_str()))
+            .collect();
+        if !tools.is_empty() {
+            println!(
+                "{}",
+                wrap(
+                    &format!(
+                        "Needs: {} (skip with s if you don't have one; `scana explain` describes it)",
+                        tools.join(", ")
+                    ),
+                    "  "
+                )
+            );
+        }
+        if t.needs.iter().any(|n| n == "scan-tool") && live.is_none() {
+            println!("  Needs live data: read it from your scan tool and choose the answer that matches.");
+        }
+        for (i, step) in t.steps.iter().enumerate() {
+            println!("{}", wrap(&format!("{}. {step}", i + 1), "  "));
+        }
+        for sft in &t.safety {
+            println!("{}", wrap(&format!("! {sft}"), "  "));
+        }
+        // Scana can measure a live test on the connected car.
+        if let (Some(a), Some((client, ecu, supported))) = (&t.auto, live.as_mut())
+            && diagnose::live_supported(a, supported)
+            && !d.measured.contains_key(&t.id)
+        {
+            print!("  Scana can measure this. Press Enter to start (or type s to answer yourself): ");
+            std::io::stdout().flush().ok();
+            let mut line = String::new();
+            if stdin.lock().read_line(&mut line)? > 0 && line.trim().is_empty() {
+                match measure_live(client, *ecu, a) {
+                    Ok(m) => {
+                        println!("{}", wrap(&format!("Measured: {}", m.text), "  "));
+                        d.measured.insert(t.id.clone(), m);
+                    }
+                    Err(e) => println!("  Couldn't measure: {e:#}"),
+                }
+            }
+        }
+        if let Some(m) = d.measured.get(&t.id) {
+            println!("{}", wrap(&format!("Scana measured: {}", m.text), "  "));
+        }
+        let suggested = d.measured.get(&t.id).and_then(|m| m.result.clone()).filter(|r| t.result(r).is_some());
+        for (i, r) in t.result.iter().enumerate() {
+            let mark = if suggested.as_deref() == Some(r.id.as_str()) { "  <- Scana's reading" } else { "" };
+            println!("    {}) {}{mark}", i + 1, r.text);
+        }
+        print!("  Your answer: ");
+        std::io::stdout().flush().ok();
+        let mut line = String::new();
+        if stdin.lock().read_line(&mut line)? == 0 {
+            break; // input closed
+        }
+        let input = line.trim().to_lowercase();
+        if input == "q" {
+            break;
+        }
+        if input == "s" || (input.is_empty() && suggested.is_none()) {
+            skipped.push(t.id.clone());
+            continue;
+        }
+        let chosen = if input.is_empty() {
+            suggested.clone()
+        } else {
+            input.parse::<usize>().ok().and_then(|n| t.result.get(n.wrapping_sub(1))).map(|r| r.id.clone())
+        };
+        let Some(rid) = chosen else {
+            println!("  Type a number from the list, s or q.");
+            continue;
+        };
+        d.answer(&t.id, &rid);
+        if let Some(r) = t.result(&rid) {
+            if let Some(n) = &r.note {
+                println!("{}", wrap(&format!("Note: {n}"), "  "));
+            }
+            if let Some(to) = &r.goto
+                && let Some(other) = diag::guide(to)
+            {
+                println!(
+                    "  See also: scana diagnose {} ({})",
+                    other.codes.first().cloned().unwrap_or_default(),
+                    other.title
+                );
+            }
+            if r.stop {
+                println!("  Fix that first. You can carry on with the other tests, or q to finish.");
+            }
+        }
+    }
+    println!("\n== Result ==");
+    for l in d.summary_lines() {
+        println!("{}", wrap(&l, "  "));
+    }
+    let dir = recorder::sessions_dir().join("diagnoses");
+    std::fs::create_dir_all(&dir).with_context(|| format!("can't make {}", dir.display()))?;
+    let when = chrono_now();
+    let path = dir.join(format!("{}_{code}.html", when.replace([' ', ':'], "-")));
+    std::fs::write(&path, d.to_html("", &when)).with_context(|| format!("can't write {}", path.display()))?;
+    println!("\nReport saved: {}", path.display());
+    Ok(())
+}
+
+/// The local time as "2026-10-16 10:30".
+fn chrono_now() -> String {
+    report::now_text()
 }
 
 fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {

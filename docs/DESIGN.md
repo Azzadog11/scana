@@ -19,6 +19,7 @@ How Scana works, as built in version 0.1.0 (stages 1, 2 and 3). Parts marked (dr
 | 12 | Reliability rules |
 | 13 | Testing |
 | 14 | Building and installing |
+| 15 | Diagnosis guides |
 
 ## 1. Goals and limits
 
@@ -300,3 +301,16 @@ The console (data explorer, advanced mode) sends only level 0 requests: `uds::le
 - Serial access: the user must be in `uucp`, the group that owns `/dev/ttyACM*` on Arch-based systems (`dialout` on Debian, Ubuntu and Fedora). Scana says so in plain words when the port can't be opened.
 - Release builds are stripped (`scana` about 2 MB, `scana-app` about 23 MB). The app needs the desktop's usual graphics libraries (it loads them at start: Wayland or X11, OpenGL); most desktop Linux systems have them.
 - The Uno R3 shows as USB `2341:0043`. Scana finds it by that ID and by the `#R` ready line, never by guessing a port.
+
+## 15. Diagnosis guides
+
+A fault code says what the engine computer saw, not what broke. A diagnosis guide (`crates/scana-db/data/diag/<id>.toml`, one per code family) takes the user from the code to the likely cause:
+
+- What the code means, how the system works, safety, and notes for particular makes and models, each with a source.
+- **Causes**, each with a weight: how often it is the cause, relative to the others (an estimate from the sources; it only sets the starting order), what fixes it, and a parts cost class.
+- **Tests**, each with steps in simplified technical English, the tools it needs (`data/diag/tools.toml`; none means eyes, ears and hands), and possible answers. Each answer has effects on causes: +1 doubles a cause's score, +2 multiplies it by 4, -1 halves it. Shares are the scores scaled to 100 %. An answer can carry a note, point to another guide, or say "fix this first".
+- **Automatic answers** (`auto`) on a connected CAN car: `codes` (groups of code patterns), `live` (a measure over samples taken only while a hold condition is met, after a precondition: mean, min, max, spread, fuel trim total, oxygen sensor switches per minute, rear/front switch ratio, difference), `mode06` (how far the worst named monitor result is past its limit), `readiness`, `freeze`. The user can always change the answer.
+
+`scana_core::diagnose` holds the arithmetic and the measures, as pure functions: the app and the command line collect the samples. The app's Diagnose page and `scana diagnose CODE` (no car needed; `--car` to measure) run the guides; `scana explain` and the Learn panel are the fallback for any code or word. A diagnosis can be saved as an HTML report (`<sessions>/diagnoses/`).
+
+The tests in `diag.rs` check every guide: it parses, every effect names a cause, every automatic answer names a real result, every tool, linked guide and glossary word exists, live tests name valid measures and PIDs, and there are no em or en dashes.

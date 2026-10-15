@@ -2,6 +2,7 @@
 
 mod codes;
 mod data;
+pub mod diagnose;
 mod explorer;
 mod home;
 mod info;

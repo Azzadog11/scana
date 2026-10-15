@@ -85,7 +85,7 @@ pub fn run_health_check(
         });
     }
     Ok(HealthReport {
-        when: chrono::Local::now().format("%Y-%m-%d %H:%M").to_string(),
+        when: now_text(),
         vehicle: vehicle.into(),
         link: client.link().describe(),
         protocol: protocol.into(),
@@ -104,6 +104,11 @@ pub fn module_code_line(d: &scana_proto::uds::ModuleDtc) -> String {
         text.push_str(&format!("; {}", scana_proto::uds::failure_type_text(ft)));
     }
     text
+}
+
+/// The local time as "2026-10-16 10:30", for reports.
+pub fn now_text() -> String {
+    chrono::Local::now().format("%Y-%m-%d %H:%M").to_string()
 }
 
 /// "Engine (7E8)" for the usual OBD IDs.

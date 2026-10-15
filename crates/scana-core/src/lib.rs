@@ -4,6 +4,7 @@
 pub mod client;
 pub mod describe;
 pub mod detect;
+pub mod diagnose;
 pub mod modules;
 pub mod poller;
 pub mod readers;

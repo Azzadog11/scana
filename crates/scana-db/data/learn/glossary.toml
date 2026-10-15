@@ -127,3 +127,19 @@ text = "Unified Diagnostic Services (ISO 14229): the deeper diagnostics every mo
 [[term]]
 name = "Mode 06"
 text = "On-board test results: the numbers behind the readiness monitors, each with its limits, so you can see a test that only just passed."
+
+[[term]]
+name = "Misfire"
+text = "A cylinder that fails to burn its fuel properly on a stroke. The engine shakes, unburnt fuel reaches the catalytic converter and overheats it, and the engine computer counts it and may store P0300 to P0312."
+
+[[term]]
+name = "Air-fuel ratio sensor"
+text = "A wide-range oxygen sensor, also called an A/F or wideband sensor. Instead of swinging between rich and lean like a normal oxygen sensor, it reports the exact mixture. Many Toyotas and most newer cars use one in front of the catalytic converter."
+
+[[term]]
+name = "TSB"
+text = "Technical service bulletin: a maker's note to its dealers about a known problem on some models, and how to fix it. A dealer can look up bulletins for a car by its VIN."
+
+[[term]]
+name = "Reflash"
+text = "Loading new software into a car's computer, usually to fix a known fault. Done by a dealer or a workshop with the maker's tools. Scana never does this."

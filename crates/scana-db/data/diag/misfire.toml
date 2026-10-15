@@ -1,0 +1,391 @@
+# Diagnosis guide: engine misfires (P0300 to P0312). Written for Scana (2026-10-16) from
+# the sources below. General guidance: check the maker's workshop manual for the car's values.
+
+id = "misfire"
+title = "Engine misfire"
+codes = ["P0300-P0312", "P0313", "P0316"]
+summary = "One or more cylinders failed to burn their fuel properly. P0301 to P0312 name the cylinder (P0301 is cylinder 1). P0300 means several cylinders, or the engine computer couldn't tell which. A flashing check engine light means a severe misfire that can destroy the catalytic converter: drive gently and get it fixed soon."
+how_it_works = [
+  "Each cylinder needs three things to fire: a spark at the right moment, the right amount of fuel, and enough compression.",
+  "The engine computer watches the crankshaft speed. A cylinder that doesn't fire slows the crankshaft for a moment, and the computer counts it as a misfire.",
+  "If a cylinder misfires on more than about 2 % of its strokes, the computer stores a code. Many more, and it flashes the check engine light to protect the converter.",
+  "The trick is to find which of the three is missing. Swapping parts between cylinders shows whether the misfire follows the part.",
+]
+terms = ["Misfire", "Fuel trim", "Freeze frame", "Mode 06", "Catalyst"]
+fix_first = ["P0171", "P0172", "P0174", "P0175", "P0335-P0349", "P0016-P0019", "P0087", "P0201-P0212", "P0351-P0362"]
+safety = [
+  "A flashing check engine light means: drive gently and as little as possible. Hard driving with a bad misfire can melt the converter.",
+  "Ignition coils carry very high voltage. Turn the engine off before you unplug or swap coils.",
+  "Work on a cold engine: the exhaust and the engine get hot enough to burn.",
+  "Fuel injectors and fuel lines hold fuel under pressure. Leave injector removal to someone with the workshop manual and the right tools.",
+]
+sources = [
+  "'How To Diagnose & Repair Engine Misfires', aa1car.com/library/misfire.htm (read 2026-10-16)",
+  "'Mode $06 Misfire Diagnosis', tomorrowstechnician.com (read 2026-10-16)",
+  "'How to Diagnose Engine Misfires Using Scan Tool Data', autodtcs.com (read 2026-10-16)",
+  "go-parts.com P0301 guides for several models (swap tests: coil, plug, injector) (read 2026-10-16)",
+  "SAE J1979 / ISO 15031-5: service 06 monitor IDs A1-AD are misfire counts (A1 general, A2 cylinder 1 onwards)",
+]
+related = ["catalyst", "lean"]
+
+[[cause]]
+id = "plugs"
+name = "A worn, fouled or damaged spark plug"
+detail = "Plugs wear with distance. A worn, oil-fouled or cracked plug gives a weak spark that fails under load first."
+weight = 25
+fix = "Replace the spark plugs with the type and gap in the workshop manual, all at once if they are due."
+cost = "low"
+
+[[cause]]
+id = "coil"
+name = "A faulty ignition coil or plug lead"
+detail = "A coil (or a plug lead on older engines) can crack or weaken. The spark then leaks away, often when the engine is under load or damp."
+weight = 25
+fix = "Replace the faulty coil or lead. Check its plug well for oil, which can ruin the new one."
+cost = "medium"
+
+[[cause]]
+id = "injector"
+name = "A blocked, leaking or dead fuel injector"
+detail = "An injector that sprays too little fuel, or none, makes its cylinder misfire, often at idle and when cold."
+weight = 12
+fix = "Clean or replace the injector. Check its wiring and plug first."
+cost = "medium"
+
+[[cause]]
+id = "air-leak"
+name = "An air leak (vacuum leak) near one or more cylinders"
+detail = "Air that gets in past the air flow sensor makes the mixture lean. A lean cylinder misfires, mostly at idle."
+weight = 10
+fix = "Find and repair the leak: a split hose, an intake gasket, a loose intake boot."
+cost = "low"
+
+[[cause]]
+id = "compression"
+name = "Low compression (a mechanical fault)"
+detail = "A burnt valve, worn rings, a leaking head gasket or wrong cam timing lets the cylinder lose pressure, so it can't fire properly."
+weight = 8
+fix = "Confirm with a compression or leak-down test, then repair the engine fault."
+cost = "high"
+
+[[cause]]
+id = "fuel"
+name = "Fuel supply: low pressure, bad fuel, or a nearly empty tank"
+detail = "Low fuel pressure, water in the fuel or running nearly out of fuel makes every cylinder lean. It shows as P0300 with several cylinders, often under load."
+weight = 8
+fix = "Check fuel pressure; replace a weak pump or a blocked filter; drain bad fuel."
+cost = "medium"
+
+[[cause]]
+id = "wiring"
+name = "A wiring or connector fault"
+detail = "A loose coil or injector plug, a broken wire, or a corroded pin cuts the spark or fuel now and then."
+weight = 7
+fix = "Repair the plug or wire. Check the locks are clipped and the pins aren't pushed back."
+cost = "low"
+
+[[cause]]
+id = "timing"
+name = "Cam or crank timing, or a sensor that reads it"
+detail = "A stretched timing chain, a slipped belt or a faulty cam or crank sensor upsets the timing of spark and fuel on every cylinder."
+weight = 5
+fix = "Check for cam and crank codes, and the timing marks, with the workshop manual."
+cost = "high"
+
+[[test]]
+id = "flashing"
+title = "Is the check engine light flashing?"
+why = "A flashing light means a severe misfire happening now. It needs care before anything else."
+steps = ["Start the engine and watch the check engine light at idle and when you drive off gently."]
+[[test.result]]
+id = "flashing"
+text = "It flashes"
+note = "Drive gently and as little as possible until it's fixed: a severe misfire can melt the converter. Avoid hard acceleration and hills."
+stop = true
+[[test.result]]
+id = "steady"
+text = "It is on steadily, or off"
+
+[[test]]
+id = "which"
+title = "Which cylinder?"
+why = "One cylinder points to a part on that cylinder. Several, or P0300 alone, points to something they share: fuel, air or timing."
+needs = ["scan-tool"]
+steps = ["Read the codes. Note every P030x code: the last digit is the cylinder."]
+[test.auto]
+kind = "codes"
+absent = "random"
+[[test.auto.group]]
+patterns = ["P0301-P0312"]
+result = "one"
+[[test.auto.group]]
+patterns = ["P0300"]
+result = "random"
+[[test.result]]
+id = "one"
+text = "One cylinder (one of P0301 to P0312)"
+effect = { plugs = 1, coil = 1, injector = 1, compression = 1, wiring = 1, fuel = -2, timing = -2, air-leak = -1 }
+[[test.result]]
+id = "several"
+text = "Two or more cylinders"
+effect = { fuel = 1, air-leak = 1, timing = 1, plugs = 1 }
+[[test.result]]
+id = "random"
+text = "Only P0300 (random)"
+effect = { fuel = 2, air-leak = 1, timing = 1, coil = -1, injector = -1 }
+
+[[test]]
+id = "other-codes"
+title = "Look for other codes"
+why = "Lean, fuel pressure, cam and crank codes name a shared cause behind the misfire."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes, and note any that aren't P030x."]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["P0171", "P0174", "P2187", "P2189", "P0087", "P0191", "P0192"]
+result = "lean"
+[[test.auto.group]]
+patterns = ["P0335-P0349", "P0016-P0019", "P0010-P0015", "P0020-P0025"]
+result = "timing"
+[[test.auto.group]]
+patterns = ["P0201-P0212", "P0261-P0296", "P0351-P0362"]
+result = "circuit"
+[[test.result]]
+id = "none"
+text = "No other codes"
+[[test.result]]
+id = "lean"
+text = "Lean or fuel pressure codes"
+effect = { air-leak = 2, fuel = 2 }
+note = "Follow the lean guide: a lean mixture misfires."
+goto = "lean"
+[[test.result]]
+id = "timing"
+text = "Cam, crank or timing codes"
+effect = { timing = 3 }
+[[test.result]]
+id = "circuit"
+text = "Injector or ignition coil circuit codes"
+effect = { wiring = 2, coil = 1, injector = 1 }
+
+[[test]]
+id = "when"
+title = "When does it misfire?"
+why = "Misfires under load point to the spark; at idle or when cold, to fuel and air."
+needs = ["scan-tool"]
+steps = [
+  "Look at the freeze frame: engine load and coolant temperature when the code was stored.",
+  "Or notice when the engine shakes: at idle, when accelerating, or only when cold.",
+]
+[test.auto]
+kind = "freeze"
+pids = ["04"]
+[[test.auto.outcome]]
+below = 35.0
+result = "idle"
+[[test.auto.outcome]]
+result = "load"
+[[test.result]]
+id = "idle"
+text = "At idle or light load"
+effect = { injector = 1, air-leak = 1, compression = 1 }
+[[test.result]]
+id = "load"
+text = "Under load (accelerating, uphill)"
+effect = { plugs = 1, coil = 2, fuel = 1 }
+[[test.result]]
+id = "cold"
+text = "Mostly when cold, and it goes away when warm"
+effect = { injector = 1, air-leak = 1, compression = 1 }
+[[test.result]]
+id = "unknown"
+text = "Not known"
+
+[[test]]
+id = "trims"
+title = "Check the fuel trims at idle"
+why = "Trims far above zero mean the engine is lean everywhere: an air leak or a fuel supply fault, not one cylinder's spark."
+needs = ["scan-tool"]
+steps = [
+  "Warm the engine fully.",
+  "At idle, add short term and long term fuel trim for the bank with the misfire.",
+]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 10.0
+result = "lean"
+[[test.auto.outcome]]
+below = -10.0
+result = "rich"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "normal"
+text = "Total between about -10 % and +10 %"
+effect = { plugs = 1, coil = 1, air-leak = -1, fuel = -1 }
+[[test.result]]
+id = "lean"
+text = "Total above about +10 % (adding fuel)"
+effect = { air-leak = 2, fuel = 1 }
+[[test.result]]
+id = "rich"
+text = "Total below about -10 % (taking fuel away)"
+effect = { injector = 1 }
+note = "A rich mixture with a misfire can mean a leaking injector, or unburnt fuel from the misfire fooling the oxygen sensor."
+
+[[test]]
+id = "swap-coil"
+title = "Swap the coil with a neighbouring cylinder"
+why = "If the misfire moves with the coil, the coil is faulty. This needs only basic hand tools."
+steps = [
+  "Turn the engine off. Note which coil sits on the misfiring cylinder.",
+  "Swap it with the coil of the next cylinder. Keep each coil's plug connected to its own wiring.",
+  "Clear the codes, then drive the way that made it misfire.",
+  "Read the codes again: did the cylinder number change?",
+]
+safety = ["Engine off before touching coils. Don't run the engine with a coil unplugged."]
+[[test.result]]
+id = "follows"
+text = "The misfire moved to the other cylinder"
+effect = { coil = 4 }
+note = "The coil is faulty. Replace it, and check its plug well for oil."
+[[test.result]]
+id = "stays"
+text = "The misfire stayed on the same cylinder"
+effect = { coil = -3, plugs = 1, injector = 1, compression = 1 }
+[[test.result]]
+id = "not-done"
+text = "Not possible on this engine (one coil pack, or plug leads)"
+
+[[test]]
+id = "plug-look"
+title = "Look at the spark plug"
+why = "A plug's tip shows what happens in the cylinder."
+steps = [
+  "With the engine cold, remove the plug from the misfiring cylinder (a spark plug socket is needed).",
+  "Compare it with a plug from a good cylinder.",
+]
+safety = ["Engine cold. Thread the plug back in by hand first so it doesn't cross-thread."]
+[[test.result]]
+id = "worn"
+text = "Worn (rounded electrode, wide gap), cracked, or black and sooty"
+effect = { plugs = 3 }
+[[test.result]]
+id = "oily"
+text = "Wet with oil, or oily black deposits"
+effect = { compression = 2, plugs = 1 }
+note = "Oil in the cylinder: worn rings or valve seals. A compression test will tell."
+[[test.result]]
+id = "fuel-wet"
+text = "Wet with fuel"
+effect = { coil = 1, wiring = 1, compression = 1 }
+note = "Fuel arrives but doesn't burn: no spark, or no compression."
+[[test.result]]
+id = "white"
+text = "Very clean or white and steamy"
+effect = { compression = 2 }
+note = "Coolant may be getting into the cylinder (head gasket). Check the coolant level."
+[[test.result]]
+id = "normal"
+text = "Looks like the good cylinder's plug"
+effect = { plugs = -2 }
+
+[[test]]
+id = "plug-well"
+title = "Check the coil's plug well and connector"
+why = "Oil in the plug well or a loose connector makes the spark leak or cut out."
+steps = [
+  "Remove the coil and look down the plug well with a torch.",
+  "Look at the coil's boot for cracks or burn marks, and its connector for a broken lock or green corrosion.",
+]
+[[test.result]]
+id = "oil"
+text = "Oil in the plug well, or a cracked or burnt boot"
+effect = { coil = 2, plugs = 1 }
+note = "Oil usually comes from a leaking valve cover or plug tube seal. Fix it, or the new coil fails too."
+[[test.result]]
+id = "connector"
+text = "A loose, broken or corroded connector"
+effect = { wiring = 3 }
+[[test.result]]
+id = "clean"
+text = "Clean and tight"
+effect = { wiring = -1 }
+
+[[test]]
+id = "listen-leak"
+title = "Listen for an air leak"
+why = "A hiss near the intake at idle means air gets in where it shouldn't."
+steps = [
+  "With the engine idling, listen around the intake manifold, the hoses on it, and the duct from the air filter.",
+  "Look for split, soft or disconnected hoses.",
+]
+safety = ["Keep hands, hair and clothing away from the fan and belts."]
+[[test.result]]
+id = "hiss"
+text = "A hiss, or a split or loose hose"
+effect = { air-leak = 3 }
+[[test.result]]
+id = "none"
+text = "Nothing heard"
+effect = { air-leak = -1 }
+
+[[test]]
+id = "injector-click"
+title = "Listen to the injector"
+why = "A working injector clicks steadily. A silent one gets no signal or is stuck."
+needs = ["stethoscope"]
+steps = [
+  "With the engine idling, touch the stethoscope on each injector in turn.",
+  "Compare the misfiring cylinder's injector with the others.",
+]
+safety = ["Keep the probe and your hands away from the fan and belts."]
+[[test.result]]
+id = "clicks"
+text = "It clicks like the others"
+effect = { injector = -1, wiring = -1 }
+[[test.result]]
+id = "silent"
+text = "It is silent or different"
+effect = { injector = 2, wiring = 2 }
+
+[[test]]
+id = "compression"
+title = "Test the compression"
+why = "A cylinder well below the others has a mechanical fault that no part swap will cure."
+needs = ["compression-tester"]
+steps = [
+  "Follow the workshop manual: engine warm, all plugs out, fuel and ignition disabled, throttle held open.",
+  "Crank the engine for each cylinder in turn and write down the reading.",
+]
+safety = ["Disable fuel and ignition first. Keep hands clear of moving parts while cranking."]
+[[test.result]]
+id = "low"
+text = "The misfiring cylinder is more than about 10 % below the others"
+effect = { compression = 4 }
+[[test.result]]
+id = "even"
+text = "All cylinders within about 10 %"
+effect = { compression = -3 }
+
+[[test]]
+id = "fuel-history"
+title = "Any recent fuel trouble?"
+why = "Running nearly empty, or a tank of bad fuel, gives random misfires."
+steps = ["Think back: did the tank run nearly empty, or did the misfire start after filling up somewhere new?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { fuel = 2 }
+[[test.result]]
+id = "no"
+text = "No"
+effect = { fuel = -1 }

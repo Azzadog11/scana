@@ -1,0 +1,308 @@
+# Diagnosis guide: system too lean (P0171, P0174 and relatives). Written for Scana
+# (2026-10-16) from the sources below. General guidance: check the maker's workshop manual.
+
+id = "lean"
+title = "Engine running lean: too much air or too little fuel"
+codes = ["P0171", "P0174", "P2187", "P2189", "P2177", "P2179", "P2096", "P2098"]
+summary = "The engine computer is adding a lot of extra fuel and the mixture is still lean: more air, or less fuel, than it expects. P0171 is bank 1, P0174 bank 2 (V engines). P2187 and P2189 mean lean at idle; P2177 and P2179 lean away from idle. Most often it is an air leak or a dirty air flow sensor."
+how_it_works = [
+  "The engine computer works out how much fuel to inject from the air flow sensor (or the manifold pressure) and the engine speed.",
+  "The front oxygen sensor then reports whether the mixture came out rich or lean, and the computer corrects it. That correction is the fuel trim: plus means adding fuel.",
+  "When the long term trim reaches its limit, often about +25 %, and the mixture is still lean, the computer stores a lean code.",
+  "Where the trim is high tells you a lot. An air leak matters most at idle, where little air flows; at 2500 rpm it is swamped. A dirty air flow sensor or weak fuel supply stays lean at all speeds, or gets worse with load.",
+]
+terms = ["Fuel trim", "MAF", "Oxygen sensor", "Air-fuel ratio sensor", "Bank", "Closed loop", "Freeze frame"]
+fix_first = ["P0100-P0104", "P0105-P0109", "P0130-P0167", "P2195-P2198", "P0087", "P0190-P0193"]
+safety = [
+  "Run the engine outdoors only, with the parking brake on, in park or neutral.",
+  "Keep hands, hair and clothing away from the fan and belts.",
+  "Fuel under pressure sprays: leave fuel line work to someone with the workshop manual and the right tools.",
+  "Never spray a flammable liquid (brake cleaner, carburettor cleaner) near a running engine to find leaks.",
+]
+sources = [
+  "'P0171 Code: 5 Minute Checks, Read Fuel Trims, When to Call a Pro', kkrichardson.com (read 2026-10-16)",
+  "'P0171: System Too Lean (Bank 1)', obdadvisor.com and autodtcs.com (read 2026-10-16)",
+  "'P0171 and Rough Idle: MAF Sensor, Vacuum Leak, or Low Fuel Pressure?', autopartwise.com (read 2026-10-16)",
+  "RepairPal 'P0171 System Too Lean', repairpal.com (read 2026-10-16)",
+  "Identifix 'P0171 Code: Causes, Symptoms, and How to Fix It', identifix.com (read 2026-10-16)",
+]
+related = ["misfire", "rich", "o2-sensor"]
+
+[[cause]]
+id = "air-leak"
+name = "An air leak after the air flow sensor (vacuum leak)"
+detail = "Air that gets in past the air flow sensor isn't measured: a split vacuum hose, the PCV valve or its hose, the brake booster hose, an intake gasket, or a cracked intake duct."
+weight = 35
+fix = "Find and repair the leak. Replace hardened hoses, the PCV valve or the gasket."
+cost = "low"
+
+[[cause]]
+id = "maf"
+name = "A dirty or faulty air flow sensor"
+detail = "Dust or oil on the air flow sensor's element makes it read less air than really flows, so the computer injects too little fuel."
+weight = 25
+fix = "Clean the sensor with spray made for air flow sensors (never brake or carburettor cleaner), and let it dry. Replace it if the fault comes back."
+cost = "low"
+
+[[cause]]
+id = "fuel"
+name = "Weak fuel supply: pump, filter or regulator"
+detail = "A tired fuel pump, a blocked filter or a faulty pressure regulator delivers too little fuel, worst under load."
+weight = 15
+fix = "Test fuel pressure against the workshop manual. Replace the part at fault."
+cost = "medium"
+
+[[cause]]
+id = "exhaust-leak"
+name = "An exhaust leak before the front oxygen sensor"
+detail = "Outside air drawn into the exhaust before the front sensor makes it read lean, though the cylinders aren't."
+weight = 8
+fix = "Repair the leak at the manifold gasket, a cracked manifold or a flange."
+cost = "low"
+
+[[cause]]
+id = "injectors"
+name = "Blocked fuel injectors"
+detail = "Deposits on the injector tips cut the fuel they spray."
+weight = 7
+fix = "Clean or replace the injectors. A fuel system cleaner sometimes helps a little."
+cost = "medium"
+
+[[cause]]
+id = "sensor"
+name = "The front oxygen or air-fuel ratio sensor reads wrongly"
+detail = "An old or contaminated front sensor can report lean when the mixture is right."
+weight = 5
+fix = "Replace the front sensor, after ruling out leaks and fuel supply."
+cost = "medium"
+
+[[test]]
+id = "other-codes"
+title = "Look for other codes"
+why = "Air flow sensor, fuel pressure and oxygen sensor codes point straight at the cause."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["P0100-P0104"]
+result = "maf"
+[[test.auto.group]]
+patterns = ["P0087", "P0190-P0193", "P0230-P0233"]
+result = "fuel"
+[[test.auto.group]]
+patterns = ["P0130-P0167", "P2195-P2198", "P2237-P2254"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P0300-P0312"]
+result = "misfire"
+[[test.result]]
+id = "none"
+text = "No other related codes"
+[[test.result]]
+id = "maf"
+text = "Air flow sensor codes (P0100 to P0104)"
+effect = { maf = 3 }
+[[test.result]]
+id = "fuel"
+text = "Fuel pressure or fuel pump codes"
+effect = { fuel = 3 }
+[[test.result]]
+id = "sensor"
+text = "Oxygen or air-fuel ratio sensor codes"
+effect = { sensor = 2, exhaust-leak = 1 }
+goto = "o2-sensor"
+[[test.result]]
+id = "misfire"
+text = "Misfire codes too"
+effect = { air-leak = 1, fuel = 1 }
+note = "A lean mixture causes misfires. Fix the lean fault first, then check the misfire again."
+
+[[test]]
+id = "both-banks"
+title = "One bank or both?"
+why = "On a V engine, both banks lean (P0171 and P0174 together) means a shared cause: the air flow sensor, fuel pressure, or a central air leak."
+steps = ["Note whether P0171, P0174 or both are stored. A 4-cylinder or straight engine only has bank 1."]
+[[test.result]]
+id = "both"
+text = "Both banks (P0171 and P0174)"
+effect = { maf = 1, fuel = 1, air-leak = 1, exhaust-leak = -1, sensor = -2 }
+[[test.result]]
+id = "one"
+text = "One bank only"
+effect = { air-leak = 1, exhaust-leak = 1, sensor = 1, maf = -1, fuel = -1 }
+[[test.result]]
+id = "inline"
+text = "The engine has only one bank"
+
+[[test]]
+id = "trim-idle"
+title = "Fuel trims at idle"
+why = "High trims at idle that fall at 2500 rpm are the classic sign of an air leak."
+needs = ["scan-tool"]
+steps = [
+  "Warm the engine fully.",
+  "At idle, add short term and long term fuel trim (bank 1).",
+]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 10.0
+result = "high"
+[[test.auto.outcome]]
+result = "ok"
+[[test.result]]
+id = "high"
+text = "Above about +10 % at idle"
+effect = { air-leak = 1 }
+[[test.result]]
+id = "ok"
+text = "Below about +10 % at idle"
+effect = { air-leak = -1 }
+
+[[test]]
+id = "trim-2500"
+title = "Fuel trims at 2500 rpm"
+why = "If the trims stay high at 2500 rpm, the air flow sensor or the fuel supply is the more likely cause."
+needs = ["scan-tool"]
+steps = [
+  "Hold the engine at about 2500 rpm.",
+  "Add short term and long term fuel trim again.",
+]
+safety = ["Park on level ground with the parking brake on. Don't hold high revs for more than about 2 minutes."]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", from = 2200.0, to = 2800.0, text = "Hold the engine at about 2500 rpm" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 10.0
+result = "high"
+[[test.auto.outcome]]
+result = "ok"
+[[test.result]]
+id = "high"
+text = "Still above about +10 % at 2500 rpm"
+effect = { maf = 2, fuel = 1, air-leak = -1 }
+[[test.result]]
+id = "ok"
+text = "Near zero at 2500 rpm"
+effect = { air-leak = 2, maf = -1, fuel = -1 }
+note = "High at idle but fine at speed: look hard for an air leak."
+
+[[test]]
+id = "listen"
+title = "Listen and look for an air leak"
+why = "Most air leaks hiss at idle, and split hoses are easy to see."
+steps = [
+  "With the engine idling, listen around the intake manifold, its hoses, the throttle body and the PCV valve.",
+  "Follow the duct from the air flow sensor to the throttle: look for cracks, loose clamps and torn folds.",
+  "Squeeze the rubber hoses: hard, cracked or soft and swollen hoses leak.",
+  "Check the oil filler cap and dipstick are seated: they let air in too.",
+]
+safety = ["Keep hands, hair and clothing away from the fan and belts."]
+[[test.result]]
+id = "found"
+text = "Found a hiss, a split hose, a loose clamp or a crack"
+effect = { air-leak = 3 }
+[[test.result]]
+id = "none"
+text = "Nothing found"
+effect = { air-leak = -1 }
+
+[[test]]
+id = "maf-clean"
+title = "Clean the air flow sensor"
+why = "Cleaning is cheap. If the trims fall afterwards, the sensor was dirty."
+steps = [
+  "With the engine off, unplug and remove the air flow sensor as the workshop manual shows.",
+  "Spray the element with cleaner made for air flow sensors. Don't touch the element.",
+  "Let it dry completely, refit it, clear the codes and drive for a day.",
+  "Read the long term fuel trim again.",
+]
+[[test.result]]
+id = "better"
+text = "The trims came down (closer to zero)"
+effect = { maf = 3 }
+[[test.result]]
+id = "same"
+text = "No change"
+effect = { maf = -1 }
+
+[[test]]
+id = "exhaust"
+title = "Look for an exhaust leak before the front sensor"
+why = "Air drawn into the exhaust makes the front sensor read lean."
+steps = [
+  "Start the engine from cold and listen at the exhaust manifold for ticking or puffing.",
+  "Look for soot marks at the manifold gasket and the first flange, and for cracks.",
+]
+safety = ["The manifold gets very hot within a minute. Look and listen; don't touch."]
+[[test.result]]
+id = "found"
+text = "Found a leak, soot or a crack"
+effect = { exhaust-leak = 3 }
+[[test.result]]
+id = "none"
+text = "No leak found"
+effect = { exhaust-leak = -1 }
+
+[[test]]
+id = "load"
+title = "How does it drive under load?"
+why = "A weak fuel supply shows as hesitation or loss of power uphill or when accelerating hard."
+steps = ["Drive up a hill or accelerate firmly, where safe. Note any stumble, surge or loss of power."]
+[[test.result]]
+id = "weak"
+text = "It hesitates or loses power under load"
+effect = { fuel = 2, injectors = 1 }
+[[test.result]]
+id = "fine"
+text = "It pulls normally"
+effect = { fuel = -1 }
+
+[[test]]
+id = "fuel-pressure"
+title = "Test the fuel pressure"
+why = "The only sure way to rule the fuel supply in or out."
+needs = ["fuel-pressure-gauge"]
+steps = [
+  "Fit the gauge as the workshop manual shows.",
+  "Read the pressure with the key on, at idle, and with the engine revved.",
+  "Compare with the workshop manual. Many port-injected engines run about 300 to 400 kPa.",
+]
+safety = ["Fuel sprays under pressure. Work outdoors with no flames or sparks, and relieve the pressure first as the workshop manual says."]
+[[test.result]]
+id = "low"
+text = "Below the specification, or it drops when revved"
+effect = { fuel = 4 }
+[[test.result]]
+id = "ok"
+text = "Within the specification"
+effect = { fuel = -3 }
+
+[[test]]
+id = "smoke"
+title = "Smoke test the intake"
+why = "Finds air leaks too small to hear."
+needs = ["smoke-machine"]
+steps = [
+  "With the engine off, fill the intake with smoke as the machine's instructions say.",
+  "Look for smoke at gaskets, hoses, the PCV valve and the brake booster hose.",
+]
+[[test.result]]
+id = "found"
+text = "Smoke comes out somewhere"
+effect = { air-leak = 4 }
+[[test.result]]
+id = "none"
+text = "No smoke escapes"
+effect = { air-leak = -3 }

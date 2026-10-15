@@ -44,6 +44,11 @@ enum Act {
     SelectByte(u16, usize),
     Advanced(bool),
     Console(&'static str),
+    Diagnose(&'static str),
+    Answer(&'static str, &'static str),
+    MeasureTest(&'static str),
+    OpenTest(&'static str),
+    CloseDiag,
 }
 
 pub struct ShotPlan {
@@ -62,6 +67,13 @@ impl ShotPlan {
             Size(1366.0, 768.0),
             Wait(1.5),
             Shot("01-home-welcome"),
+            Diagnose("P0420"),
+            Answer("leak-check", "none"),
+            Answer("age", "high"),
+            OpenTest("rear-compare"),
+            Wait(1.0),
+            Shot("21-diagnose-no-car"),
+            CloseDiag,
             Connect(Source::Demo),
             WaitConnected,
             Record(true),
@@ -112,6 +124,16 @@ impl ShotPlan {
             Topic(Some(crate::app::Topic::Dtc(Dtc(0x0128)))),
             Wait(1.0),
             Shot("11-codes"),
+            Topic(None),
+            Diagnose("P0171"),
+            MeasureTest("other-codes"),
+            Wait(2.5),
+            Answer("listen", "none"),
+            Answer("both-banks", "inline"),
+            OpenTest("trim-idle"),
+            Wait(1.0),
+            Shot("22-diagnose-lean"),
+            CloseDiag,
             Read("tests"),
             Go(Page::Tests),
             Topic(None),
@@ -280,6 +302,33 @@ pub fn step(app: &mut ScanaApp, mut plan: ShotPlan, ctx: &egui::Context) -> Opti
                 app.console_text = hex.into();
                 app.session.send(Command::Console { channel: ch, request: req });
             }
+            true
+        }
+        Act::Diagnose(code) => {
+            if let Some(c) = Dtc::parse(code) {
+                app.start_diagnosis(c);
+            }
+            true
+        }
+        Act::Answer(test, result) => {
+            if let Some(d) = app.diag.as_mut() {
+                d.answer(test, result);
+            }
+            true
+        }
+        Act::MeasureTest(test) => {
+            if let Some(t) = app.diag.as_ref().and_then(|d| d.test(test)) {
+                app.shot_measure(t);
+            }
+            true
+        }
+        Act::OpenTest(test) => {
+            app.diag_open = Some(test.to_string());
+            true
+        }
+        Act::CloseDiag => {
+            app.cancel_measure();
+            app.diag = None;
             true
         }
         Act::WaitConnected => (app.model.connected() && elapsed > 0.5) || elapsed > 20.0,

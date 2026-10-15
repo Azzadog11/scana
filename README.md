@@ -4,6 +4,7 @@ Scan software from down under: an open laptop scan tool for cars with OBD-II on 
 
 - **scana-bridge**: firmware for the Uno R3 and the shield. It passes CAN frames between the car and the laptop over USB, and nothing else.
 - **scana-app**: a Rust desktop app for Linux. It reads and clears fault codes, shows live data and graphs, records drives, writes health reports, finds every module in the car (brakes, airbags, body) and reads their codes, and explains every value and code as you go.
+- **Diagnosis guides**: for common fault codes, the likely causes and tests that tell them apart, in plain English. Scana measures some tests itself on a connected car; the rest you answer from what you see, a meter, or another scan tool, so they work on any car.
 - **scana**: the same engine on the command line, for scripts and testing.
 
 It is tuned first for the 2024 Daihatsu Hijet Jumbo (S510P), and works with any car that has OBD-II on CAN (ISO 15765-4, 11-bit or 29-bit, 250 or 500 kbit/s).
@@ -38,6 +39,8 @@ cargo run --release -p scana-cli -- health           # health check of the car, 
 cargo run --release -p scana-cli -- record           # record every live value until Enter
 cargo run --release -p scana-cli -- modules          # find every module and read its codes
 cargo run --release -p scana-cli -- module 7B0 --scan 00-FF   # one module: identity, codes, data IDs
+cargo run --release -p scana-cli -- diagnose P0420   # step-by-step diagnosis, no car needed
+cargo run --release -p scana-cli -- explain fuel trim          # look up a code, a word or a tool
 cargo run --release -p scana-cli -- --sim --sim-dash pids   # the simulated Hijet
 tools/gate.sh                                        # formatting, lint, tests, firmware checks
 ```

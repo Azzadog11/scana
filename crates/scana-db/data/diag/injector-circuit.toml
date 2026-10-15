@@ -1,0 +1,132 @@
+# Diagnosis guide: fuel injector circuits (P0200 to P0212, P0261 to P0296). Written for
+# Scana (2026-10-16). General guidance: check the maker's workshop manual.
+
+id = "injector-circuit"
+title = "Fuel injector circuit fault"
+codes = ["P0200-P0212", "P0261-P0296"]
+summary = "The engine computer saw a fault in an injector's electrical circuit: P0201 is cylinder 1, P0202 cylinder 2, and so on (P0200 general). P0261 to P0296 say the circuit reads low or high for one cylinder. It is electrical: the injector's coil, its plug or wiring, its power feed, or rarely the computer. A misfire on the same cylinder usually comes with it."
+how_it_works = [
+  "Each injector is an electric valve. It has a power feed (shared by the injectors, through a fuse or relay) and a control wire the engine computer switches to ground to open it.",
+  "The computer watches each control circuit. An open coil, a broken wire or a short shows as a circuit code for that cylinder.",
+  "Several injector codes at once point to their shared power feed or a harness fault.",
+]
+terms = ["Misfire"]
+safety = [
+  "Fuel systems hold fuel under pressure: leave injector removal to someone with the workshop manual and the right tools.",
+  "Engine off before unplugging injectors.",
+]
+sources = [
+  "Injector checks (noid light, resistance, a Toyota example of 11.6 to 12.4 ohms at 20 °C): misfire guide sources (go-parts.com P0301 guides, aa1car.com) (read 2026-10-16)",
+  "SAE J2012 code structure: P0201 to P0212 injector circuits for cylinders 1 to 12; P0261 to P0296 cylinder injector circuit low and high (descriptions in Scana's own words)",
+]
+related = ["misfire"]
+
+[[cause]]
+id = "wiring"
+name = "The injector's plug or wiring"
+detail = "A loose or corroded plug, a broken clip, or a chafed wire near the hot engine."
+weight = 40
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "injector"
+name = "A failed injector coil"
+detail = "The coil inside the injector goes open or shorts."
+weight = 35
+fix = "Replace the injector (it may need coding to the engine computer on some diesels and direct-injection engines)."
+cost = "medium"
+
+[[cause]]
+id = "power"
+name = "The injectors' power feed"
+detail = "A blown fuse or failed relay feeding the injectors: several injector codes at once."
+weight = 15
+fix = "Check the injector fuse and relay; find any short that blows the fuse."
+cost = "low"
+
+[[cause]]
+id = "computer"
+name = "The engine computer's injector driver"
+detail = "Rare, and often caused by a shorted injector."
+weight = 10
+fix = "Replace the faulty injector first; have the computer checked if the code stays."
+cost = "high"
+
+[[test]]
+id = "how-many"
+title = "One cylinder, or several?"
+why = "One cylinder points to that injector or its wiring; several to their shared power."
+needs = ["scan-tool"]
+steps = ["Read the codes and count the injector circuit codes."]
+[[test.result]]
+id = "one"
+text = "One cylinder"
+effect = { wiring = 1, injector = 1, power = -2 }
+[[test.result]]
+id = "several"
+text = "Several cylinders"
+effect = { power = 3, wiring = 1, injector = -2 }
+
+[[test]]
+id = "plug"
+title = "Look at the injector's plug and wiring"
+why = "A cracked plug, a broken clip or a damaged wire is common."
+steps = ["Engine off. Unplug the injector: look for corrosion, bent pins, a broken clip, and damage along its wiring."]
+[[test.result]]
+id = "bad"
+text = "Damaged plug or wire"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "click"
+title = "Listen to the injector"
+why = "A working injector clicks steadily at idle."
+needs = ["stethoscope"]
+steps = ["Engine idling: touch the stethoscope on each injector and compare."]
+safety = ["Keep clear of the fan and belts."]
+[[test.result]]
+id = "silent"
+text = "This one is silent"
+effect = { injector = 2, wiring = 2 }
+[[test.result]]
+id = "clicks"
+text = "It clicks like the others"
+effect = { injector = -1 }
+
+[[test]]
+id = "ohms"
+title = "Measure the injector's coil"
+why = "An open or shorted coil means a failed injector; a normal one moves the blame to the wiring."
+needs = ["multimeter"]
+steps = [
+  "Engine off. Unplug the injector and measure across its two pins.",
+  "Compare with the workshop manual and with the other injectors (many read about 11 to 16 ohms; some about 2 to 5).",
+]
+[[test.result]]
+id = "bad"
+text = "Open, shorted, or clearly different from the others"
+effect = { injector = 4 }
+[[test.result]]
+id = "ok"
+text = "Like the others, within the specification"
+effect = { injector = -2, wiring = 2 }
+
+[[test]]
+id = "noid"
+title = "Check the control signal with a noid light"
+why = "Shows whether the computer and the wiring deliver pulses to the injector's plug."
+needs = ["noid-light"]
+steps = ["Unplug the injector, fit the noid light into its plug, and crank or start the engine."]
+[[test.result]]
+id = "flashes"
+text = "It flashes"
+effect = { wiring = -2, computer = -2, injector = 2 }
+[[test.result]]
+id = "dark"
+text = "No flash"
+effect = { wiring = 3, power = 1, computer = 1 }

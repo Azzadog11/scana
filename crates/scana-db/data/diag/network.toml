@@ -1,0 +1,190 @@
+# Diagnosis guide: lost communication between modules (U0001 to U0299). Written for Scana
+# (2026-10-16) from the sources below. General guidance: check the workshop manual.
+
+id = "network"
+title = "Lost communication between modules (network codes)"
+codes = ["U0001-U0299"]
+summary = "A module stopped hearing from another module on the car's network. U0100 means lost contact with the engine computer, U0101 the gearbox computer, U0121 the ABS, U0140 the body computer, U0155 the instrument cluster; U0001 to U0073 are the network itself (U0073 bus off). A code stored but not active often dates from a flat battery or jump start and may never come back. Check the battery and grounds first."
+how_it_works = [
+  "The car's computers share a two-wire network called CAN. Each sends regular messages; the others listen.",
+  "If a module stops hearing an expected message for a while, it stores a lost-communication code naming the silent module.",
+  "A module goes silent when it loses power or ground, its plug is loose, its wiring is damaged, or the network is shorted or open. Low battery voltage during cranking or a jump start can do it briefly.",
+  "At each end of the network a 120 ohm resistor terminates it. With the battery disconnected, the two together read about 60 ohms across OBD pins 6 and 14.",
+]
+terms = ["CAN", "ECU", "Bus-off"]
+fix_first = ["P0560-P0563"]
+safety = [
+  "Disconnect the battery as the workshop manual says before measuring network resistance, and note any radio or alarm codes first.",
+  "Never probe airbag module wiring or connectors.",
+]
+sources = [
+  "'U0100 Lost Communication With ECM/PCM: Check This First', apextechnation.com, and 'OBD-II Code U0100', go-parts.com (battery and grounds first; many modules with U-codes point to the bus) (read 2026-10-16)",
+  "'U0100 - Lost Communication With ECM/PCM A', repairpal.com (read 2026-10-16)",
+  "CAN termination: two 120 ohm resistors read 60 ohms across OBD pins 6 and 14 with the battery disconnected; 120 ohms means one end is open; near 0 a short (go-parts.com U0100 guide, read 2026-10-16; ISO 11898)",
+]
+related = ["charging"]
+
+[[cause]]
+id = "battery"
+name = "Low battery voltage, or an old code from a flat battery or jump start"
+detail = "A weak battery or a voltage dip while cranking makes modules drop off the network for a moment. The code stays stored afterwards."
+weight = 30
+fix = "Load-test and charge the battery; clean the terminals; clear the codes and see if they return."
+cost = "low"
+
+[[cause]]
+id = "power-ground"
+name = "The silent module's power, fuse or ground"
+detail = "A blown fuse, a failed relay or a corroded ground leaves one module off the network."
+weight = 25
+fix = "Check the named module's fuses and grounds and repair them."
+cost = "low"
+
+[[cause]]
+id = "plug-wiring"
+name = "A loose plug or damaged network wiring"
+detail = "A loose module plug, water in a plug, or chafed network wires cut the module off."
+weight = 20
+fix = "Repair the plug or the wiring. Check after recent accident repairs or accessory fitting."
+cost = "low"
+
+[[cause]]
+id = "bus"
+name = "A fault on the network itself"
+detail = "A shorted or open network wire, a missing terminating resistor, or one faulty module dragging the whole network down. Many modules reporting lost contact point here."
+weight = 15
+fix = "Measure the network resistance and voltages; unplug modules one at a time to find the one dragging it down."
+cost = "medium"
+
+[[cause]]
+id = "module"
+name = "The silent module has failed"
+detail = "The module itself fails, sometimes after water gets in or a voltage spike."
+weight = 10
+fix = "Confirm its power, ground and network wiring first, then repair or replace the module (it may need programming)."
+cost = "high"
+
+[[test]]
+id = "active"
+title = "Active now, or stored from earlier?"
+why = "A stored code that isn't active often dates from a flat battery or jump start."
+needs = ["scan-tool"]
+steps = [
+  "Read the module's codes and their status (Scana's Modules page shows 'active now' or 'happened earlier').",
+  "Clear them and read again after a few drives.",
+]
+[[test.result]]
+id = "earlier"
+text = "Stored earlier, not active, and it doesn't come back"
+effect = { battery = 3, module = -2 }
+note = "Likely a one-off from low voltage. Keep an eye on the battery."
+[[test.result]]
+id = "active"
+text = "Active now, or it comes back"
+effect = { battery = -1, power-ground = 1, plug-wiring = 1, module = 1 }
+
+[[test]]
+id = "how-many"
+title = "One module silent, or many?"
+why = "Many modules losing contact with each other points to the network or the battery; one module to that module's power, plug or wiring."
+needs = ["scan-tool"]
+steps = [
+  "Read codes from every module (Scana: Find modules, then each module's codes).",
+  "Note which modules report lost contact, and with whom.",
+]
+[[test.result]]
+id = "one"
+text = "Several modules say they lost the same one"
+effect = { power-ground = 2, plug-wiring = 1, module = 2, bus = -1 }
+[[test.result]]
+id = "many"
+text = "Many modules lost many others"
+effect = { bus = 3, battery = 2, module = -1 }
+[[test.result]]
+id = "single"
+text = "Only one code in one module"
+effect = { battery = 1, plug-wiring = 1 }
+
+[[test]]
+id = "answers"
+title = "Does the silent module answer Scana?"
+why = "If Scana's module search finds the module, it has power and reaches the network: the fault is intermittent or in another part of the network."
+needs = ["scan-tool"]
+steps = ["On Scana's Modules page, press Find modules (car still). Is the module named in the code in the list?"]
+[[test.result]]
+id = "answers"
+text = "Yes, it answers"
+effect = { module = -2, power-ground = -1, battery = 1, plug-wiring = 1 }
+[[test.result]]
+id = "missing"
+text = "No, it doesn't answer"
+effect = { power-ground = 2, module = 2, plug-wiring = 1 }
+[[test.result]]
+id = "unknown"
+text = "Can't tell (it may sit on a network the OBD port doesn't reach)"
+
+[[test]]
+id = "battery"
+title = "Check the battery and its terminals"
+why = "Low voltage is the most common cause of network codes."
+steps = [
+  "Is the battery old, or has it been flat or jump started recently?",
+  "Look at the terminals for corrosion and looseness. It should read about 12.4 V or more standing.",
+]
+[[test.result]]
+id = "weak"
+text = "Weak, recently flat or jump started, or poor terminals"
+effect = { battery = 4 }
+[[test.result]]
+id = "good"
+text = "Good"
+effect = { battery = -2 }
+
+[[test]]
+id = "fuses"
+title = "Check the silent module's fuses"
+why = "A blown fuse takes a module off the network."
+steps = ["Look up the named module's fuses in the fuse box chart and check them."]
+[[test.result]]
+id = "blown"
+text = "A fuse is blown"
+effect = { power-ground = 4 }
+[[test.result]]
+id = "fine"
+text = "All fine"
+effect = { power-ground = -1 }
+
+[[test]]
+id = "recent-work"
+title = "Any recent work, water or accident damage?"
+why = "Plugs left loose after repairs, water in a plug, or an accessory spliced into wiring often cause network codes."
+steps = ["Think back: accident repairs, new accessories (alarm, tow bar, dash camera), water in the cabin or boot?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { plug-wiring = 3, module = 1 }
+[[test.result]]
+id = "no"
+text = "No"
+
+[[test]]
+id = "resistance"
+title = "Measure the network resistance"
+why = "About 60 ohms means both ends are terminated; about 120 ohms an open on one side; near 0 a short."
+needs = ["multimeter"]
+steps = [
+  "Disconnect the battery as the workshop manual says.",
+  "Measure resistance between OBD pins 6 and 14.",
+]
+[[test.result]]
+id = "sixty"
+text = "About 60 ohms"
+effect = { bus = -2 }
+[[test.result]]
+id = "120"
+text = "About 120 ohms"
+effect = { bus = 3, plug-wiring = 2 }
+[[test.result]]
+id = "short"
+text = "Near 0 ohms"
+effect = { bus = 4 }

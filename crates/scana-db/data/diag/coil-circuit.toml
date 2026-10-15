@@ -1,0 +1,135 @@
+# Diagnosis guide: ignition coil circuits (P0350 to P0362). Written for Scana (2026-10-16).
+# General guidance: check the maker's workshop manual.
+
+id = "coil-circuit"
+title = "Ignition coil circuit fault"
+codes = ["P0350-P0362"]
+summary = "The engine computer saw a fault in an ignition coil's control circuit: P0351 is coil A (usually cylinder 1), P0352 coil B, and so on; P0350 is general. It is an electrical fault: the coil, its plug or wiring, its power feed, or rarely the computer. A misfire code for the same cylinder usually comes with it."
+how_it_works = [
+  "Each coil turns 12 V into the tens of thousands of volts that jump the spark plug gap. On most newer engines each cylinder has its own coil sitting on its plug.",
+  "The engine computer switches each coil on and off. Many coils also send back a signal that they fired.",
+  "If the computer sees the wrong current or no confirmation, it stores a coil circuit code for that coil.",
+  "Coils share a power feed through a fuse or relay. Several coil codes at once point to that feed or a shared ground.",
+]
+terms = ["Ignition coil", "Misfire"]
+safety = [
+  "Ignition coils carry very high voltage. Engine off before unplugging or touching coils.",
+  "Don't run the engine for long with a coil unplugged: unburnt fuel can overheat the catalytic converter.",
+]
+sources = [
+  "Coil swap and plug inspection method: the misfire guide's sources (aa1car.com misfire library; go-parts.com P0301 guides) (read 2026-10-16)",
+  "SAE J2012 code structure: P0351 to P0362 are ignition coil A to L primary/secondary circuits (descriptions in Scana's own words)",
+]
+related = ["misfire"]
+
+[[cause]]
+id = "coil"
+name = "A failed ignition coil"
+detail = "Coils crack and fail with heat and age, or from oil in the plug well."
+weight = 40
+fix = "Replace the coil; fix any oil leak into the plug well."
+cost = "medium"
+
+[[cause]]
+id = "plug-wire"
+name = "The coil's plug or wiring"
+detail = "A cracked or loose plug, a broken lock, or a chafed wire near the hot engine."
+weight = 30
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "power"
+name = "The coils' power feed or ground"
+detail = "A blown fuse, a failing relay, or a poor ground shared by the coils. Several coil codes at once point here."
+weight = 20
+fix = "Check the coil fuse and relay, and clean the engine ground points."
+cost = "low"
+
+[[cause]]
+id = "computer"
+name = "The engine computer's coil driver"
+detail = "Rare, and often caused by a shorted coil damaging the driver."
+weight = 10
+fix = "Replace the faulty coil first; then have the computer checked if the code stays."
+cost = "high"
+
+[[test]]
+id = "how-many"
+title = "One coil code, or several?"
+why = "One coil points to that coil or its wiring; several to their shared power or ground."
+needs = ["scan-tool"]
+steps = ["Read the codes and count the coil circuit codes (P0351 to P0362)."]
+[[test.result]]
+id = "one"
+text = "One coil"
+effect = { coil = 1, plug-wire = 1, power = -2 }
+[[test.result]]
+id = "several"
+text = "Several coils"
+effect = { power = 3, coil = -2 }
+
+[[test]]
+id = "swap"
+title = "Swap the coil with its neighbour"
+why = "If the code moves with the coil, the coil is faulty."
+steps = [
+  "Engine off. Swap the coil from the cylinder in the code with a neighbouring one (keep each plug on its own wiring).",
+  "Clear the codes, run the engine and drive, then read the codes again.",
+]
+safety = ["Engine off before touching coils."]
+[[test.result]]
+id = "follows"
+text = "The code moved to the other coil letter"
+effect = { coil = 4 }
+[[test.result]]
+id = "stays"
+text = "It stayed with the same cylinder"
+effect = { coil = -3, plug-wire = 2, computer = 1 }
+[[test.result]]
+id = "na"
+text = "Not possible (one coil pack)"
+
+[[test]]
+id = "plug"
+title = "Look at the coil's plug and wiring"
+why = "A cracked plug or a broken lock is a common, cheap cause."
+steps = ["Unplug the coil (engine off): look for cracks, corrosion, bent or pushed-back pins, and a broken lock. Check the wire nearby."]
+[[test.result]]
+id = "bad"
+text = "Damaged plug or wire"
+effect = { plug-wire = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { plug-wire = -1 }
+
+[[test]]
+id = "fuse"
+title = "Check the ignition fuse"
+why = "A blown fuse cuts power to several coils."
+steps = ["Find the ignition coil fuse (often marked IGN or IG2) in the fuse box chart and look at it."]
+[[test.result]]
+id = "blown"
+text = "Blown"
+effect = { power = 4 }
+note = "Replace it with the same rating. If it blows again, a coil or wire is shorted."
+[[test.result]]
+id = "ok"
+text = "Fine"
+effect = { power = -1 }
+
+[[test]]
+id = "power-check"
+title = "Check power at the coil's plug"
+why = "With the key on, one pin of the coil's plug should have battery voltage."
+needs = ["multimeter"]
+steps = ["Key on, coil unplugged: measure from each plug pin to a good ground. One should read about battery voltage (check the workshop manual's wiring diagram)."]
+[[test.result]]
+id = "none"
+text = "No battery voltage on any pin"
+effect = { power = 3, plug-wire = 2 }
+[[test.result]]
+id = "present"
+text = "Battery voltage is there"
+effect = { power = -2, coil = 1 }

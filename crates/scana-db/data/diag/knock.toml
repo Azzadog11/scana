@@ -1,0 +1,165 @@
+# Diagnosis guide: knock sensor circuit (P0325 to P0334). Written for Scana (2026-10-16)
+# from the sources below. General guidance: check the maker's workshop manual.
+
+id = "knock"
+title = "Knock sensor or its wiring"
+codes = ["P0325-P0334"]
+summary = "The engine computer has a problem with a knock sensor's signal: usually its wiring or the sensor itself, not real engine knock. P0325 and P0330 are circuit faults; P0327 and P0332 a low signal; P0328 and P0333 a high one; P0326 and P0331 a reading that doesn't fit. The engine may feel flat: the computer retards the timing to be safe."
+how_it_works = [
+  "A knock sensor is a small microphone bolted to the engine block. It hears pinging (knock), the sharp rattle of fuel burning too early.",
+  "When it hears knock, the engine computer retards the ignition timing to protect the engine. If it can't trust the sensor, it keeps the timing retarded: less power and economy.",
+  "On many engines the sensor sits under the intake manifold, where heat makes its wiring brittle and rodents chew it.",
+  "The sensor must be tightened to its exact torque: too tight or too loose changes what it hears.",
+]
+terms = ["Knock sensor"]
+safety = [
+  "Real knock (pinging under load) can damage pistons. If you hear it, ease off and use the fuel grade the maker specifies.",
+  "Reaching a sensor under the intake manifold is a big job: follow the workshop manual.",
+]
+sources = [
+  "'OBD-II Code P0325: Knock Sensor Circuit Malfunction', go-parts.com, and model guides (Tacoma 3.4L harness under the intake; both banks together point to the shared harness) (read 2026-10-16)",
+  "'P0328 Knock Sensor 1 Circuit High Input', obd-codes.com (read 2026-10-16)",
+  "tacomaworld.com thread on a knock sensor harness chewed by mice (owner report, read 2026-10-16)",
+  "Knock sensor torque matters (over-tightening makes it oversensitive): go-parts.com Honda and Subaru guides (read 2026-10-16)",
+]
+related = ["misfire"]
+
+[[cause]]
+id = "wiring"
+name = "Damaged knock sensor wiring or plug"
+detail = "Heat makes the harness brittle and the plug crack; rodents chew it. Very common on engines with the sensor under the intake."
+weight = 40
+fix = "Repair or replace the knock sensor harness or plug."
+cost = "medium"
+
+[[cause]]
+id = "sensor"
+name = "A failed knock sensor"
+detail = "The sensor's crystal can crack, often from over-tightening, or the sensor fails with age."
+weight = 35
+fix = "Replace the sensor and tighten it to the exact torque in the workshop manual. If the intake must come off, consider replacing the harness too."
+cost = "medium"
+
+[[cause]]
+id = "mounting"
+name = "The sensor is loose, over-tightened, or has dirt under it"
+detail = "The sensor needs clean metal contact and the right torque to hear properly."
+weight = 10
+fix = "Clean the mounting face and tighten to the specified torque."
+cost = "low"
+
+[[cause]]
+id = "real-knock"
+name = "Real engine noise or knock"
+detail = "A loose heat shield, a noisy engine part, or real pinging from low-grade fuel or carbon can confuse the knock system (more often P0326, P0331)."
+weight = 10
+fix = "Use the specified fuel grade; find and fix loose or noisy parts; carbon cleaning if needed."
+cost = "low"
+
+[[cause]]
+id = "computer"
+name = "An engine computer fault"
+detail = "Rare: the computer's knock input."
+weight = 5
+fix = "Check after the wiring and sensor tests pass."
+cost = "high"
+
+[[test]]
+id = "code-type"
+title = "Which knock code, and how many?"
+why = "Codes for both sensors at once point to their shared harness."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0326", "P0331"]
+result = "performance"
+[[test.auto.group]]
+patterns = ["P0325", "P0327", "P0328", "P0329", "P0330", "P0332", "P0333", "P0334"]
+result = "circuit"
+[[test.result]]
+id = "circuit"
+text = "A circuit, low or high code"
+effect = { wiring = 1, sensor = 1, real-knock = -2 }
+[[test.result]]
+id = "both"
+text = "Codes for two sensors (both banks) at once"
+effect = { wiring = 3, sensor = -1 }
+[[test.result]]
+id = "performance"
+text = "Range or performance (P0326, P0331)"
+effect = { mounting = 1, real-knock = 2 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "rodents"
+title = "Any sign of rodents, or recent work on the engine?"
+why = "Chewed wires and plugs left off after other work are common causes."
+steps = ["Look for nests, droppings or chewed insulation in the engine bay. Think of any recent work on the intake or engine."]
+[[test.result]]
+id = "rodents"
+text = "Signs of rodents"
+effect = { wiring = 3 }
+[[test.result]]
+id = "work"
+text = "Recent work on the intake or engine"
+effect = { wiring = 2, mounting = 2 }
+[[test.result]]
+id = "none"
+text = "Neither"
+
+[[test]]
+id = "reach"
+title = "Look at the plug and wiring you can reach"
+why = "The plug where the knock harness joins the main harness is often reachable."
+steps = ["Follow the knock sensor wiring as far as you can reach; check the plug for cracks, corrosion and a firm lock."]
+safety = ["Engine off and cool."]
+[[test.result]]
+id = "bad"
+text = "Cracked, corroded or damaged"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "Looks good where reachable"
+
+[[test]]
+id = "pinging"
+title = "Do you hear pinging under load?"
+why = "Real pinging means a fuel, carbon or timing problem, not the sensor."
+steps = ["Accelerate firmly uphill (where safe) with the windows down and listen for a metallic rattle, like marbles in a tin."]
+[[test.result]]
+id = "yes"
+text = "Yes, pinging"
+effect = { real-knock = 3 }
+note = "Ease off. Check the fuel grade the maker specifies."
+[[test.result]]
+id = "no"
+text = "No"
+effect = { real-knock = -1 }
+
+[[test]]
+id = "ohms"
+title = "Measure the sensor"
+why = "An open or shorted sensor, or wiring to the computer that is broken, shows on a meter."
+needs = ["multimeter"]
+steps = [
+  "Unplug the sensor (or the harness plug) and measure the sensor as the workshop manual says.",
+  "Values vary widely by type: some read about 100,000 to 300,000 ohms, others show no continuity by design.",
+  "Check each harness wire from the plug to the engine computer for continuity.",
+]
+[[test.result]]
+id = "sensor-bad"
+text = "The sensor is out of its specification"
+effect = { sensor = 4 }
+[[test.result]]
+id = "wire-bad"
+text = "A harness wire is open or shorted"
+effect = { wiring = 4 }
+[[test.result]]
+id = "ok"
+text = "All within specification"
+effect = { mounting = 1, computer = 1 }

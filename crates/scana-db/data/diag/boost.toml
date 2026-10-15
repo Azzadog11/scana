@@ -1,0 +1,217 @@
+# Diagnosis guide: turbocharger or supercharger boost (P0234, P0299, P0235 to P0238,
+# P0243 to P0249, P2261 to P2263). Written for Scana (2026-10-16) from the sources below.
+
+id = "boost"
+title = "Turbo boost too low or too high"
+codes = ["P0234", "P0299", "P0235-P0238", "P0243-P0249", "P2261-P2263"]
+summary = "The boost pressure isn't what the engine computer commanded. P0299 means underboost (not enough), P0234 overboost (too much); P0235 to P0238 are the boost pressure sensor; P0243 to P0249 the wastegate control; P2261 to P2263 the turbo's bypass and performance. The most common cause of underboost is a leak in the pipes between the turbo and the engine; the turbo itself is rarely the first cause."
+how_it_works = [
+  "A turbocharger uses exhaust gas to spin a compressor that pushes extra air into the engine for more power.",
+  "A wastegate lets some exhaust bypass the turbo to limit boost. The engine computer controls it, with vacuum or an electric motor.",
+  "The pipes and the intercooler between the turbo and the engine carry boost pressure: a loose clamp or a split hose lets it escape with a whoosh.",
+  "The computer compares the boost it wants with what the boost sensor reports. Too far apart for too long sets a code and often limp mode.",
+]
+terms = ["Turbocharger", "Wastegate", "Limp mode", "MAP"]
+safety = [
+  "The turbo and exhaust run extremely hot: let them cool fully before touching.",
+  "Never run the engine with the intake pipe off the turbo: the compressor can suck in objects or fingers.",
+  "Keep clear of the fan and belts.",
+]
+sources = [
+  "'P0299: Turbo/Supercharger Underboost Condition', autobarn.net (boost leaks first, then the wastegate; the turbo is rarely the root cause) (read 2026-10-16)",
+  "'P0299 Code: How to Fix Turbo A Underboost Condition', axlewise.com, and 'Fix P0299 Turbocharger Underboost', hoodandengine.com (wastegate checks; whoosh means a leak, rattle means the wastegate) (read 2026-10-16)",
+]
+related = ["map"]
+
+[[cause]]
+id = "leak"
+name = "A boost leak: a loose clamp, split hose or cracked intercooler"
+detail = "Boost escapes from the pipes between the turbo and the engine. Often a whoosh or hiss under acceleration, and oil mist at the leak."
+weight = 35
+fix = "Tighten or replace the clamp, hose or intercooler."
+cost = "low"
+
+[[cause]]
+id = "wastegate"
+name = "A sticking wastegate or its control"
+detail = "A worn or seized wastegate, a split vacuum hose to its actuator, or a failed boost control solenoid. Stuck open: underboost. Stuck shut: overboost."
+weight = 25
+fix = "Free or repair the wastegate; replace the hose, actuator or solenoid."
+cost = "medium"
+
+[[cause]]
+id = "sensor"
+name = "A faulty boost pressure sensor or its wiring"
+detail = "The sensor reads wrongly; a blocked sensor port or a plug fault."
+weight = 15
+fix = "Clean the port, repair the plug, or replace the sensor."
+cost = "low"
+
+[[cause]]
+id = "restriction"
+name = "A blocked air filter, intake or exhaust"
+detail = "A blocked air filter, a collapsed intake hose, or a blocked converter or particulate filter limits the turbo."
+weight = 10
+fix = "Replace the filter or hose; clear the exhaust restriction."
+cost = "medium"
+
+[[cause]]
+id = "turbo"
+name = "A worn turbocharger"
+detail = "Worn bearings, damaged blades or an oil supply problem. Look for shaft play, oil in the intake, blue smoke, or a siren noise."
+weight = 10
+fix = "Repair or replace the turbo, and find why it failed (oil supply, oil changes)."
+cost = "high"
+
+[[cause]]
+id = "fuel"
+name = "A fuel or engine fault limiting boost"
+detail = "Low fuel pressure or a misfire can make the computer reduce boost on purpose."
+weight = 5
+fix = "Fix the fuel or misfire fault first."
+cost = "medium"
+
+[[test]]
+id = "code-type"
+title = "Under, over, sensor or wastegate?"
+why = "Each code points to a different part of the system."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0235-P0238"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P0243-P0249"]
+result = "wastegate"
+[[test.auto.group]]
+patterns = ["P0234"]
+result = "over"
+[[test.auto.group]]
+patterns = ["P0299", "P2261-P2263"]
+result = "under"
+[[test.result]]
+id = "under"
+text = "Underboost (P0299) or turbo performance codes"
+effect = { leak = 2, wastegate = 1 }
+[[test.result]]
+id = "over"
+text = "Overboost (P0234)"
+effect = { wastegate = 3, sensor = 1, leak = -2 }
+[[test.result]]
+id = "sensor"
+text = "Boost sensor codes (P0235 to P0238)"
+effect = { sensor = 4 }
+[[test.result]]
+id = "wastegate"
+text = "Wastegate control codes (P0243 to P0249)"
+effect = { wastegate = 4 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "noise"
+title = "Listen under acceleration"
+why = "A whoosh or hiss means a boost leak; a rattle from the turbo when you lift off can mean a loose wastegate; a siren noise, a worn turbo."
+steps = ["With windows down, accelerate firmly (where safe) and then lift off. Listen near the engine."]
+[[test.result]]
+id = "whoosh"
+text = "A whoosh or hiss"
+effect = { leak = 3 }
+[[test.result]]
+id = "rattle"
+text = "A metallic rattle when lifting off"
+effect = { wastegate = 3 }
+[[test.result]]
+id = "siren"
+text = "A siren-like whine"
+effect = { turbo = 3 }
+[[test.result]]
+id = "none"
+text = "Nothing unusual"
+
+[[test]]
+id = "pipes"
+title = "Look at the boost pipes and clamps"
+why = "Loose clamps and split hoses are the most common cause."
+steps = [
+  "Engine off and cool. Follow the pipes from the turbo's outlet through the intercooler to the throttle.",
+  "Check every clamp is tight, and look for splits and for oily patches (oil mist escapes with the air).",
+]
+safety = ["The turbo stays hot for a long time after driving."]
+[[test.result]]
+id = "found"
+text = "A loose clamp, split hose, or oily patch"
+effect = { leak = 4 }
+[[test.result]]
+id = "good"
+text = "All tight and dry"
+effect = { leak = -2 }
+
+[[test]]
+id = "wastegate-arm"
+title = "Check the wastegate arm and its hose"
+why = "A seized or worn arm, or a split hose to its actuator, upsets the boost."
+steps = [
+  "Engine cool. Find the wastegate actuator on the turbo and its rod and arm.",
+  "Look for a split or loose vacuum hose to it. Feel the arm for a lot of play, or for seizing.",
+]
+[[test.result]]
+id = "fault"
+text = "A split hose, a seized arm, or a lot of play"
+effect = { wastegate = 4 }
+[[test.result]]
+id = "good"
+text = "Hose good, arm moves freely without much play"
+effect = { wastegate = -1 }
+
+[[test]]
+id = "filter"
+title = "Look at the air filter and intake hose"
+why = "A blocked filter or a collapsed hose starves the turbo."
+steps = ["Check the air filter and the hose from it to the turbo, for dirt, blockage or collapse."]
+[[test.result]]
+id = "blocked"
+text = "Blocked or collapsed"
+effect = { restriction = 4 }
+[[test.result]]
+id = "fine"
+text = "Fine"
+effect = { restriction = -1 }
+
+[[test]]
+id = "turbo-look"
+title = "Look at the turbo's compressor"
+why = "Damaged blades, oil in the intake or a lot of shaft play show a worn turbo."
+steps = [
+  "Engine off and cool. Remove the intake hose from the turbo inlet.",
+  "Look at the compressor blades: chips or rubbing marks? Gently move the shaft: a little play is normal, the blades must not touch the housing.",
+  "Look for oil inside the pipes.",
+]
+safety = ["Never run the engine with the hose off."]
+[[test.result]]
+id = "worn"
+text = "Damaged blades, rubbing, or a lot of oil"
+effect = { turbo = 4 }
+[[test.result]]
+id = "good"
+text = "Looks good"
+effect = { turbo = -2 }
+
+[[test]]
+id = "smoke"
+title = "Smoke test the boost pipes"
+why = "Finds leaks too small to hear."
+needs = ["smoke-machine"]
+steps = ["Block the intake after the air filter and fill the boost side with smoke, as the machine's instructions say. Look for smoke escaping."]
+[[test.result]]
+id = "found"
+text = "Smoke escapes"
+effect = { leak = 4 }
+[[test.result]]
+id = "none"
+text = "No leaks"
+effect = { leak = -3 }

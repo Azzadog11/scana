@@ -1,0 +1,210 @@
+# Diagnosis guide: variable valve timing (P0010 to P0015, P0020 to P0025). Written for
+# Scana (2026-10-16) from the sources below. General guidance: check the workshop manual.
+
+id = "vvt"
+title = "Variable valve timing fault"
+codes = ["P0010-P0015", "P0020-P0025"]
+summary = "A camshaft's timing isn't where the engine computer commanded (P0011, P0012, P0014, P0015 and the bank 2 versions), or the control valve's circuit has a fault (P0010, P0013, P0020, P0023). Check the oil first: low, old or wrong oil is the most common cause. Then the oil control valve and its small filter screen; then the cam gear (phaser) or the timing chain."
+how_it_works = [
+  "Variable valve timing turns a camshaft slightly ahead (advance) or back (retard) while the engine runs, for better power and economy. Toyota calls it VVT-i.",
+  "Engine oil pressure moves the cam gear (the phaser). An electric oil control valve, worked by the engine computer, sends oil to one side or the other.",
+  "The computer compares where it wants the cam with where the cam sensor says it is. If they differ by more than a few degrees for a few seconds, it stores a code.",
+  "So anything that upsets the oil (low level, old or thick oil, a blocked screen) or the valve (sticking, a broken coil) causes these codes.",
+]
+terms = ["Variable valve timing", "Oil control valve", "Camshaft position sensor", "Timing chain"]
+safety = [
+  "Check the oil on level ground with the engine off. Hot oil and the exhaust burn.",
+  "Keep clear of belts, pulleys and the fan with the engine running.",
+]
+sources = [
+  "'P0012 on 2005-2024 Toyota Corolla: VVT-i Timing Over-Retarded', go-parts.com (low or dirty oil most common; deviation of 5 to 8 degrees for 4 to 5 seconds; NHTSA ODI 10326139 about a leaking VVT-i oil line) (read 2026-10-16)",
+  "'P0012 on 2005-2015 Toyota Tacoma 4.0L V6', go-parts.com (oil control valves and their filter screens; swap test between banks) (read 2026-10-16)",
+  "'P0011 Code' and 'P0012 Code', carparts.com (read 2026-10-16)",
+  "Toyota oil control valve resistance example: 6.9 to 7.9 ohms at 20 °C (go-parts.com Corolla guide; check the workshop manual for each engine)",
+]
+related = ["crank-cam"]
+
+[[cause]]
+id = "oil"
+name = "Low, old or wrong-grade oil"
+detail = "The system works on oil pressure. Even a litre low, or old thick oil, can make the cam lag or stick."
+weight = 35
+fix = "Fix any leak, change the oil and filter with the grade the manual gives, clear the codes and drive."
+cost = "low"
+
+[[cause]]
+id = "ocv"
+name = "A sticking or failed oil control valve"
+detail = "Sludge makes the valve stick; its coil can fail. Stuck, it holds the cam advanced or retarded."
+weight = 25
+fix = "Clean or replace the oil control valve."
+cost = "low"
+
+[[cause]]
+id = "screen"
+name = "A blocked oil filter screen for the valve"
+detail = "Some engines have a small mesh screen feeding the oil control valve. Sludge blocks it."
+weight = 10
+fix = "Clean or replace the screen, and change the oil."
+cost = "low"
+
+[[cause]]
+id = "phaser"
+name = "A worn cam gear (phaser)"
+detail = "The phaser can wear or its lock pin can stick: often a knock or rattle at start-up."
+weight = 12
+fix = "Replace the cam gear, usually with the timing chain parts."
+cost = "high"
+
+[[cause]]
+id = "chain"
+name = "A stretched timing chain"
+detail = "A worn chain puts the cam out of step; it often sets crank and cam correlation codes too."
+weight = 10
+fix = "Replace the timing chain, tensioner and guides."
+cost = "high"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault at the valve"
+detail = "For circuit codes (P0010, P0013, P0020, P0023), a plug or wire to the oil control valve."
+weight = 8
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Circuit code, or timing code?"
+why = "Circuit codes point to the valve's coil or wiring; timing codes to oil, the valve sticking, or mechanical wear."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0016-P0019"]
+result = "correlation"
+[[test.auto.group]]
+patterns = ["P0010", "P0013", "P0020", "P0023"]
+result = "circuit"
+[[test.auto.group]]
+patterns = ["P0011", "P0012", "P0014", "P0015", "P0021", "P0022", "P0024", "P0025"]
+result = "timing"
+[[test.result]]
+id = "circuit"
+text = "Valve circuit codes (P0010, P0013, P0020, P0023)"
+effect = { wiring = 3, ocv = 2, oil = -2 }
+[[test.result]]
+id = "timing"
+text = "Timing over-advanced or over-retarded"
+effect = { oil = 1, ocv = 1 }
+[[test.result]]
+id = "correlation"
+text = "Crank and cam correlation codes too (P0016 to P0019)"
+effect = { chain = 2, oil = 1 }
+goto = "crank-cam"
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "oil"
+title = "Check the oil"
+why = "The cheapest cause, and the most common."
+steps = [
+  "Engine off on level ground: check the dipstick level.",
+  "Look at the oil: black and thick, or sludge under the filler cap?",
+  "Check when it was last changed and that the right grade is in.",
+]
+[[test.result]]
+id = "bad"
+text = "Low, black and thick, sludgy, or overdue"
+effect = { oil = 4, screen = 1 }
+note = "Change the oil and filter first, clear the codes, and drive a few days before replacing parts."
+[[test.result]]
+id = "good"
+text = "Full, fairly fresh, the right grade"
+effect = { oil = -2 }
+
+[[test]]
+id = "leaks"
+title = "Look for oil leaks"
+why = "A leaking oil line or seal near the valve timing parts can drop the level and pressure."
+steps = ["Look round the engine for wet oil, especially near the oil control valve and any oil lines on the cylinder head."]
+[[test.result]]
+id = "leak"
+text = "An oil leak"
+effect = { oil = 2 }
+[[test.result]]
+id = "dry"
+text = "Dry"
+
+[[test]]
+id = "start-noise"
+title = "Listen at a cold start"
+why = "A knock or rattle for a second or two after a cold start points to the cam gear or the chain."
+steps = ["Start the engine after it has stood overnight and listen at the top front of the engine."]
+safety = ["Keep clear of the fan and belts."]
+[[test.result]]
+id = "noise"
+text = "A brief knock or rattle"
+effect = { phaser = 3, chain = 2 }
+[[test.result]]
+id = "quiet"
+text = "Quiet"
+effect = { phaser = -1, chain = -1 }
+
+[[test]]
+id = "click"
+title = "Measure or click-test the oil control valve"
+why = "A coil far out of its range, or a valve that doesn't click, has failed."
+needs = ["multimeter"]
+steps = [
+  "Engine off. Unplug the oil control valve and measure across its pins.",
+  "Compare with the workshop manual (a Toyota example: about 6.9 to 7.9 ohms at 20 °C).",
+]
+[[test.result]]
+id = "bad"
+text = "Open, shorted, or far out of range"
+effect = { ocv = 4 }
+[[test.result]]
+id = "ok"
+text = "Within range"
+effect = { ocv = -1, wiring = 1 }
+
+[[test]]
+id = "screen"
+title = "Look at the valve and its screen"
+why = "Sludge on the valve or a blocked screen stops the oil."
+steps = [
+  "Remove the oil control valve as the workshop manual shows.",
+  "Look at its screen (on the valve or in the passage) for sludge or debris.",
+]
+[[test.result]]
+id = "dirty"
+text = "Sludge or debris"
+effect = { screen = 3, ocv = 1, oil = 1 }
+[[test.result]]
+id = "clean"
+text = "Clean"
+effect = { screen = -2 }
+
+[[test]]
+id = "swap"
+title = "Swap the oil control valves between banks (V engines)"
+why = "On V engines whose valves are the same part, the code moves to the other bank if the valve is faulty."
+steps = [
+  "Swap the two banks' oil control valves (check the part numbers match first).",
+  "Clear the codes and drive. See if the code's bank changed (for example P0012 to P0022).",
+]
+[[test.result]]
+id = "follows"
+text = "The code moved to the other bank"
+effect = { ocv = 4 }
+[[test.result]]
+id = "stays"
+text = "It stayed on the same bank"
+effect = { ocv = -2, phaser = 1, screen = 1 }
+[[test.result]]
+id = "na"
+text = "Not a V engine, or the valves differ"

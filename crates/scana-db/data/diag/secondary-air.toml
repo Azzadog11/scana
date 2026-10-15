@@ -1,0 +1,191 @@
+# Diagnosis guide: secondary air injection (P0410 to P0419, P2440 to P2445). Written for
+# Scana (2026-10-16) from the sources below. General guidance: check the workshop manual.
+
+id = "secondary-air"
+title = "Secondary air injection fault"
+codes = ["P0410-P0419", "P2440-P2445"]
+summary = "The system that pumps fresh air into the exhaust for the first minute or two after a cold start isn't working as expected. P0411 means the airflow is wrong; P0410 and P0412 to P0419 are the system's circuits; P2440 to P2445 (common on Toyota and Lexus) mean an air switching valve is stuck open or shut, or the pump is stuck. The engine runs normally once warm; the fault matters for emissions."
+how_it_works = [
+  "After a cold start, an electric air pump blows fresh air into the exhaust. The extra oxygen burns leftover fuel, heating the catalytic converter quickly.",
+  "An air switching valve (or check valve) opens to let the air through, and stops hot exhaust flowing back into the pump.",
+  "The engine computer checks the system on cold starts: the front oxygen sensor should read lean while the pump runs, or a pressure sensor checks the flow.",
+  "Moisture from the exhaust can corrode the valve and the pump. On some Toyotas, debris from the pump's filter or ice can jam the switching valve.",
+]
+terms = ["Secondary air injection", "Oxygen sensor"]
+safety = [
+  "The pump only runs for a minute or two after a cold start: test it on a cold engine.",
+  "Exhaust parts get hot within minutes: let them cool before touching.",
+]
+sources = [
+  "'P0411 Secondary Air Injection System Incorrect Flow Detected', obd-codes.com and repairpal.com (listen for the pump on a cold start; check valves fail and let moisture ruin a new pump) (read 2026-10-16)",
+  "'P2440 Secondary Air Injection System (Toyota & Lexus)', hewitt-tech.com, and 'P2440 Code', carparts.com (moisture and debris jam the switching valve; exhaust pulses at the valve inlet mean stuck open) (read 2026-10-16)",
+  "Toyota TSB T-SB-0230-12 (2005-2009 4Runner and Land Cruiser 2UZ-FE, P2440 family), static.nhtsa.gov (read 2026-10-16)",
+  "Toyota bulletin for 2014-2015 Tundra 3UR: new engine computer logic for P2440 and P2442 from debris or ice (via vehicleservicepros.com 'Check on Toyota Air Switching Valve') (read 2026-10-16)",
+]
+related = ["o2-sensor", "catalyst"]
+
+[[cause]]
+id = "valve"
+name = "A stuck air switching valve or check valve"
+detail = "Moisture corrodes the valve, or debris or ice jams it. Stuck shut, no air flows; stuck open, exhaust reaches the pump."
+weight = 35
+fix = "Replace the valve. Replace a check valve whenever the pump is replaced, or exhaust moisture ruins the new pump."
+cost = "medium"
+
+[[cause]]
+id = "pump"
+name = "A failed air pump"
+detail = "The pump wears out, seizes, or is ruined by exhaust moisture getting past a leaking valve."
+weight = 25
+fix = "Replace the pump, and the valve that let moisture in."
+cost = "high"
+
+[[cause]]
+id = "power"
+name = "The pump's fuse, relay or wiring"
+detail = "A blown fuse or failed relay stops the pump."
+weight = 15
+fix = "Replace the fuse or relay; repair the wiring."
+cost = "low"
+
+[[cause]]
+id = "hose"
+name = "A split or loose air hose or pipe"
+detail = "Air escapes before reaching the exhaust."
+weight = 15
+fix = "Replace or refit the hose or pipe."
+cost = "low"
+
+[[cause]]
+id = "software"
+name = "Engine computer software (some models)"
+detail = "Some Toyota models got new engine computer logic for these codes."
+weight = 10
+fix = "Ask a dealer whether an update or bulletin exists for the car."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Which code?"
+why = "Valve stuck codes point to the switching valve; circuit codes to power and wiring; flow codes to the pump, valve or hoses."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P2440-P2443"]
+result = "valve"
+[[test.auto.group]]
+patterns = ["P2444", "P2445"]
+result = "pump"
+[[test.auto.group]]
+patterns = ["P0410", "P0412-P0419"]
+result = "circuit"
+[[test.auto.group]]
+patterns = ["P0411"]
+result = "flow"
+[[test.result]]
+id = "valve"
+text = "Switching valve stuck (P2440 to P2443)"
+effect = { valve = 3, software = 1 }
+[[test.result]]
+id = "pump"
+text = "Pump stuck (P2444, P2445)"
+effect = { pump = 3, power = 1 }
+[[test.result]]
+id = "circuit"
+text = "Circuit codes (P0410, P0412 to P0419)"
+effect = { power = 3, pump = 1 }
+[[test.result]]
+id = "flow"
+text = "Incorrect flow (P0411)"
+effect = { valve = 1, pump = 1, hose = 1 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "listen"
+title = "Listen for the pump on a cold start"
+why = "If the pump runs, its power is fine and the fault is further along: valve, hoses or pipes."
+steps = [
+  "Leave the car overnight. Open the bonnet and start the engine.",
+  "For the first minute, listen for the air pump: a loud whirring like a vacuum cleaner, near the front or under the car.",
+]
+safety = ["Keep clear of the fan and belts."]
+[[test.result]]
+id = "runs"
+text = "The pump runs"
+effect = { power = -3, pump = -1, valve = 2, hose = 1 }
+[[test.result]]
+id = "silent"
+text = "No pump noise"
+effect = { power = 2, pump = 2 }
+[[test.result]]
+id = "grinds"
+text = "It runs but grinds, squeals or sounds weak"
+effect = { pump = 3 }
+
+[[test]]
+id = "fuse"
+title = "Check the air pump fuse and relay"
+why = "A blown fuse or a failed relay stops the pump."
+steps = ["Find the air pump fuse and relay in the fuse box chart. Look at the fuse; swap the relay with an identical one if the chart allows."]
+[[test.result]]
+id = "blown"
+text = "The fuse was blown, or the swap fixed it"
+effect = { power = 4 }
+[[test.result]]
+id = "fine"
+text = "Fuse and relay fine"
+effect = { power = -2 }
+
+[[test]]
+id = "pulses"
+title = "Feel for exhaust at the valve's inlet"
+why = "If exhaust pulses come out of the switching valve's inlet with the pump off, the valve is stuck open."
+steps = [
+  "On a cold engine, remove the large air hose from the switching valve (the workshop manual shows which).",
+  "Start the engine. Once the pump has stopped (after a minute or two), hold a hand near (not on) the valve's inlet: pulsing exhaust means it is stuck open.",
+]
+safety = ["Exhaust is hot and poisonous: keep your hand near, not over, the port, and only for a moment. Work outdoors."]
+[[test.result]]
+id = "pulses"
+text = "Exhaust pulses come out"
+effect = { valve = 4 }
+[[test.result]]
+id = "none"
+text = "Nothing comes out"
+effect = { valve = -1 }
+
+[[test]]
+id = "hoses"
+title = "Look at the air hoses and pipes"
+why = "A split or loose hose lets the air escape."
+steps = ["Follow the air hoses from the pump to the valve and the pipes to the exhaust: look for splits, melted spots and loose joints."]
+[[test.result]]
+id = "found"
+text = "A split or loose hose"
+effect = { hose = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { hose = -1 }
+
+[[test]]
+id = "dealer"
+title = "Ask about a bulletin or update"
+why = "Some makers released software or parts updates for these codes."
+steps = ["Ask a dealer for the brand to check the VIN for bulletins or updates about these codes."]
+[[test.result]]
+id = "yes"
+text = "An update or bulletin exists"
+effect = { software = 4 }
+[[test.result]]
+id = "no"
+text = "None"
+effect = { software = -2 }
+[[test.result]]
+id = "unknown"
+text = "Not asked"

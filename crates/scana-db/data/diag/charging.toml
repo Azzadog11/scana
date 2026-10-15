@@ -1,0 +1,252 @@
+# Diagnosis guide: system voltage and charging (P0560 to P0563, P0620 to P0625, P2503,
+# P2504). Written for Scana (2026-10-16) from the sources below.
+
+id = "charging"
+title = "Battery or charging voltage too low or too high"
+codes = ["P0560-P0563", "P0620-P0625", "P2503", "P2504"]
+summary = "The engine computer saw the car's voltage outside its normal range: P0562 too low, P0563 too high, P0560 and P0561 unsteady. P0620 to P0625 and P2503 and P2504 are the alternator's control and output. The usual causes are a tired battery, a slipping belt, poor battery terminals or grounds, or a failing alternator. Low voltage can also set false codes in other systems."
+how_it_works = [
+  "With the engine off, the battery powers everything: a healthy, charged battery reads about 12.4 to 12.7 V after standing.",
+  "With the engine running, the alternator charges the battery and powers the car: usually about 13.5 to 14.7 V.",
+  "A voltage regulator (in the alternator, or the engine computer on many newer cars) holds the voltage in range. Above about 15 V the battery overcharges and boils.",
+  "Every connection between the alternator, the battery and the computers matters: a corroded terminal or a poor ground loses voltage under load.",
+]
+terms = ["Alternator"]
+fix_first = []
+safety = [
+  "Batteries give off explosive gas: no sparks or flames near them. Connect and disconnect clamps with everything off.",
+  "Keep hands, rings and loose clothing away from the belts and fan with the engine running.",
+  "Remove rings and watches before working near the battery: a short across a ring burns badly.",
+]
+sources = [
+  "'P0562 System Voltage Low', obd-codes.com (13.2 to 14.7 V with headlights and blower on) (read 2026-10-16)",
+  "'P0562 Code: System Voltage Low', carparts.com, and 'P0563 on 2016-2022 Honda Pilot', go-parts.com (read 2026-10-16)",
+  "Charging range 13.5 to 14.7 V; above 15 V means a failed regulator: mechanicbase.com 'P0562 Code' and related guides (read 2026-10-16)",
+  "Hijet reference scan 2026-10-10: control module voltage 14.28 V running (Scana's own vehicle profile)",
+]
+related = ["throttle"]
+
+[[cause]]
+id = "battery"
+name = "A weak or failing battery"
+detail = "Batteries wear out, often after about 4 to 6 years, faster in heat. A weak battery drags the voltage down when starting and under load."
+weight = 30
+fix = "Charge and load-test the battery; replace it if it fails the test."
+cost = "medium"
+
+[[cause]]
+id = "connections"
+name = "Corroded or loose terminals, cables or grounds"
+detail = "A poor connection at the battery, the alternator or an engine ground loses voltage, especially under load."
+weight = 25
+fix = "Clean and tighten the battery terminals, the alternator cable and the engine and body grounds."
+cost = "low"
+
+[[cause]]
+id = "alternator"
+name = "A failing alternator or its regulator"
+detail = "Worn brushes, a failed diode or regulator gives low, unsteady or (regulator) too high voltage."
+weight = 25
+fix = "Test the alternator's output; repair or replace it."
+cost = "medium"
+
+[[cause]]
+id = "belt"
+name = "A slipping or worn drive belt"
+detail = "A loose, glazed or cracked belt slips on the alternator pulley, often squealing, worst with lights and fan on."
+weight = 12
+fix = "Replace or re-tension the belt, and check the tensioner."
+cost = "low"
+
+[[cause]]
+id = "drain"
+name = "Something drains the battery while parked"
+detail = "A light left on, a faulty module or an accessory flattens the battery overnight."
+weight = 5
+fix = "Find the drain (a workshop measures current with everything off) and fix it."
+cost = "low"
+
+[[cause]]
+id = "computer"
+name = "The engine computer's power feed or charge control"
+detail = "Rare. A poor feed to the computer, or a fault in its alternator control."
+weight = 3
+fix = "Check the computer's power and ground circuits after everything else."
+cost = "high"
+
+[[test]]
+id = "code-type"
+title = "Low, high, or alternator control?"
+why = "Low points to the battery, belt and connections; high to the regulator; control codes to the alternator's wiring."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0563"]
+result = "high"
+[[test.auto.group]]
+patterns = ["P0562"]
+result = "low"
+[[test.auto.group]]
+patterns = ["P0620-P0625", "P2503", "P2504"]
+result = "control"
+[[test.result]]
+id = "low"
+text = "Voltage low (P0562)"
+effect = { battery = 1, connections = 1, belt = 1, alternator = 1 }
+[[test.result]]
+id = "high"
+text = "Voltage high (P0563)"
+effect = { alternator = 3, battery = -1, belt = -2 }
+[[test.result]]
+id = "control"
+text = "Alternator control or output codes"
+effect = { alternator = 2, connections = 1 }
+[[test.result]]
+id = "other"
+text = "Unsteady (P0560, P0561), or none of these"
+effect = { connections = 2 }
+
+[[test]]
+id = "running-volts"
+title = "Charging voltage with the engine running"
+why = "Shows whether the alternator charges: normally about 13.5 to 14.7 V."
+needs = ["scan-tool"]
+steps = [
+  "Start the engine and let it idle. Turn on the headlights and the heater fan.",
+  "Read the control module voltage (or measure across the battery with a meter).",
+]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["42"]
+seconds = 10
+hold = { pid = "0C", from = 500.0, text = "Start the engine and let it idle" }
+[[test.auto.outcome]]
+below = 13.2
+result = "low"
+[[test.auto.outcome]]
+below = 15.0
+result = "normal"
+[[test.auto.outcome]]
+result = "high"
+[[test.result]]
+id = "normal"
+text = "About 13.2 to 15.0 V"
+effect = { alternator = -1, belt = -1 }
+[[test.result]]
+id = "low"
+text = "Below about 13.2 V"
+effect = { alternator = 2, belt = 2, connections = 1 }
+[[test.result]]
+id = "high"
+text = "Above about 15.0 V"
+effect = { alternator = 4 }
+note = "Too high overcharges the battery. Have the alternator or regulator checked soon."
+
+[[test]]
+id = "off-volts"
+title = "Battery voltage with the engine off"
+why = "A charged, healthy battery reads about 12.4 to 12.7 V after standing."
+needs = ["scan-tool"]
+steps = ["After the car has stood for a few hours, turn the key on (engine off) and read the voltage."]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["42"]
+seconds = 5
+hold = { pid = "0C", to = 50.0, text = "Key on, engine off" }
+[[test.auto.outcome]]
+below = 12.2
+result = "low"
+[[test.auto.outcome]]
+result = "ok"
+[[test.result]]
+id = "low"
+text = "Below about 12.2 V"
+effect = { battery = 2, drain = 1, alternator = 1 }
+[[test.result]]
+id = "ok"
+text = "About 12.2 V or more"
+effect = { battery = -1, drain = -1 }
+
+[[test]]
+id = "terminals"
+title = "Look at the battery terminals and cables"
+why = "White or green crust and loose clamps are common, cheap causes."
+steps = [
+  "Engine off. Look at both battery terminals: crust, loose clamps, or a cable that moves by hand?",
+  "Follow the thick cables to the starter, alternator and engine block, and check the ground straps.",
+]
+safety = ["No sparks near the battery. Don't let a spanner touch both terminals."]
+[[test.result]]
+id = "bad"
+text = "Corroded, loose or damaged"
+effect = { connections = 4 }
+[[test.result]]
+id = "good"
+text = "Clean and tight"
+effect = { connections = -2 }
+
+[[test]]
+id = "belt"
+title = "Check the drive belt"
+why = "A slipping belt can't turn the alternator properly."
+steps = [
+  "Engine off. Look at the belt: cracks, shiny glazed sides, fraying?",
+  "Listen at start-up and with the lights and fan on: a squeal means slipping.",
+]
+safety = ["Engine off before touching the belt."]
+[[test.result]]
+id = "bad"
+text = "Worn, glazed, loose, or it squeals"
+effect = { belt = 4 }
+[[test.result]]
+id = "good"
+text = "Good, and no squeal"
+effect = { belt = -2 }
+
+[[test]]
+id = "age"
+title = "How old is the battery?"
+why = "Batteries usually last about 4 to 6 years, less in a hot climate."
+steps = ["Look for a date on the battery's label, or check the service history."]
+[[test.result]]
+id = "old"
+text = "More than about 4 years, or unknown and slow cranking"
+effect = { battery = 2 }
+[[test.result]]
+id = "new"
+text = "Less than about 3 years"
+effect = { battery = -2 }
+
+[[test]]
+id = "flat-mornings"
+title = "Is the battery flat after standing?"
+why = "A battery that goes flat overnight or over a few days points to a drain or a failing battery."
+steps = ["Think back: slow cranking or a flat battery after the car stands for a day or two?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { drain = 3, battery = 1 }
+[[test.result]]
+id = "no"
+text = "No"
+effect = { drain = -2 }
+
+[[test]]
+id = "load-test"
+title = "Load-test the battery"
+why = "A battery can show good voltage and still fail when asked for current."
+needs = ["battery-tester"]
+steps = ["Charge the battery fully, then test it as the tester says. Many auto parts shops test batteries."]
+[[test.result]]
+id = "fail"
+text = "It fails"
+effect = { battery = 4 }
+[[test.result]]
+id = "pass"
+text = "It passes"
+effect = { battery = -3 }

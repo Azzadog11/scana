@@ -187,3 +187,63 @@ text = "The pressure of the outside air: about 100 kPa at sea level, falling abo
 [[term]]
 name = "Idle air control valve"
 text = "On many older engines, a small electric valve that lets air past the closed throttle to set the idle speed. Newer engines do the same by opening the electronic throttle slightly."
+
+[[term]]
+name = "Crankshaft position sensor"
+text = "A sensor that reads teeth on a wheel on the crankshaft, so the engine computer knows engine speed and each piston's position. Without its signal most engines won't start. Also called the CKP sensor."
+
+[[term]]
+name = "Camshaft position sensor"
+text = "A sensor that reads a mark on a camshaft, so the engine computer knows which stroke each cylinder is on, and how far variable valve timing has moved the cam. Also called the CMP sensor."
+
+[[term]]
+name = "Timing chain"
+text = "The chain (or on some engines a toothed belt) that turns the camshafts in step with the crankshaft. A stretched chain or a slipped belt puts the valve timing out, sets cam and crank codes, and can let valves hit pistons."
+
+[[term]]
+name = "Variable valve timing"
+text = "A system that turns a camshaft slightly ahead or back while the engine runs, using engine oil pressure, for better power and economy. Toyota calls it VVT-i. Low or old oil is a common cause of its codes."
+
+[[term]]
+name = "Oil control valve"
+text = "The electric valve that sends engine oil to the variable valve timing gear, as the engine computer commands. Sludge makes it stick. Also called the OCV or VVT solenoid."
+
+[[term]]
+name = "Knock sensor"
+text = "A small microphone bolted to the engine block that hears knock (pinging), so the engine computer can retard the timing to protect the engine. It must be tightened to its exact torque."
+
+[[term]]
+name = "Ignition coil"
+text = "Turns the 12 V supply into the very high voltage that jumps the spark plug gap. Most newer engines have one coil on each spark plug. Coils fail with heat and age, and from oil in the plug well."
+
+[[term]]
+name = "EGR"
+text = "Exhaust gas recirculation: a valve that feeds a little exhaust back into the intake at cruise, to cool combustion and cut nitrogen oxide emissions. Carbon blocks its passages over time."
+
+[[term]]
+name = "Secondary air injection"
+text = "An electric air pump that blows fresh air into the exhaust for a minute or two after a cold start, so leftover fuel burns and heats the catalytic converter quickly."
+
+[[term]]
+name = "Alternator"
+text = "The engine-driven generator that charges the battery and powers the car while the engine runs, normally at about 13.5 to 14.7 V. Its regulator stops the voltage going too high."
+
+[[term]]
+name = "Fuel pump"
+text = "An electric pump, usually inside the fuel tank, that sends fuel to the engine. Direct-injection engines add a second, engine-driven pump for very high pressure."
+
+[[term]]
+name = "Turbocharger"
+text = "A pump driven by exhaust gas that pushes extra air into the engine for more power. Boost is the extra pressure it makes."
+
+[[term]]
+name = "Wastegate"
+text = "A valve on a turbocharger that lets some exhaust bypass the turbine to limit boost. Stuck open gives low boost; stuck shut, too much."
+
+[[term]]
+name = "Gearbox computer"
+text = "The module that controls an automatic gearbox or CVT (the TCM). It has its own fault codes: P0700 in the engine computer only says the gearbox computer has stored one."
+
+[[term]]
+name = "CVT"
+text = "Continuously variable transmission: an automatic gearbox with a steel belt or chain between two pulleys that change size, instead of fixed gears. It needs exactly the fluid its maker specifies."

@@ -1,0 +1,246 @@
+# Diagnosis guide: crankshaft and camshaft position sensors, and their correlation
+# (P0335 to P0349, P0365 to P0369, P0390 to P0394, P0016 to P0019). Written for Scana
+# (2026-10-16) from the sources below. General guidance: check the maker's workshop manual.
+
+id = "crank-cam"
+title = "Crank or cam position sensor, or cam timing out of step"
+codes = ["P0335-P0349", "P0365-P0369", "P0390-P0394", "P0016-P0019"]
+summary = "The engine computer lost, or doubts, the signal that tells it where the crankshaft or a camshaft is. P0335 to P0339 are the crank sensor; P0340 to P0349, P0365 to P0369 and P0390 to P0394 the cam sensors. P0016 to P0019 mean the two signals are out of step: often a stretched or jumped timing chain or belt. A dead crank signal usually means the engine won't start at all."
+how_it_works = [
+  "The crank sensor reads teeth on a wheel on the crankshaft; the cam sensor reads a mark on a camshaft. Together they tell the computer each piston's position, so it can time the spark and fuel.",
+  "Without a crank signal most engines get no spark and no fuel: the engine cranks but won't start, and the tachometer stays at zero while cranking.",
+  "The cam and crank signals should always line up. If the cam is out of step by more than a few degrees, the computer stores a correlation code (P0016 to P0019). On engines with variable valve timing, low or dirty oil can cause it too.",
+  "Codes for the sensor's circuit point to the sensor or its wiring; correlation codes point to the timing chain or belt, or the valve timing system.",
+]
+terms = ["Crankshaft position sensor", "Camshaft position sensor", "Timing chain", "Variable valve timing"]
+fix_first = ["P0010-P0015", "P0020-P0025"]
+safety = [
+  "If the engine stalls while driving, steer to a safe stop: power steering and brake assist get heavier without the engine running.",
+  "A jumped timing belt or chain can let valves hit pistons. If timing is suspected, don't keep cranking or driving it.",
+  "Keep hands away from belts and pulleys; disconnect the battery as the workshop manual says before working near the crank sensor.",
+]
+sources = [
+  "'Ultimate Guide to OBD-II Code P0335', go-parts.com, and 'P0335 Code', apextechnation.com (tachometer at zero while cranking means no crank signal) (read 2026-10-16)",
+  "'P0016 Crankshaft Camshaft Position Correlation', obd-codes.com, and 'P0016: Crank/Cam Correlation', apextechnation.com (read 2026-10-16)",
+  "'P0016 on 2010-2017 Toyota Camry 2.5L', go-parts.com (oil and the oil control valve first, then chain stretch by tensioner extension) (read 2026-10-16)",
+]
+related = ["vvt", "misfire"]
+
+[[cause]]
+id = "sensor"
+name = "A failed crank or cam sensor"
+detail = "Sensors fail with heat and age, often first when hot: the engine stalls hot and restarts after cooling."
+weight = 30
+fix = "Replace the sensor named by the code, with a quality part. Check the plug and air gap as the workshop manual says."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "Sensor wires run near the hot engine and moving parts; plugs corrode or loosen."
+weight = 25
+fix = "Repair the plug or wire, and route it clear of heat and belts."
+cost = "low"
+
+[[cause]]
+id = "timing"
+name = "The timing chain or belt has stretched or jumped a tooth"
+detail = "A worn chain stretches; a belt can slip a tooth. Then the cam and crank no longer line up (P0016 to P0019), often with a rattle at start-up on chain engines."
+weight = 20
+fix = "Inspect and replace the timing chain or belt, and its tensioner and guides, as the workshop manual says."
+cost = "high"
+
+[[cause]]
+id = "oil-vvt"
+name = "Low or dirty oil, or a valve timing fault"
+detail = "On engines with variable valve timing, the cam's position depends on oil pressure. Low, old or wrong oil, or a sticking oil control valve, puts the cam out of step."
+weight = 15
+fix = "Change the oil and filter with the grade the manual gives; check the oil control valve and its screen (see the valve timing guide)."
+cost = "low"
+
+[[cause]]
+id = "reluctor"
+name = "A damaged or dirty trigger wheel"
+detail = "A chipped tooth on the trigger wheel, or metal dust stuck on a magnetic sensor, gives an erratic signal (P0336, P0341)."
+weight = 7
+fix = "Clean the sensor tip; replace a damaged trigger wheel."
+cost = "medium"
+
+[[cause]]
+id = "other"
+name = "Something else causes a no-start, and the code is a side effect"
+detail = "A flat battery (slow cranking), no fuel, or an immobiliser that won't release can leave a crank code behind that isn't the real fault."
+weight = 3
+fix = "Fix the battery, fuel or immobiliser fault, clear the code, and see if it returns."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Circuit code or correlation code?"
+why = "Circuit codes point to a sensor or its wiring; correlation codes to timing or oil."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0016-P0019"]
+result = "correlation"
+[[test.auto.group]]
+patterns = ["P0335-P0339"]
+result = "crank"
+[[test.auto.group]]
+patterns = ["P0340-P0349", "P0365-P0369", "P0390-P0394"]
+result = "cam"
+[[test.result]]
+id = "crank"
+text = "Crank sensor codes (P0335 to P0339)"
+effect = { sensor = 2, wiring = 1, timing = -1, oil-vvt = -2 }
+[[test.result]]
+id = "cam"
+text = "Cam sensor codes (P0340 to P0349, P0365 to P0369, P0390 to P0394)"
+effect = { sensor = 2, wiring = 1, oil-vvt = -1 }
+[[test.result]]
+id = "correlation"
+text = "Crank and cam correlation (P0016 to P0019)"
+effect = { timing = 2, oil-vvt = 2, sensor = -1 }
+[[test.result]]
+id = "both"
+text = "A sensor code and a correlation code together"
+effect = { timing = 3 }
+note = "Together they make a timing chain or belt problem very likely."
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "tach"
+title = "Watch the tachometer while cranking (if it won't start)"
+why = "Most tachometers use the crank signal. No movement while cranking means no crank signal."
+steps = ["If the engine won't start: crank it for 5 seconds and watch the tachometer needle (or engine speed on a scan tool)."]
+[[test.result]]
+id = "zero"
+text = "It stays at zero"
+effect = { sensor = 2, wiring = 2, other = -1 }
+note = "No crank signal: check the crank sensor's plug and wiring first, then the sensor."
+[[test.result]]
+id = "moves"
+text = "It moves while cranking"
+effect = { timing = 1, other = 1 }
+[[test.result]]
+id = "runs"
+text = "The engine starts and runs"
+
+[[test]]
+id = "both-sides"
+title = "Intake and exhaust codes together?"
+why = "Correlation codes for the intake and exhaust cams together point to the chain or belt, not one sensor."
+steps = ["Note whether P0016 and P0017 (or P0018 and P0019) are both stored."]
+[[test.result]]
+id = "both"
+text = "Both intake and exhaust"
+effect = { timing = 3, sensor = -2 }
+[[test.result]]
+id = "one"
+text = "Only one"
+effect = { oil-vvt = 1, sensor = 1 }
+[[test.result]]
+id = "na"
+text = "Not a correlation code"
+
+[[test]]
+id = "oil"
+title = "Check the oil level and condition"
+why = "Low or old oil upsets variable valve timing and can set correlation codes."
+steps = ["Engine off on level ground: check the dipstick. Note when the oil was last changed and whether it looks black and thick."]
+[[test.result]]
+id = "low"
+text = "Low, very dark, or overdue"
+effect = { oil-vvt = 3 }
+note = "Change the oil and filter (correct grade), clear the codes, and drive before replacing anything."
+[[test.result]]
+id = "good"
+text = "Full and fairly fresh"
+effect = { oil-vvt = -2 }
+
+[[test]]
+id = "rattle"
+title = "Listen at start-up"
+why = "A rattle for the first few seconds after a cold start is a sign of a worn timing chain or tensioner."
+steps = ["Start the engine after it has stood overnight, and listen at the front of the engine."]
+safety = ["Keep clear of the fan and belts."]
+[[test.result]]
+id = "rattle"
+text = "It rattles for a few seconds"
+effect = { timing = 3 }
+[[test.result]]
+id = "quiet"
+text = "No rattle"
+effect = { timing = -1 }
+[[test.result]]
+id = "belt"
+text = "The engine has a timing belt, not a chain"
+
+[[test]]
+id = "stalls-hot"
+title = "Does it stall or cut out when hot?"
+why = "A sensor failing with heat often stalls a hot engine, which restarts once it cools."
+steps = ["Think back: does it cut out after a long drive or in traffic, and restart after 15 to 30 minutes?"]
+[[test.result]]
+id = "yes"
+text = "Yes, it stalls hot and restarts cool"
+effect = { sensor = 3 }
+[[test.result]]
+id = "no"
+text = "No"
+
+[[test]]
+id = "plug"
+title = "Look at the sensor's plug and wiring"
+why = "A loose, corroded or damaged plug or wire is a common, cheap cause."
+steps = [
+  "Find the sensor named by the code (the workshop manual shows where).",
+  "Check the plug is fully on and clipped, without corrosion or oil inside, and follow the wire for chafing or heat damage.",
+]
+safety = ["Engine off; let it cool."]
+[[test.result]]
+id = "bad"
+text = "A bad plug, oil in the plug, or a damaged wire"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "battery"
+title = "Is the battery strong?"
+why = "Slow cranking from a weak battery can leave a crank code behind that isn't the fault."
+steps = ["Does the engine crank briskly? A battery should read about 12.4 V or more before cranking."]
+[[test.result]]
+id = "weak"
+text = "Slow cranking or a low battery"
+effect = { other = 3 }
+[[test.result]]
+id = "strong"
+text = "Cranks well"
+effect = { other = -2 }
+
+[[test]]
+id = "scope"
+title = "Look at the signals with an oscilloscope"
+why = "Shows a missing, weak or erratic signal, and whether the crank and cam patterns line up."
+needs = ["oscilloscope"]
+steps = ["Back-probe the sensor signals and compare their patterns with a known-good capture for the engine."]
+[[test.result]]
+id = "missing"
+text = "A signal is missing or weak"
+effect = { sensor = 3, wiring = 2 }
+[[test.result]]
+id = "erratic"
+text = "A signal has gaps or drop-outs"
+effect = { reluctor = 3, wiring = 1 }
+[[test.result]]
+id = "shifted"
+text = "Both signals are clean but out of step"
+effect = { timing = 3, oil-vvt = 1 }

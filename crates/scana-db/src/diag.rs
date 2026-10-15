@@ -243,6 +243,18 @@ const FILES: &[(&str, &str)] = &[
     ("iat", include_str!("../data/diag/iat.toml")),
     ("throttle", include_str!("../data/diag/throttle.toml")),
     ("idle", include_str!("../data/diag/idle.toml")),
+    ("crank-cam", include_str!("../data/diag/crank-cam.toml")),
+    ("vvt", include_str!("../data/diag/vvt.toml")),
+    ("knock", include_str!("../data/diag/knock.toml")),
+    ("coil-circuit", include_str!("../data/diag/coil-circuit.toml")),
+    ("egr", include_str!("../data/diag/egr.toml")),
+    ("secondary-air", include_str!("../data/diag/secondary-air.toml")),
+    ("charging", include_str!("../data/diag/charging.toml")),
+    ("fuel-pressure", include_str!("../data/diag/fuel-pressure.toml")),
+    ("injector-circuit", include_str!("../data/diag/injector-circuit.toml")),
+    ("boost", include_str!("../data/diag/boost.toml")),
+    ("transmission", include_str!("../data/diag/transmission.toml")),
+    ("network", include_str!("../data/diag/network.toml")),
 ];
 
 static GUIDES: LazyLock<Vec<Guide>> =

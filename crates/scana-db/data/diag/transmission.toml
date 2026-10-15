@@ -1,0 +1,220 @@
+# Diagnosis guide: gearbox codes, automatic and CVT (P0700 to P0799, P0841 to P0849,
+# P0868, P0218). Written for Scana (2026-10-16) from the sources below.
+
+id = "transmission"
+title = "Gearbox (automatic or CVT) fault"
+codes = ["P0700-P0799", "P0841-P0849", "P0868", "P0218"]
+summary = "The gearbox computer found a fault. P0700 on its own only says the gearbox computer has a code stored: read the gearbox computer's own codes to find out what. Other codes point to the fluid, a speed or temperature sensor, a solenoid, a pressure switch, or slipping (gear ratio codes). On a CVT, P0868 means the fluid pressure is low. Check the fluid level and condition first, and the battery: low voltage sets false gearbox codes."
+how_it_works = [
+  "An automatic gearbox or a CVT shifts with fluid pressure, steered by solenoids that the gearbox computer controls.",
+  "The computer reads input and output shaft speeds, fluid temperature and pressure, and compares the real gear ratio with the one it commanded.",
+  "Low, old or wrong fluid upsets the pressure and the clutches (or the CVT belt). Many faults start with the fluid.",
+  "When the gearbox computer stores a fault it asks the engine computer to turn on the check engine light: that is P0700. The real code is in the gearbox computer.",
+]
+terms = ["Gearbox computer", "Limp mode", "CVT"]
+safety = [
+  "Check fluid only as the workshop manual says: many need the engine running in park, on level ground, at a set temperature. Keep clear of the fan and the hot exhaust.",
+  "If the gearbox slips badly or won't select a gear, stop driving and get it checked: slipping quickly damages it.",
+  "Use only the fluid the maker specifies. The wrong fluid can ruin an automatic or a CVT.",
+]
+sources = [
+  "'Ultimate Guide to OBD-II Code P0700', go-parts.com, and 'P0700 Code: Transmission Fault', icarsoft-us.com (read the gearbox computer's codes; fluid and battery first) (read 2026-10-16)",
+  "'P0868 OBD-II Trouble Code: Transmission Fluid Pressure Low', yourmechanic.com, and go-parts.com CVT model guides (fluid, the exact CVT fluid, cooler filters, oil degradation reset on Mitsubishi) (read 2026-10-16)",
+]
+related = ["charging", "network"]
+
+[[cause]]
+id = "fluid"
+name = "Low, old or wrong gearbox fluid"
+detail = "Leaks drop the level; old fluid loses its properties; the wrong fluid upsets the clutches or a CVT's belt."
+weight = 30
+fix = "Fix any leak; check and change the fluid with exactly the type the maker specifies, by the workshop manual's procedure (and any reset it lists)."
+cost = "low"
+
+[[cause]]
+id = "solenoid"
+name = "A failed shift or pressure control solenoid"
+detail = "Solenoid codes (P0750 to P0799, P0960 to P0979 on some cars) point to a solenoid, often worn by dirty fluid."
+weight = 20
+fix = "Replace the solenoid or the valve body solenoid pack."
+cost = "high"
+
+[[cause]]
+id = "sensor"
+name = "A speed, temperature or pressure sensor fault"
+detail = "Input and output speed sensors (P0715 to P0723), the fluid temperature sensor (P0710 to P0714) and pressure switches (P0840 to P0849)."
+weight = 15
+fix = "Check the sensor's plug and wiring; replace the sensor."
+cost = "medium"
+
+[[cause]]
+id = "wiring"
+name = "Wiring, plugs or low battery voltage"
+detail = "Corroded gearbox plugs or poor grounds, or a weak battery, give false or intermittent codes."
+weight = 15
+fix = "Load-test the battery; clean and secure the gearbox plugs and grounds."
+cost = "low"
+
+[[cause]]
+id = "internal"
+name = "Internal wear: clutches, bands, the CVT belt or pump"
+detail = "Gear ratio codes (P0730 to P0736), slipping, and low pressure (P0868) that remain after a fluid service point to internal wear."
+weight = 15
+fix = "A gearbox specialist: repair or replace the gearbox."
+cost = "high"
+
+[[cause]]
+id = "range"
+name = "The gear selector (range) sensor"
+detail = "P0705 to P0709: the switch that tells the computer which gear is selected. Starting only in neutral, or wrong gear shown, are signs."
+weight = 5
+fix = "Adjust or replace the range sensor."
+cost = "medium"
+
+[[test]]
+id = "codes"
+title = "Read the gearbox computer's own codes"
+why = "P0700 alone says nothing about the fault. The gearbox computer's codes do."
+needs = ["scan-tool"]
+steps = [
+  "Read codes from every computer: on Scana, Fault codes reads each OBD-II computer, and Modules finds the gearbox computer if it isn't an OBD-II one.",
+  "Write down every gearbox code; start with the lowest number.",
+]
+[test.auto]
+kind = "codes"
+absent = "only-p0700"
+[[test.auto.group]]
+patterns = ["P0562", "P0563"]
+result = "voltage"
+[[test.auto.group]]
+patterns = ["P0868", "P0840-P0849", "P0730-P0736"]
+result = "pressure"
+[[test.auto.group]]
+patterns = ["P0750-P0799"]
+result = "solenoid"
+[[test.auto.group]]
+patterns = ["P0710-P0729", "P0218"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P0705-P0709"]
+result = "range"
+[[test.result]]
+id = "only-p0700"
+text = "Only P0700 (the gearbox computer's codes not read yet)"
+note = "Read the gearbox computer's codes with Modules, or a scan tool that reads gearbox computers."
+[[test.result]]
+id = "pressure"
+text = "Pressure, ratio or slipping codes (P0868, P0840 to P0849, P0730 to P0736)"
+effect = { fluid = 2, internal = 2 }
+[[test.result]]
+id = "solenoid"
+text = "Solenoid codes (P0750 to P0799)"
+effect = { solenoid = 3, wiring = 1, fluid = 1 }
+[[test.result]]
+id = "sensor"
+text = "Speed or temperature sensor codes (P0710 to P0729), or overheating (P0218)"
+effect = { sensor = 3, wiring = 1 }
+[[test.result]]
+id = "range"
+text = "Gear selector sensor codes (P0705 to P0709)"
+effect = { range = 4 }
+[[test.result]]
+id = "voltage"
+text = "Low or high system voltage codes too"
+effect = { wiring = 3 }
+goto = "charging"
+
+[[test]]
+id = "fluid-check"
+title = "Check the fluid"
+why = "Low or burnt fluid is the most common root cause."
+steps = [
+  "Check the level by the workshop manual's procedure (many CVTs and newer automatics have no dipstick: a workshop checks them).",
+  "Look at the fluid on a white cloth: it should be clear red or the colour the maker uses, not dark brown, with no burnt smell.",
+  "Look under the car for leaks at the gearbox and the cooler lines.",
+]
+safety = ["The engine may need to run for the check: keep clear of the fan and exhaust."]
+[[test.result]]
+id = "low"
+text = "Low, or leaking"
+effect = { fluid = 4 }
+[[test.result]]
+id = "burnt"
+text = "Dark, burnt smell, or bits in it"
+effect = { fluid = 2, internal = 2 }
+[[test.result]]
+id = "good"
+text = "Correct level, clean"
+effect = { fluid = -2 }
+[[test.result]]
+id = "cant"
+text = "Can't check it myself"
+
+[[test]]
+id = "battery"
+title = "Check the battery"
+why = "Low voltage sets false gearbox codes."
+steps = ["Is the battery old or slow to crank? It should read about 12.4 V or more standing, and about 13.5 to 14.7 V with the engine running."]
+[[test.result]]
+id = "weak"
+text = "Weak, old, or low voltage"
+effect = { wiring = 3 }
+[[test.result]]
+id = "good"
+text = "Good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "drive"
+title = "How does it drive?"
+why = "Slipping and flare point to pressure or wear; harsh or late shifts to solenoids or fluid; stuck in one gear to limp mode."
+steps = ["Drive gently and note: slipping (revs rise without speed), harsh or late shifts, a shudder, or stuck in one gear."]
+safety = ["Don't keep driving if it slips badly."]
+[[test.result]]
+id = "slips"
+text = "Slips or flares"
+effect = { fluid = 1, internal = 3 }
+[[test.result]]
+id = "harsh"
+text = "Harsh, late or erratic shifts"
+effect = { solenoid = 2, fluid = 1, sensor = 1 }
+[[test.result]]
+id = "stuck"
+text = "Stuck in one gear (limp mode)"
+effect = { solenoid = 1, sensor = 1, wiring = 1 }
+[[test.result]]
+id = "normal"
+text = "Drives normally"
+effect = { internal = -2 }
+
+[[test]]
+id = "plugs"
+title = "Look at the gearbox plugs"
+why = "Corroded or loose plugs on the gearbox give sensor and solenoid codes."
+steps = ["Engine off. Find the plugs on the gearbox (sensors, the main solenoid plug). Check for corrosion, oil inside the plug, and firm locks."]
+[[test.result]]
+id = "bad"
+text = "A corroded, oily or loose plug"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "service"
+title = "When was the fluid last changed?"
+why = "Old fluid wears solenoids and clutches; a recent change with the wrong fluid causes trouble too."
+steps = ["Check the service history for the gearbox fluid, and which fluid was used."]
+[[test.result]]
+id = "never"
+text = "Never, or long ago"
+effect = { fluid = 2, solenoid = 1 }
+[[test.result]]
+id = "wrong"
+text = "Recently, but maybe not the maker's fluid"
+effect = { fluid = 3 }
+[[test.result]]
+id = "recent"
+text = "Recently, with the right fluid"
+effect = { fluid = -1, internal = 1 }

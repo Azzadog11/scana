@@ -1,0 +1,173 @@
+# Diagnosis guide: exhaust gas recirculation (P0400 to P0409). Written for Scana (2026-10-16)
+# from the sources below. General guidance: check the maker's workshop manual.
+
+id = "egr"
+title = "Exhaust gas recirculation (EGR) fault"
+codes = ["P0400-P0409"]
+summary = "The exhaust gas recirculation system isn't flowing as the engine computer expects, or one of its parts has a circuit fault. P0401 (too little flow) is the most common, usually carbon blocking the passages. P0402 means too much flow; P0403 to P0409 are the valve's circuit and position sensor codes."
+how_it_works = [
+  "EGR feeds a little exhaust gas back into the intake. It cools combustion and cuts nitrogen oxide emissions.",
+  "An EGR valve, worked by vacuum or an electric motor, opens at cruise and light load, and closes at idle and full throttle.",
+  "Carbon from the exhaust builds up in the valve and in the small passages to the intake. The valve may open fine while nothing flows.",
+  "The computer tests the flow by opening the valve and watching the manifold pressure, engine speed or a flow sensor. Too little change means too little flow.",
+]
+terms = ["EGR", "MAP"]
+safety = [
+  "The EGR valve and its pipes get very hot: let the engine cool before touching them.",
+  "Wear eye protection when scraping carbon.",
+]
+sources = [
+  "'P0401: Exhaust Gas Recirculation (EGR) Flow Insufficient Detected', edmunds.com (read 2026-10-16)",
+  "'P0401 Code - EGR Flow Insufficient Detected', apextechnation.com (carbon in the passages; Toyota heavy carbon; opening the valve at idle drops the speed 100 to 300 rpm when flow is good) (read 2026-10-16)",
+  "'OBD-II Code P0401', go-parts.com, and 'EGR Valve Problems (P0401, P0402)', fleetrabbit.com (read 2026-10-16)",
+]
+related = ["map", "idle"]
+
+[[cause]]
+id = "passages"
+name = "Carbon blocking the EGR passages"
+detail = "The passages from the valve to the intake narrow with carbon. The valve opens but little flows. Very common at high distance."
+weight = 35
+fix = "Clean the passages as the workshop manual shows (sometimes the intake must come off). A new valve alone won't help."
+cost = "medium"
+
+[[cause]]
+id = "valve"
+name = "A stuck or failed EGR valve"
+detail = "Carbon jams the valve shut (low flow) or open (P0402: rough idle, stalling); its motor or diaphragm fails."
+weight = 30
+fix = "Clean or replace the valve."
+cost = "medium"
+
+[[cause]]
+id = "control"
+name = "The vacuum supply or control solenoid (vacuum valves)"
+detail = "A split vacuum hose or a failed control solenoid stops a vacuum-worked valve opening."
+weight = 15
+fix = "Replace the hose or solenoid."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "A position or flow sensor fault"
+detail = "A faulty EGR position sensor or flow sensor (or its hoses) reports the wrong flow."
+weight = 10
+fix = "Check the sensor's hoses and wiring; replace the sensor."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "For circuit codes (P0403 to P0409), the valve's or sensor's plug or wiring."
+weight = 10
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Which EGR code?"
+why = "Flow codes point to carbon or a stuck valve; circuit codes to wiring or the valve's electrics."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0401"]
+result = "low"
+[[test.auto.group]]
+patterns = ["P0402"]
+result = "high"
+[[test.auto.group]]
+patterns = ["P0403-P0409", "P0400"]
+result = "circuit"
+[[test.result]]
+id = "low"
+text = "Too little flow (P0401)"
+effect = { passages = 2, valve = 1, control = 1 }
+[[test.result]]
+id = "high"
+text = "Too much flow (P0402)"
+effect = { valve = 3, passages = -2 }
+[[test.result]]
+id = "circuit"
+text = "Circuit or position sensor codes (P0400, P0403 to P0409)"
+effect = { wiring = 3, sensor = 2, passages = -2 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "idle"
+title = "How does it idle?"
+why = "An EGR valve stuck open lets exhaust in at idle: rough idle and stalling."
+steps = ["Warm the engine and let it idle. Is it rough, does it stall when stopping, or is it smooth?"]
+[[test.result]]
+id = "rough"
+text = "Rough, or stalls when coming to a stop"
+effect = { valve = 3 }
+[[test.result]]
+id = "smooth"
+text = "Smooth"
+effect = { valve = -1 }
+
+[[test]]
+id = "vacuum"
+title = "Look at the vacuum hoses and plug"
+why = "A split hose or a loose plug stops the valve working."
+steps = ["Look at the EGR valve's vacuum hose (if it has one) and any control solenoid hoses for splits; check the electrical plugs."]
+[[test.result]]
+id = "hose"
+text = "A split or loose hose"
+effect = { control = 4 }
+[[test.result]]
+id = "plug"
+text = "A bad plug or wire"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { control = -1, wiring = -1 }
+
+[[test]]
+id = "open-at-idle"
+title = "Open the valve at idle and listen"
+why = "With good flow, opening the EGR valve at idle makes the engine stumble or drop 100 to 300 rpm. No change means no flow."
+steps = [
+  "Warm idle. On a vacuum valve, lift its diaphragm gently by hand (engine cool enough to touch it) or apply vacuum; on an electric valve, use a scan tool command if available.",
+  "Listen to the idle.",
+]
+safety = ["The valve gets hot. Use a glove or wait until it is cool enough."]
+[[test.result]]
+id = "stumbles"
+text = "The idle drops or stumbles"
+effect = { passages = -2, valve = -1, control = 1, sensor = 1 }
+[[test.result]]
+id = "no-change"
+text = "No change"
+effect = { passages = 3, valve = 1 }
+[[test.result]]
+id = "cant"
+text = "Can't do this on this car"
+
+[[test]]
+id = "inspect"
+title = "Remove the valve and look"
+why = "Carbon on the valve and in its ports shows at once."
+steps = [
+  "Engine cool. Remove the EGR valve as the workshop manual shows.",
+  "Look at the valve and into its ports: heavy black carbon? Probe the port gently with a small screwdriver.",
+]
+safety = ["Wear eye protection when scraping carbon."]
+[[test.result]]
+id = "carbon"
+text = "Heavy carbon in the ports"
+effect = { passages = 4 }
+[[test.result]]
+id = "valve-stuck"
+text = "The valve itself is jammed with carbon"
+effect = { valve = 4 }
+[[test.result]]
+id = "clean"
+text = "Fairly clean"
+effect = { passages = -2, valve = -1 }

@@ -1,0 +1,225 @@
+# Diagnosis guide: fuel pressure and the fuel pump (P0087 to P0093, P0190 to P0194,
+# P0230 to P0233, P0627 to P0629, P2635). Written for Scana (2026-10-16).
+
+id = "fuel-pressure"
+title = "Fuel pressure or fuel pump fault"
+codes = ["P0087-P0093", "P0190-P0194", "P0230-P0233", "P0627-P0629", "P2635"]
+summary = "The fuel pressure isn't what the engine computer wants, or the fuel pump's circuit has a fault. P0087 means pressure too low, P0088 too high; P0190 to P0194 are the rail pressure sensor; P0230 to P0233 and P0627 to P0629 the pump's control circuit; P2635 low pump flow. Expect hard starting, hesitation or loss of power under load, or a no-start."
+how_it_works = [
+  "An electric pump in the fuel tank sends fuel through a filter to the engine's fuel rail and injectors.",
+  "A regulator (or the engine computer, on returnless systems) holds the pressure. Many port-injected engines run about 300 to 400 kPa; direct injection uses a second, engine-driven pump for very high pressure.",
+  "Many cars measure rail pressure with a sensor. If the measured pressure stays away from the target, the computer stores a code.",
+  "The pump gets its power through a fuse and relay, and draws a lot of current. Low battery voltage or a poor connection weakens it.",
+]
+terms = ["Fuel pump"]
+fix_first = ["P0562", "P0563"]
+safety = [
+  "Fuel under pressure sprays and burns easily. Work outdoors, engine cold, no flames or sparks, and relieve the pressure as the workshop manual says before opening anything.",
+  "Direct-injection high-pressure systems hold dangerous pressures: leave them to a workshop.",
+  "Keep a fire extinguisher nearby when working on fuel parts.",
+]
+sources = [
+  "'P0087 Fuel Rail Pressure Too Low', autodtcs.com, and Mitsubishi 13A-DTC P0087 (needs battery above 10 V), mitsubishitechinfo.com (read 2026-10-16)",
+  "'P0230: Fuel Pump Primary Circuit Malfunction', autobarn.net, and yourmechanic.com (read 2026-10-16)",
+  "Port injection typically 45 to 60 psi (about 310 to 410 kPa): lean guide sources (kkrichardson.com) (read 2026-10-16)",
+]
+related = ["lean", "charging"]
+
+[[cause]]
+id = "pump"
+name = "A weak or failing fuel pump"
+detail = "Pumps wear, especially if often run with little fuel in the tank (fuel cools them). A weak pump can't hold pressure under load."
+weight = 30
+fix = "Test the pressure and the pump's supply voltage; replace the pump (often as a module with its filter)."
+cost = "high"
+
+[[cause]]
+id = "filter"
+name = "A blocked fuel filter or pump strainer"
+detail = "Dirt and rust collect in the filter or the strainer on the pump."
+weight = 15
+fix = "Replace the filter or strainer."
+cost = "low"
+
+[[cause]]
+id = "electrical"
+name = "The pump's fuse, relay, wiring or ground"
+detail = "A failing relay, corroded plug or poor ground cuts the pump's voltage. Circuit codes (P0230 to P0233, P0627 to P0629) point here."
+weight = 25
+fix = "Check the fuse and relay; repair the plug, wire or ground; measure voltage at the pump."
+cost = "low"
+
+[[cause]]
+id = "regulator"
+name = "A faulty pressure regulator"
+detail = "Stuck open, pressure drops; stuck shut or a blocked return, pressure rises (P0088)."
+weight = 12
+fix = "Replace the regulator, or clear the return line."
+cost = "medium"
+
+[[cause]]
+id = "sensor"
+name = "A faulty rail pressure sensor"
+detail = "The sensor reads wrongly while the real pressure is fine: a gauge tells."
+weight = 10
+fix = "Confirm with a gauge, then replace the sensor or repair its wiring."
+cost = "medium"
+
+[[cause]]
+id = "supply"
+name = "Low battery voltage, or a leak or kinked line"
+detail = "Low system voltage weakens the pump; a leaking or kinked line loses fuel."
+weight = 8
+fix = "Fix the charging fault first; repair the line."
+cost = "low"
+
+[[test]]
+id = "code-type"
+title = "Pressure, sensor, or pump circuit?"
+why = "Circuit codes point to the pump's electrics; pressure codes to the pump, filter or regulator; sensor codes to the sensor."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0562"]
+result = "voltage"
+[[test.auto.group]]
+patterns = ["P0230-P0233", "P0627-P0629"]
+result = "circuit"
+[[test.auto.group]]
+patterns = ["P0190-P0194"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P0088", "P0089"]
+result = "high"
+[[test.auto.group]]
+patterns = ["P0087", "P0090-P0093", "P2635"]
+result = "low"
+[[test.result]]
+id = "low"
+text = "Pressure too low (P0087, P2635)"
+effect = { pump = 2, filter = 2, regulator = 1, sensor = 1 }
+[[test.result]]
+id = "high"
+text = "Pressure too high (P0088)"
+effect = { regulator = 3, sensor = 2, pump = -2, filter = -2 }
+[[test.result]]
+id = "sensor"
+text = "Rail pressure sensor codes (P0190 to P0194)"
+effect = { sensor = 3, electrical = 1 }
+[[test.result]]
+id = "circuit"
+text = "Pump circuit codes (P0230 to P0233, P0627 to P0629)"
+effect = { electrical = 4 }
+[[test.result]]
+id = "voltage"
+text = "A low system voltage code too (P0562)"
+effect = { supply = 3 }
+goto = "charging"
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "prime"
+title = "Listen for the pump at key on"
+why = "Most pumps run for about 2 seconds when the key is turned on. Silence points to the pump's electrics or a dead pump."
+steps = [
+  "In a quiet place, open the fuel filler flap (or lean near the tank) and turn the key to ON without starting.",
+  "Listen for a hum from the tank for about 2 seconds.",
+]
+[[test.result]]
+id = "hums"
+text = "A hum for a second or two"
+effect = { electrical = -2 }
+[[test.result]]
+id = "silent"
+text = "Nothing"
+effect = { electrical = 2, pump = 2 }
+
+[[test]]
+id = "symptoms"
+title = "How does it run?"
+why = "Weak fuel supply shows first under load and when the tank is low."
+steps = ["Note any hard starting, stumbling uphill or under hard acceleration, or cutting out when the tank is low."]
+[[test.result]]
+id = "load"
+text = "Stumbles or loses power under load"
+effect = { pump = 2, filter = 2 }
+[[test.result]]
+id = "low-tank"
+text = "Worse when the tank is low"
+effect = { pump = 2, filter = 1 }
+[[test.result]]
+id = "hard-start"
+text = "Hard to start after standing, then fine"
+effect = { regulator = 1, supply = 1 }
+note = "Pressure leaking away overnight: a leaking injector, regulator or the pump's check valve."
+[[test.result]]
+id = "fine"
+text = "Runs normally"
+effect = { sensor = 2 }
+
+[[test]]
+id = "fuse-relay"
+title = "Check the fuel pump fuse and relay"
+why = "A blown fuse or failing relay is cheap to fix."
+steps = [
+  "Find the fuel pump fuse and relay in the fuse box chart.",
+  "Look at the fuse. Swap the relay with an identical one (the chart shows which), and see if the problem moves.",
+]
+[[test.result]]
+id = "fault"
+text = "The fuse was blown, or the relay swap fixed it"
+effect = { electrical = 4 }
+[[test.result]]
+id = "fine"
+text = "Both fine"
+effect = { electrical = -1 }
+
+[[test]]
+id = "filter-age"
+title = "When was the fuel filter changed?"
+why = "An old filter blocks up, especially after a tank of dirty fuel."
+steps = ["Check the service history for the fuel filter (some cars have it in the tank, changed with the pump)."]
+[[test.result]]
+id = "old"
+text = "Long ago or never"
+effect = { filter = 2 }
+[[test.result]]
+id = "recent"
+text = "Recently"
+effect = { filter = -2 }
+[[test.result]]
+id = "unknown"
+text = "Not known, or inside the tank"
+
+[[test]]
+id = "gauge"
+title = "Measure the fuel pressure"
+why = "The only sure way to tell a real pressure fault from a faulty sensor."
+needs = ["fuel-pressure-gauge"]
+steps = [
+  "Fit the gauge as the workshop manual shows (port-injected engines only; not the high-pressure side of direct injection).",
+  "Read it at key on, at idle, revved, and 5 minutes after switching off (it should hold).",
+  "Compare with the manual and with the scan tool's rail pressure reading, if the car has one.",
+]
+safety = ["Fuel sprays under pressure. Work outdoors, no flames or sparks, and relieve the pressure first."]
+[[test.result]]
+id = "low"
+text = "Low, or it drops when revved"
+effect = { pump = 3, filter = 2, regulator = 1, sensor = -2 }
+[[test.result]]
+id = "high"
+text = "Too high"
+effect = { regulator = 4, sensor = -2 }
+[[test.result]]
+id = "falls-off"
+text = "Good while running, but falls fast after switching off"
+effect = { regulator = 2, pump = 1 }
+[[test.result]]
+id = "ok"
+text = "Correct, but the scan tool's sensor disagrees"
+effect = { sensor = 4, pump = -2, filter = -2 }

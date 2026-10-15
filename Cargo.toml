@@ -1,0 +1,38 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+license = "GPL-3.0-or-later"
+repository = "https://github.com/Azzadog11/scana"
+
+[workspace.dependencies]
+scana-proto = { path = "crates/scana-proto" }
+scana-link = { path = "crates/scana-link" }
+scana-sim = { path = "crates/scana-sim" }
+scana-core = { path = "crates/scana-core" }
+scana-db = { path = "crates/scana-db" }
+thiserror = "2"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serialport = "4"
+serde = { version = "1", features = ["derive"] }
+toml = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+eframe = "0.37"
+egui = "0.37"
+png = "0.18"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+
+[profile.release]
+strip = "symbols"

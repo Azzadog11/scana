@@ -1,0 +1,146 @@
+# Plain-English advice for common generic codes: what the code usually means and what to
+# check first. General guidance written for Scana (2026-10-16), not a repair manual: check
+# the maker's workshop manual before replacing parts. `codes` may list several codes that
+# share the advice.
+
+[[advice]]
+codes = ["P0128"]
+means = "The engine took too long to warm up, so the engine computer thinks the thermostat opens too early or is stuck open."
+check = [
+  "Watch coolant temperature on a drive: it should reach about 80-95 °C within 10-15 minutes and stay there.",
+  "A thermostat stuck open is the usual cause. A faulty coolant temperature sensor is the next.",
+  "Low coolant can also cause it: check the level with the engine cold.",
+]
+
+[[advice]]
+codes = ["P0171", "P0174"]
+means = "The engine computer is adding a lot of fuel to correct a lean mixture: more air, or less fuel, than it expects."
+check = [
+  "Look at short and long term fuel trims at idle and at 2500 rpm. High at idle but normal at speed points to a vacuum leak.",
+  "Listen for hissing: cracked intake hoses, the PCV hose, the intake boot after the air flow sensor.",
+  "A dirty air flow (MAF) sensor reads low and causes it too.",
+  "Weak fuel pressure or a blocked fuel filter shows as lean under load.",
+]
+
+[[advice]]
+codes = ["P0172", "P0175"]
+means = "The engine computer is taking away a lot of fuel to correct a rich mixture."
+check = [
+  "Check the air filter is not blocked.",
+  "A leaking injector or a fuel pressure regulator stuck closed adds fuel.",
+  "A coolant temperature sensor reading too cold makes the engine run rich.",
+]
+
+[[advice]]
+codes = ["P0300"]
+means = "Misfires on more than one cylinder, or the engine computer can't tell which."
+check = [
+  "Look at the freeze frame: misfires at idle, under load, or when cold point to different causes.",
+  "Check spark plugs, ignition coils and their plugs first.",
+  "Fuel trims far from zero suggest a fuel or air problem rather than ignition.",
+]
+
+[[advice]]
+codes = ["P0301", "P0302", "P0303", "P0304", "P0305", "P0306"]
+means = "One cylinder is misfiring: the crankshaft slows down each time that cylinder should fire."
+check = [
+  "Swap that cylinder's ignition coil with a neighbour's. If the misfire moves, the coil is faulty.",
+  "Check the spark plug on that cylinder.",
+  "If the coil and plug are fine, a compression test of that cylinder is next.",
+]
+
+[[advice]]
+codes = ["P0420", "P0430"]
+means = "The oxygen sensor after the catalyst switches almost as much as the one before it, so the catalyst isn't storing oxygen well."
+check = [
+  "Fix any misfire or fuel trim codes first: they can damage the catalyst or upset this test.",
+  "Check for exhaust leaks before or near the rear oxygen sensor.",
+  "Watch the rear sensor (bank 1 sensor 2) warm: it should stay fairly steady while the front one switches.",
+]
+
+[[advice]]
+codes = ["P0133"]
+means = "The front oxygen sensor switches between rich and lean more slowly than it should."
+check = [
+  "Old oxygen sensors slow down with age; this is the most common cause.",
+  "Exhaust leaks before the sensor and oil or coolant contamination also slow it.",
+]
+
+[[advice]]
+codes = ["P0135", "P0141"]
+means = "The oxygen sensor's built-in heater circuit is faulty, so the sensor takes longer to work after a cold start."
+check = [
+  "Check the sensor's plug and fuse.",
+  "The heater's resistance is usually a few ohms: open circuit means the sensor needs replacing.",
+]
+
+[[advice]]
+codes = ["P0440", "P0442", "P0455", "P0456", "P0457"]
+means = "The fuel vapour system leaks. Fuel vapour escapes instead of being burned by the engine."
+check = [
+  "Start with the fuel cap: is it tight, and is its seal cracked? It is the most common cause.",
+  "Check the vapour hoses near the tank and the charcoal canister for cracks.",
+  "Very small leaks are hard to find by eye; a smoke test finds them.",
+]
+
+[[advice]]
+codes = ["P0113", "P0118", "P0123", "P0108", "P0103"]
+means = "A sensor signal is stuck high, usually because the circuit is open: a plug off, a broken wire, or a failed sensor."
+check = [
+  "Look at the live value: an impossible reading (for example -40 °C) confirms an open circuit.",
+  "Check the sensor's plug is clicked in and its pins are clean.",
+]
+
+[[advice]]
+codes = ["P0112", "P0117", "P0122", "P0107", "P0102"]
+means = "A sensor signal is stuck low, usually a short to ground or a failed sensor."
+check = [
+  "Look at the live value: an impossible reading confirms a circuit fault.",
+  "Check the wiring for chafing against metal near the sensor.",
+]
+
+[[advice]]
+codes = ["P0335", "P0340"]
+means = "The engine computer isn't getting a good signal from the crankshaft or camshaft position sensor. The engine may not start, or cut out."
+check = [
+  "Check the sensor's plug and wiring.",
+  "A cranking engine with zero rpm on the live data points to the crankshaft sensor.",
+]
+
+[[advice]]
+codes = ["P0500"]
+means = "The engine computer doesn't see a vehicle speed signal while the car is moving."
+check = [
+  "Watch vehicle speed on the live data while driving: zero means no signal.",
+  "On many cars the speed comes from the ABS wheel speed sensors: check for ABS codes too.",
+]
+
+[[advice]]
+codes = ["P0562"]
+means = "The engine computer sees low system voltage."
+check = [
+  "Look at control module voltage on the live data: below about 13.5 V with the engine running suggests the alternator isn't charging.",
+  "Check the battery terminals and earth straps for corrosion.",
+]
+
+[[advice]]
+codes = ["P0563"]
+means = "The engine computer sees high system voltage."
+check = [
+  "Above about 15 V with the engine running points to the alternator's voltage regulator.",
+]
+
+[[advice]]
+codes = ["P0700"]
+means = "The gearbox computer has its own code and asked the engine computer to turn on the check engine light."
+check = [
+  "Read the gearbox computer's codes: in stage 3, Scana reads every module.",
+]
+
+[[advice]]
+codes = ["U0100", "U0101", "U0121", "U0140", "U0151", "U0155"]
+means = "A module stopped hearing another module on the CAN bus."
+check = [
+  "A flat or weak battery causes many of these: charge it and clear the codes.",
+  "If it keeps coming back, check the named module's power, ground and plug.",
+]

@@ -1,0 +1,268 @@
+# Scana design
+
+How Scana works, as built in version 0.1.0 (stages 1 and 2). Parts marked (draft) are still plans.
+
+| Section | |
+|---|---|
+| 1 | Goals and limits |
+| 2 | System overview |
+| 3 | Bridge firmware |
+| 4 | Serial protocol |
+| 5 | Laptop app: crates and threads |
+| 6 | Protocol stack |
+| 7 | Connecting to a car |
+| 8 | Polling |
+| 9 | Data: definitions and vehicle profiles |
+| 10 | Sessions, logs and reports |
+| 11 | Safety model |
+| 12 | Reliability rules |
+| 13 | Testing |
+| 14 | Building and installing |
+
+## 1. Goals and limits
+
+- A scan tool that matches a closed handheld tool on generic OBD-II, then goes further: every module, logging, graphs, and plain-English help on every screen.
+- First car: 2024 Daihatsu Hijet Jumbo (S510P, KF engine). OBD-II on CAN: ISO 15765-4, 11-bit IDs, 500 kbit/s, JOBD. The engine computer answers requests on 0x7DF from 0x7E8. It reports 30 mode 01 PIDs (a reference scan with a handheld scan tool, 2026-10-10).
+- Then any car with OBD-II on CAN, 11-bit or 29-bit, 250 or 500 kbit/s.
+- Out of reach of this hardware: K-line (ISO 9141-2, ISO 14230), J1850 PWM and VPW, CAN FD. The shield only has a CAN transceiver.
+- Runs on a Linux laptop. Laid out for a 1366 x 768 screen and an older laptop (an 8th-generation Intel Core i5 with integrated graphics), and scales up.
+
+## 2. System overview
+
+```
+ LAPTOP (Linux)                         USB              ARDUINO UNO R3 + SPARKFUN CAN-BUS SHIELD         CAR
+ ┌──────────────────────────────┐   serial 1 Mbaud     ┌──────────────────────────────────────┐   DB9 + cable  ┌───────────────────┐
+ │ scana-app   egui screens     │   SLCAN text lines   │ ATmega16U2   USB to serial            │   CAN-H  3-6   │ OBD port          │
+ │ scana-core  sessions, polls, │◄────────────────────►│ ATmega328P   scana-bridge firmware    │   CAN-L  5-14  │  (directly, or    │
+ │             logs, safety     │                      │ MCP2515      CAN controller, SPI,     │◄──────────────►│   through an OBD  │
+ │ scana-proto ISO-TP, OBD, UDS │                      │              16 MHz crystal           │   GND    2-4   │   splitter)       │
+ │ scana-link  serial | sim |   │                      │ MCP2551      CAN transceiver          │   +12 V  9-16  │ Engine ECU 0x7E8  │
+ │             replay           │                      └──────────────────────────────────────┘                │ other modules     │
+ └──────────────────────────────┘                                                                              └───────────────────┘
+                                                                                     (pins: DB9 - OBD)
+```
+
+The bridge is deliberately simple. The ATmega328P has 2 KB of RAM: enough to buffer frames, not enough for diagnostics. All protocol logic runs on the laptop, where it can be tested, logged and updated without reflashing.
+
+## 3. Bridge firmware
+
+Folder `firmware/scana-bridge/`, version 0.1.0. Arduino sketch, built with arduino-cli for `arduino:avr:uno`: 10,096 bytes of flash (31%), 1,045 bytes of RAM (51%).
+
+| File | Holds |
+|---|---|
+| `scana-bridge.ino` | Pins, LEDs, the Uno glue, the AVR watchdog |
+| `bridge.h` | All the logic: commands, modes, queues, host watchdog, events. Plain C++, templated on the hardware layer |
+| `slcan.h`, `bittiming.h`, `frame.h` | Parsing and formatting, bit timing. Plain C++ |
+| `mcp2515.h`, `mcp2515.cpp` | The MCP2515 driver (own code) |
+| `test/test_bridge.cpp` | Host tests: 168 checks with a fake hardware layer, built with g++ |
+
+Hardware it drives (SparkFun CAN-BUS Shield DEV-13262, checked against SparkFun's hookup guide, its schematic and a real board):
+
+| Signal | Uno pin | Note |
+|---|---|---|
+| MCP2515 chip select | D10 | SPI on D11 (MOSI), D12 (MISO), D13 (SCK) |
+| MCP2515 interrupt | D2 | Active low. Use it: polling SPI wastes time |
+| microSD chip select | D9 | Keep D9 high so the card stays off the bus |
+| LEDs | D7 (CAN traffic), D8 (GPS in the demo) | Scana: D7 blinks on frames, D8 shows the bus state |
+| Joystick | A1 up, A2 left, A3 down, A4 click, A5 right | Unused |
+| GPS socket | D4, D5 | Unused |
+| LCD header | D6 | Unused |
+| Free | A0, D3 | A0 is kept for an optional battery-voltage divider |
+
+MCP2515 crystal: 16 MHz (schematic Q1, and marked "16.00" on the board). Bit timings must be computed for 16 MHz.
+
+Power: as SparkFun built it. In the car, DB9 pin 9 (+12 V) feeds the Uno's VIN through fuse F1 and diode D1, and the laptop's USB also connects. Ground joins through DB9 pin 2.
+
+Responsibilities:
+
+- Pass frames both ways, with a receive timestamp in microseconds.
+- Start **closed** (not on the bus) after every reset. Join the bus only when the host asks: listen-only or normal.
+- Report health: frame counts, buffer overflows, MCP2515 error counters (TEC, REC) and error flags, bus-off.
+- Self-test on request: SPI register read-back and an internal loopback frame.
+- Host watchdog: when the host enables it, close the bus if no command arrives within the set time. A crashed or unplugged app then leaves the car's bus alone.
+- AVR watchdog at 250 ms: a hung sketch resets, and resets always come back closed.
+- At power-up, look for the MCP2515 for up to 100 ms (its oscillator starts after the Uno's), and again whenever the host asks to open.
+- Never send a frame on its own. Every frame on the bus comes from a host command.
+
+MCP2515 driver (own code):
+
+- **One-shot transmit** (CANCTRL.OSM): a frame nobody acknowledges is tried once, not repeated forever. The failure comes back as `#e TXERR` (or `#e TXARB` on a bench with no bus, where the unterminated lines read dominant).
+- **One transmit buffer** (TXB0) and a 4-frame software queue: the MCP2515 sends its three buffers by number, not by age, which could reorder ISO-TP frames.
+- **Receive order kept:** with roll-over, once RXB0 is read a new frame can land in RXB0 before RXB1 is read; the driver remembers to read RXB1 next.
+- Receive buffers: RXM=11 (take every frame) unless `#M` sets a standard-ID mask and filter. INT (D2) low means a frame is waiting, so idle polls cost no SPI traffic.
+- Bit timing for 16 MHz, sample point 81.25% at 10k-500k (16 TQ: sync 1, prop 5, phase 1 7, phase 2 3, SJW 1), 80% at 800k (10 TQ), 75% at 1M (8 TQ). The host tests check every rate's bit time and sample point.
+
+Keep static RAM use under 75% of 2048 bytes (the gate checks it).
+
+Limits:
+
+- The MCP2515 has 2 receive buffers. At high bus load an AVR may miss frames. The OBD port on many cars only carries diagnostic traffic, so this matters for sniffing, not for diagnostics. Hardware filters (masks) cut the load when only replies are needed.
+- The serial link carries about 100 kB/s at 1 Mbaud. A full 500 kbit/s bus is about 4,000 frames/s, or about 100 kB/s as SLCAN text: at the limit. Diagnostics use a few hundred frames/s at most.
+- Opening the serial port resets the Uno (DTR). The host pulses DTR itself, then waits for the `#R` ready line (about 2 s in all), so every session starts closed with counters at zero.
+- Measured on a genuine Uno R3 (2026-10-16): 500 of 500 loopback frames back unchanged, round trip 3.9-4.3 ms, 244 frames/s one at a time (each waits for its `z` and its echo).
+
+## 4. Serial protocol
+
+SLCAN (Lawicel CAN232/CANUSB) text lines at **1,000,000 baud** 8N1. 16 MHz divides 1 Mbaud exactly, and the Uno's USB chip (ATmega16U2) handles it: no errors in the bench tests.
+
+Why SLCAN: Linux tools already speak it (`slcand` makes a SocketCAN interface for can-utils, Wireshark and SavvyCAN), and lines are self-synchronising (each ends in CR). Scana talks to the serial port directly, so it needs no root and no `slcand`.
+
+Standard commands used:
+
+| Command | Meaning | Reply |
+|---|---|---|
+| `S0`-`S8` | Bit rate 10k, 20k, 50k, 100k, 125k, 250k, 500k, 800k, 1M (only while closed) | CR, or BEL on error |
+| `O` | Open in normal mode (sends ACKs, can transmit) | CR / BEL |
+| `L` | Open listen-only (never drives the bus) | CR / BEL |
+| `C` | Close (always works) | CR |
+| `tIIILDD..` | Send a standard frame: 3 hex ID, length, data | `z` CR |
+| `TIIIIIIIILDD..` | Send an extended frame: 8 hex ID | `Z` CR |
+| `rIIIL`, `RIIIIIIIIL` | Send a remote request | `z` / `Z` CR |
+| `F` | Status flags | `Fxx` CR |
+| `V`, `N` | Version, serial | `V0100`, `N5CA1` |
+| `Z0`, `Z1` | Millisecond timestamps off, on | CR |
+
+Frames are only sent in normal or loopback mode; anything else gets BEL. Received frames: `tIIILDD..` CR, with `TTTT` (ms) after `Z1` or `:TTTTTTTT` (us) after `#U1`.
+
+Scana extensions start with `#`, which Lawicel does not use, so `slcand` never sends them:
+
+| Command | Meaning |
+|---|---|
+| `#I` | Identity: `#I scana-bridge <version> mcp2515 16MHz` |
+| `#H` | Health: `#H up= mode= rate= rx= tx= txerr= hwovr= bad= tec= rec= eflg=` (mode C N L K) |
+| `#T` | Self-test, only while closed: reset, register read-back, a loopback frame. `#T PASS` or `#T FAIL <step> <hex value read>` (step 1 `00`/`FF`: nothing answers on SPI) |
+| `#K` | Open in the MCP2515's loopback mode: frames sent come straight back; nothing reaches the bus |
+| `#P` | Ping: `#P`. Keeps the host watchdog fed |
+| `#Wnnnn` | Host watchdog, 1-60000 ms, `#W0` off. Any command feeds it. When it fires: bus closed and `#e HOSTWD` |
+| `#U1`, `#U0` | Microsecond timestamps on received frames (`:` and 8 hex after the data) |
+| `#E1`, `#E0` | Push events: `#e ERRWARN`, `ERRPASSIVE`, `BUSOFF`, `ACTIVE`, `RXOVR n`, `TXERR`, `TXARB`, `HOSTWD` |
+| `#Mmmm,fff` | Standard-ID acceptance filter, only while closed; `#M` accepts everything |
+| `#R` | Ready line, sent once after reset: `#R scana-bridge 0.1.0 mcp2515=ok` (or `=missing`) |
+
+Every command gets exactly one reply, so replies match commands in order. Malformed or unknown lines get BEL and are counted in `#H`. Bytes outside printable ASCII are ignored (the Uno's USB chip can send one when the port opens), as are line feeds.
+
+## 5. Laptop app: crates and threads
+
+Cargo workspace, seven crates:
+
+| Crate | Holds | Rules |
+|---|---|---|
+| `scana-proto` | CAN frames, the bridge's SLCAN protocol, ISO-TP, OBD-II services, the PID table, mode 06 (results, scaling, names), fault codes, candump lines | No I/O, no threads, no clock: time comes in as an argument. Deterministic |
+| `scana-db` | Scana's knowledge as text files in `data/`, built into the program: fault code descriptions and advice, what each value means, glossary, guided jobs, page help, the lesson, vehicle profiles | A file that fails to parse gives an empty list, never a crash; tests check every file parses |
+| `scana-link` | `SlcanLink` (the bridge over serial, `serialport` crate) and `SimLink` (the simulator); later replay and SocketCAN | One trait, `Link`. `SlcanLink` has a reader thread; replies and frames go down separate channels |
+| `scana-sim` | Virtual vehicles: the Hijet (healthy, with the dash, with faults), a two-ECU car, 29-bit and 250k variants; freeze frames, mode 06, clearing resets readiness | Used by tests, the demo cars and `--sim` |
+| `scana-core` | `Client`, `detect`, readers (supported PIDs, live values, codes, freeze frames, readiness, test results, vehicle info), the poller, the clear-codes gate (`safety`), the recorder and session store, the health report, frame descriptions, and the session worker | The worker owns the link on its own thread and talks to the app by channels |
+| `scana-app` | The egui 0.37 (eframe) desktop app: 13 pages, the Learn panel, status bar, themes, its own line charts (`chart.rs`), a screenshot mode | Never blocks: draws from the latest updates. Layouts reflow from 1366 x 768 up |
+| `scana-cli` | `scana`: `ports`, `probe`, `loopback`, `monitor`, `detect`, `pids`, `codes`, `info`, `freeze`, `tests`, `health`, `clear`; `--sim`, `--sim-dash`, `--sim-faults`, `--port`, `--log` | For headless checks by people and AI agents |
+
+Threads:
+
+```
+ serial reader thread ──frames──► session worker ──Update──► app (egui, repaints on each update)
+ serial writes        ◄──────────  (Client, poller, ◄─Command──
+                                    recorder, report)
+```
+
+- The app never touches the serial port; it sends `Command`s (connect, live list, reads, health check, clear with consent, record, mark) and draws from `Update`s.
+- Every wait has a timeout. Every error reaches the app as a plain-English message.
+- A panic in the worker is caught: the connection resets and the app shows a message (`session.rs`, `guarded`).
+- The worker recovers by itself: a pulled cable or bridge reset reconnects every 2 s; a silent car (key off, three missed replies in a row, or an unacknowledged frame) is looked for again every 5 s.
+
+## 6. Protocol stack
+
+| Layer | Standard | Notes |
+|---|---|---|
+| CAN 2.0A and 2.0B | ISO 11898 | 11-bit and 29-bit IDs |
+| Transport | ISO 15765-2 (ISO-TP) | Single, first, consecutive and flow-control frames. Scana sends flow control with block size 0 and STmin 0 unless a profile says otherwise |
+| OBD-II addressing | ISO 15765-4 | 11-bit: functional 0x7DF, physical 0x7E0-0x7E7, replies 0x7E8-0x7EF. 29-bit: functional 0x18DB33F1, physical 0x18DAxxF1, replies 0x18DAF1xx |
+| OBD-II services | SAE J1979, ISO 15031-5 | 01 live data, 02 freeze frame, 03 stored codes, 04 clear, 06 test results, 07 pending codes, 09 vehicle info, 0A permanent codes |
+| Codes | SAE J2012, ISO 15031-6 | P, C, B, U codes; descriptions from openly licensed lists (see 9) |
+| Enhanced | ISO 14229-1 (UDS), and KWP2000 on CAN where a module needs it | Read-only services first: 0x10 01, 0x3E, 0x22, 0x19, 0x1A (KWP). 0x14 clear behind the gate |
+
+Mode 01 requests on CAN may ask for up to 6 PIDs at once. The scheduler groups PIDs to cut the request count.
+
+## 7. Connecting to a car
+
+Bus manners. These are hard rules:
+
+1. Open **listen-only** first at each rate in turn (500k, then 250k), 800 ms each. Frames without errors confirm a rate and end the listening; errors rule a rate out.
+2. A quiet bus (common: many OBD ports carry no traffic until a tester asks) needs one request to find the rate. Follow ISO 15765-4: open normal at the confirmed rate, or each quiet one, send one functional `01 00` (11-bit, then 29-bit) and collect replies for 100 ms. Never transmit at a rate where listening heard errors.
+3. A frame nobody acknowledges (`#e TXERR` or `TXARB`, one-shot) ends that rate at once, without trying 29-bit there. On the desk with no car this is the whole story: 2 frames sent in total, then "No car answered" with what was tried (tested 2026-10-16).
+4. Once replies arrive, store the protocol, the replying ECU IDs and the supported PIDs (PIDs 00, 20, 40, 60, 80, A0, C0) in the session.
+5. Watch for **other testers**: requests on 0x7DF or 0x7E0-0x7E7 that Scana did not send, for example a dash display sharing the port through an OBD splitter at about 20 requests a second. Scana then lowers its own rate and matches replies to its own requests only. Simple dash displays often read only single-frame mode 01 replies, and may stop asking for a PID after a refusal (`7F 01`): so Scana only asks for mode 01 PIDs the ECU lists as supported. While another tester is active, warn before multi-frame requests (two testers sending flow control can confuse an ECU).
+6. If TEC rises above 96 (error warning) or the bus goes bus-off, drop to listen-only and tell the user.
+
+## 8. Polling
+
+- A request budget: a 50 ms gap (20 requests/s) when Scana is alone, 100 ms (10 requests/s) with another tester on the bus. Both are settings (estimates; tune from the truck tests).
+- Each PID has a period (`poller.rs`): fast-changing values every 200 ms, most every 1 s, rarely-changing ones every 5 s. The poller packs due PIDs for one ECU 6 to a request; an unknown PID goes alone.
+- One request outstanding at a time; 150 ms timeout for one ECU. A missed reply is skipped; three in a row and Scana looks for the car again. A refusal drops that batch's PIDs and says so.
+- The live screen shows the real update rate of each value.
+
+## 9. Data: definitions and vehicle profiles
+
+PID formulas and the mode 06 tables are protocol facts, so they live in code (`scana-proto/src/pids.rs`, `mode06.rs`; mode 06 scaling checked against python-OBD's table, 2026-10-16). Everything a person might want to read or change is a text file in `crates/scana-db/data/`:
+
+- `dtc/generic.tsv`: 363 generic codes with **Scana's own plain-English descriptions**. SAE's J2012 text is copyright and the only openly licensed list found had wrong descriptions. Codes not in the list get a description of their group, worked out from the number.
+- `dtc/advice.toml`: what common codes usually mean and what to check first (general guidance).
+- `learn/pids.toml`, `glossary.toml`, `jobs.toml`, `pages.toml`, `lesson.toml`: the Learn content.
+- `vehicles/*.toml`: profiles. A profile matches when the engine ECU's live PID list equals its `match_pids`. The Hijet's has ECU names, notes, warning limits (coolant 107/112 °C, charging 12.8-15.2 V running) and the 2026-10-10 scan values.
+- Later: vehicle history keyed by VIN, where the car reports one.
+
+## 10. Sessions, logs and reports
+
+- One folder per session: `$XDG_DATA_HOME/scana/sessions/<YYYY-MM-DD_HHMMSS>_<vehicle>/`, else `~/.local/share/scana/sessions/`.
+  - `frames.log`: every frame in candump log format (`(1760580000.123456) can0 7E8#04410C1D4C000000`: engine speed 1875 rpm). Frames Scana sent end in ` T`. can-utils and SavvyCAN read it.
+  - `values.csv`: `time_s,ecu,pid,name,value,unit,text`, one row per decoded value; markers are rows with `pid` `MARK`.
+  - `session.toml`: started, ended, vehicle, link, bit rate, addressing, ECUs, profile, counts, codes found, app version. Written when the session ends; a folder without it was cut short.
+  - `report.html`: the health report, one self-contained page.
+- Recording is on when the user turns it on (or always, in Settings). A health check run while not recording records a short session of its own, so every report has a folder with its frames.
+- The Sessions page lists folders newest first and loads `values.csv` back into the graphs.
+- Settings: `~/.config/scana/config.toml`.
+- Logs are written as they come and flushed every second, so a crash or a pulled cable loses at most 1 s.
+
+## 11. Safety model
+
+Every service Scana can send has a level. The UI shows the current level in the status bar.
+
+| Level | Allowed | Gate |
+|---|---|---|
+| 0 Read | OBD-II 01, 02, 03, 06, 07, 09, 0A; UDS 0x10 01 (default session), 0x3E, 0x22, 0x19; KWP 0x1A, 0x21 | Default |
+| 1 Clear | OBD-II 04; UDS 0x14 | A confirmation that says what is lost (`safety::CLEAR_WARNING`; the app needs a tick, the CLI a typed CLEAR or `--yes`). A health report is saved first. Then `safety::clear_codes` reads PIDs 0C and 0D (only where supported) and refuses if the engine runs, the car moves, or no ECU reports engine speed. Only then is 04 sent |
+| 2 Change (stage 4) | Actuator tests (UDS 0x2F), routines (0x31) and service resets, only from a vehicle profile entry with a source | Advanced mode on, per-action confirmation, vehicle conditions checked before and during, a time limit, and every step logged |
+| Never | Programming (0x34-0x37), security access (0x27), coding or writing data (0x2E), changing communication (0x28, 0x85) | Not in the code |
+
+Raw frame sending (bus monitor and UDS console) is level 2, advanced mode only, and refuses IDs and services outside the allowed list unless the user types the frame and confirms it.
+
+## 12. Reliability rules
+
+- No `unwrap` or `expect` outside tests and `main` set-up. Library errors are typed (`thiserror`); the binaries use `anyhow`.
+- Every decoder handles short, long and nonsense input without a panic. Fuzz the ISO-TP reassembler and the SLCAN parser.
+- Pulling the USB cable, turning the key off, or a bridge reset mid-request: Scana notices within 1 s, says what happened, and reconnects by itself when the bridge comes back.
+- Settings and vehicle profiles are checked at load. A bad file gives a message with the line, not a crash.
+- The app starts in under 2 s on an 8th-generation Core i5 laptop and stays under 200 MB of memory in a 2 h logging session (targets, to be measured).
+
+## 13. Testing
+
+| Kind | What | Where |
+|---|---|---|
+| Unit | Decoders against values from standards and from the truck's 2026-10-10 scan; data files parse | `scana-proto`, `scana-db` |
+| Session worker | Whole connections on the demo cars: live values, codes, recording, health check with its report, clearing with consent | `scana-core/src/session.rs` |
+| Screens | `scana-app --screenshots DIR` drives every page on the demo cars at 1366 x 768 and once at 1024 x 700 and saves PNGs to look at; `--shot-bridge DIR` connects to the real bridge | By hand after UI changes |
+| Property and fuzz | ISO-TP framing round trips, random frame streams | `scana-proto`, `cargo fuzz` |
+| Simulator | Whole sessions against virtual ECUs, with faults: lost frames, late replies, negative responses, a second tester, wrong bit rate, cable pulled | `scana-sim`, `tests/` |
+| Golden logs | Real `frames.log` files from the truck replayed through the decoders; results must not change without a reason | `tests/golden/` |
+| Firmware host tests | The SLCAN parser and command handler are plain C++ in a header, compiled and tested on the build machine with g++ | `firmware/scana-bridge/test/` |
+| Firmware build | `arduino-cli compile --fqbn arduino:avr:uno firmware/scana-bridge`, RAM under 75% | Gate |
+| Soak | 24 h against the simulator: no leaks, no stalls, logs complete | Before each release |
+| Bench and car | Checks with a real bridge and a car, from a written test plan | By hand |
+
+`tools/gate.sh` runs `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`, the firmware host tests and the firmware build. Work is done only when the gate passes.
+
+## 14. Building and installing
+
+- Develop with Rust 1.99 stable, and arduino-cli with the AVR core 1.8.8 for the firmware.
+- A release binary runs on another Linux machine when that machine's C library (glibc) is at least as new as the build machine's. Stage 5 adds an install script and a desktop entry.
+- Serial access: the user must be in `uucp`, the group that owns `/dev/ttyACM*` on Arch-based systems (`dialout` on Debian, Ubuntu and Fedora). Scana says so in plain words when the port can't be opened.
+- Release builds are stripped (`scana` about 2 MB, `scana-app` about 23 MB). The app needs the desktop's usual graphics libraries (it loads them at start: Wayland or X11, OpenGL); most desktop Linux systems have them.
+- The Uno R3 shows as USB `2341:0043`. Scana finds it by that ID and by the `#R` ready line, never by guessing a port.

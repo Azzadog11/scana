@@ -1,0 +1,129 @@
+# Words Scana uses, in plain English. Written for Scana (2026-10-16).
+
+[[term]]
+name = "ECU"
+text = "Electronic control unit: a computer in the car. The engine computer (ECM) is one; the ABS, airbag and body modules are others."
+
+[[term]]
+name = "OBD-II"
+text = "On-board diagnostics, second generation: the standard way to read emissions-related faults and live data through the plug under the dash."
+
+[[term]]
+name = "CAN"
+text = "Controller Area Network: the two-wire network the car's computers talk on. The OBD port reaches it on pins 6 (CAN-H) and 14 (CAN-L)."
+
+[[term]]
+name = "PID"
+text = "Parameter ID: the number of one live value, for example 0C for engine speed and 05 for coolant temperature."
+
+[[term]]
+name = "DTC"
+text = "Diagnostic trouble code, or fault code: a letter and four characters, such as P0128. P is powertrain, C chassis, B body, U network."
+
+[[term]]
+name = "MIL"
+text = "Malfunction indicator lamp: the check engine light."
+
+[[term]]
+name = "Stored code"
+text = "A fault the engine computer has confirmed, usually on two drives in a row. Stored emissions codes turn the check engine light on."
+
+[[term]]
+name = "Pending code"
+text = "A fault seen once but not yet confirmed. It becomes a stored code if it happens again, or goes away if it doesn't."
+
+[[term]]
+name = "Permanent code"
+text = "A copy of a stored code that a scan tool can't clear. The engine computer removes it itself once its own test passes again."
+
+[[term]]
+name = "Freeze frame"
+text = "A snapshot of live values taken the moment a code was stored: speed, revs, temperatures. It tells you the conditions when the fault happened."
+
+[[term]]
+name = "Readiness monitor"
+text = "A self-test the engine computer runs while driving: catalyst, oxygen sensors, fuel vapour system and others. Clearing codes resets them to not complete."
+
+[[term]]
+name = "Closed loop"
+text = "The engine computer adjusts the mixture using the oxygen sensor's reading. Open loop means it uses fixed tables, as it does from cold and at full throttle."
+
+[[term]]
+name = "Fuel trim"
+text = "The engine computer's correction to the amount of fuel, in percent. Plus means adding fuel because the mixture was lean; minus means taking fuel away."
+
+[[term]]
+name = "Oxygen sensor"
+text = "A sensor in the exhaust that tells the engine computer whether the mixture burned rich or lean. Also called an O2 sensor or lambda sensor."
+
+[[term]]
+name = "Bank"
+text = "A row of cylinders. Bank 1 holds cylinder 1. Inline engines, like the Hijet's three-cylinder, have only bank 1."
+
+[[term]]
+name = "Sensor 1, sensor 2"
+text = "Oxygen sensor positions: sensor 1 is before the catalyst, sensor 2 after it."
+
+[[term]]
+name = "Catalyst"
+text = "The catalytic converter: it turns harmful exhaust gases into less harmful ones. The rear oxygen sensor checks it works."
+
+[[term]]
+name = "EVAP"
+text = "The evaporative emission system: it catches fuel vapour from the tank in a charcoal canister and lets the engine burn it."
+
+[[term]]
+name = "MAF"
+text = "Mass air flow sensor: measures the air going into the engine, in grams a second."
+
+[[term]]
+name = "MAP"
+text = "Manifold absolute pressure: the pressure in the intake manifold, in kPa. Low pressure means high vacuum."
+
+[[term]]
+name = "TDC"
+text = "Top dead centre: the piston at the top of its stroke. Ignition timing is measured in degrees before it."
+
+[[term]]
+name = "Lambda"
+text = "The mixture compared with the ideal: 1.0 is ideal, below 1 is rich, above 1 is lean."
+
+[[term]]
+name = "VIN"
+text = "Vehicle identification number: the car's 17-character serial number. Some engine computers report it; some Japanese-market ones don't."
+
+[[term]]
+name = "Calibration ID"
+text = "The version of the software in the engine computer."
+
+[[term]]
+name = "Bit rate"
+text = "How fast the CAN bus runs. OBD-II uses 500 or 250 kbit/s; the Hijet uses 500."
+
+[[term]]
+name = "Listen-only"
+text = "A mode where Scana's CAN chip only listens: it never sends, and never even acknowledges frames. Scana uses it first, so it can't disturb the car."
+
+[[term]]
+name = "Bus-off"
+text = "A CAN controller that saw too many errors switches itself off the bus. Scana stops sending and tells you if it happens."
+
+[[term]]
+name = "Functional request"
+text = "A question sent to every engine-related computer at once (CAN ID 7DF). A physical request goes to one computer (7E0 to 7E7)."
+
+[[term]]
+name = "ISO-TP"
+text = "The standard (ISO 15765-2) that splits messages longer than 7 bytes over several CAN frames, such as the VIN."
+
+[[term]]
+name = "JOBD"
+text = "Japan's on-board diagnostics standard. It uses the same plug and the same requests as OBD-II; the Hijet reports JOBD."
+
+[[term]]
+name = "UDS"
+text = "Unified Diagnostic Services (ISO 14229): the deeper diagnostics every module speaks. Scana uses it from stage 3."
+
+[[term]]
+name = "Mode 06"
+text = "On-board test results: the numbers behind the readiness monitors, each with its limits, so you can see a test that only just passed."

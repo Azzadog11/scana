@@ -1,0 +1,15 @@
+[package]
+name = "scana-proto"
+description = "CAN frames, the bridge's SLCAN protocol, ISO-TP, OBD-II and fault codes. No I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

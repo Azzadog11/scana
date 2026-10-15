@@ -1,0 +1,67 @@
+# Help for each page, shown in the Learn panel when nothing else is selected.
+# Written for Scana (2026-10-16).
+
+[[page]]
+id = "home"
+title = "Home"
+text = "Connect to the car through the Scana bridge, or try the demo car to learn the app at your desk. Once connected, the top bar shows the car and its check engine light."
+
+[[page]]
+id = "health"
+title = "Health check"
+text = "One button reads the check engine light, every code, the readiness monitors, the freeze frame and key values, then writes a report you can keep or print."
+
+[[page]]
+id = "codes"
+title = "Fault codes"
+text = "Stored codes are confirmed faults; pending codes were seen once; permanent codes can't be cleared by a tool. Click a code to learn what it means. Clearing codes is safety level 1: Scana checks the engine is off and saves a report first."
+
+[[page]]
+id = "live"
+title = "Live data"
+text = "Tick the values to watch. Scana asks for up to six at a time and shows how often each one really updates. Click a value to learn about it here."
+
+[[page]]
+id = "graphs"
+title = "Graphs"
+text = "Values from Live data over time, one graph each, on one time axis. Point at a graph to read the value at that moment on every graph. Pause, then drag sideways to look back. Loaded sessions show here too."
+
+[[page]]
+id = "readiness"
+title = "Readiness"
+text = "The engine computer's self-tests. Complete means the test ran and passed or failed; not complete means it hasn't run since the codes were last cleared."
+
+[[page]]
+id = "tests"
+title = "Test results"
+text = "Mode 06: the numbers behind the readiness monitors, each with its limits. A result close to a limit can warn of a fault before the check engine light comes on. Tests numbered 80 and up are the maker's own."
+
+[[page]]
+id = "info"
+title = "Vehicle info"
+text = "What the car says about itself: VIN, software version and computer names, plus how Scana is talking to it."
+
+[[page]]
+id = "modules"
+title = "Modules"
+text = "Every computer in the car (ABS, airbag, body, meter) and their codes. This comes in stage 3."
+
+[[page]]
+id = "monitor"
+title = "Bus monitor"
+text = "Every frame Scana sees on the bus, decoded where it can be. Read only: nothing is sent from here."
+
+[[page]]
+id = "sessions"
+title = "Sessions and reports"
+text = "Each connection can be recorded to a session folder: every frame, every value, and the health report. Load a session to look at its graphs again."
+
+[[page]]
+id = "learn"
+title = "Learn"
+text = "Guided jobs, the glossary, and how OBD-II works."
+
+[[page]]
+id = "settings"
+title = "Settings"
+text = "Look, text size, how fast Scana polls, and where sessions are saved."

@@ -1,0 +1,179 @@
+# What each live value means, for the Learn panel. Written for Scana (2026-10-16).
+# "normal" values are typical for a warm petrol engine unless they name this truck; treat
+# them as a guide, not a specification. Truck-specific facts live in the vehicle profile.
+
+[[pid]]
+id = 0x01
+what = "The check engine light (MIL), how many codes are stored, and which readiness monitors have finished their tests since the codes were last cleared."
+normal = "MIL off, 0 codes, every available monitor complete."
+read_with = "The Readiness page shows each monitor."
+
+[[pid]]
+id = 0x03
+what = "Whether the engine computer is steering the mixture from the oxygen sensor (closed loop) or using fixed tables (open loop)."
+normal = "Open loop for the first minute or so after a cold start and at full throttle; closed loop the rest of the time."
+read_with = "Fuel trims only correct the mixture in closed loop."
+
+[[pid]]
+id = 0x04
+what = "How hard the engine is working, as a share of the most air it could take in at this speed."
+normal = "About 20-35 % at a warm idle on a small engine; near 100 % at full throttle."
+read_with = "Engine speed and throttle position."
+
+[[pid]]
+id = 0x05
+what = "Engine coolant temperature, from the sensor the engine computer uses for fuel and ignition."
+normal = "About 80-100 °C once warm. It climbs steadily from cold; a slow climb suggests a thermostat stuck open."
+read_with = "Intake air temperature: on a cold engine both should be close to the outside temperature."
+
+[[pid]]
+id = 0x06
+what = "Short term fuel trim: the fuel correction right now, from the front oxygen sensor. Plus means adding fuel, minus means taking fuel away."
+normal = "Swings either side of 0, usually within plus or minus 10 %."
+read_with = "Long term fuel trim. Add the two for the total correction: beyond about plus or minus 20-25 % usually sets a lean or rich code."
+
+[[pid]]
+id = 0x07
+what = "Long term fuel trim: the correction the engine computer has learned over time and keeps."
+normal = "Close to 0, usually within plus or minus 10 %."
+read_with = "Short term fuel trim. A high value at idle that falls at higher revs points to a vacuum leak."
+
+[[pid]]
+id = 0x0B
+what = "Pressure in the intake manifold. Low pressure means high vacuum."
+normal = "About 25-40 kPa at idle; close to the barometric pressure with the engine off or at full throttle."
+read_with = "Barometric pressure: with the key on and the engine off the two should match."
+
+[[pid]]
+id = 0x0C
+what = "Engine speed in revolutions per minute."
+normal = "A small petrol engine typically idles at 700-900 rpm warm, and higher when cold."
+read_with = "Coolant temperature: idle speed drops as the engine warms."
+
+[[pid]]
+id = 0x0D
+what = "Vehicle speed as the engine computer sees it."
+normal = "Matches the speedometer, give or take a few km/h."
+
+[[pid]]
+id = 0x0E
+what = "Ignition timing: how many degrees before the piston reaches the top that the spark fires."
+normal = "Changes all the time; often 0-15° at idle and more at cruise."
+read_with = "Knock reduces timing: if it drops under load, the engine may be knocking."
+
+[[pid]]
+id = 0x0F
+what = "Temperature of the air going into the engine."
+normal = "Close to the outside temperature when driving; higher when parked in a hot engine bay."
+
+[[pid]]
+id = 0x10
+what = "Mass of air going into the engine each second, from the air flow (MAF) sensor."
+normal = "A few grams a second at idle on a small engine; rises with revs and load."
+read_with = "Engine load. A dirty MAF sensor reads low and makes the engine run lean."
+
+[[pid]]
+id = 0x11
+what = "Throttle opening as the throttle sensor reads it."
+normal = "A closed throttle doesn't read 0 %: many engines read 10-20 % at idle."
+
+[[pid]]
+id = 0x13
+what = "Which oxygen sensors the engine has. Bank 1 is the side with cylinder 1; sensor 1 is before the catalyst, sensor 2 after it."
+
+[[pid]]
+id = 0x14
+what = "Front oxygen sensor (bank 1 sensor 1), before the catalyst: tells the engine computer whether the mixture is rich or lean."
+normal = "Warm and in closed loop it switches between about 0.1 and 0.9 V several times a second. Stuck low means lean, stuck high means rich."
+read_with = "Short term fuel trim moves with it."
+
+[[pid]]
+id = 0x15
+what = "Rear oxygen sensor (bank 1 sensor 2), after the catalyst: checks the catalyst is working."
+normal = "Fairly steady, often 0.5-0.8 V, once the catalyst is warm. Switching as fast as the front sensor suggests a worn catalyst."
+read_with = "The front oxygen sensor."
+
+[[pid]]
+id = 0x1C
+what = "Which emissions standard the engine computer was built to: for example OBD-II (USA), EOBD (Europe) or JOBD (Japan)."
+
+[[pid]]
+id = 0x1F
+what = "Time since the engine started."
+
+[[pid]]
+id = 0x21
+what = "Distance driven with the check engine light on."
+normal = "0 km."
+
+[[pid]]
+id = 0x2E
+what = "How far the engine computer opens the fuel vapour purge valve, which lets the engine burn fuel vapour from the tank."
+normal = "0 % when cold or idling on many cars; it opens on a warm engine."
+
+[[pid]]
+id = 0x2F
+what = "Fuel left in the tank."
+
+[[pid]]
+id = 0x33
+what = "Air pressure outside, measured or estimated by the engine computer."
+normal = "About 101 kPa at sea level, less with altitude: around 94-95 kPa at 600 m."
+
+[[pid]]
+id = 0x41
+what = "Readiness monitors for this drive only: which tests have run since the engine started."
+
+[[pid]]
+id = 0x42
+what = "The voltage reaching the engine computer: close to the battery voltage."
+normal = "About 13.5-14.8 V with the engine running (charging); about 12.2-12.8 V with the engine off."
+read_with = "Engine speed: low voltage at idle that rises with revs points to a weak alternator."
+
+[[pid]]
+id = 0x45
+what = "Throttle position relative to its learned closed position."
+normal = "Near 0 % at idle."
+
+[[pid]]
+id = 0x46
+what = "Outside air temperature."
+
+[[pid]]
+id = 0x47
+what = "The second throttle position sensor. Electronic throttles have two, so the engine computer can check one against the other."
+read_with = "Throttle position (PID 11): the two move together."
+
+[[pid]]
+id = 0x49
+what = "Accelerator pedal position, first sensor (D)."
+read_with = "Pedal position E: the two pedal sensors move together, often one at half the other's value."
+
+[[pid]]
+id = 0x4A
+what = "Accelerator pedal position, second sensor (E)."
+read_with = "Pedal position D."
+
+[[pid]]
+id = 0x4C
+what = "The throttle opening the engine computer asks for."
+read_with = "Throttle position: the actual opening should follow it closely."
+
+[[pid]]
+id = 0x4D
+what = "Engine running time with the check engine light on."
+normal = "0 minutes."
+
+[[pid]]
+id = 0x4E
+what = "Engine running time since the codes were last cleared."
+read_with = "On a used car, a short time here with incomplete readiness monitors suggests someone cleared the codes recently."
+
+[[pid]]
+id = 0x5C
+what = "Engine oil temperature."
+normal = "Usually a little above the coolant temperature once warm."
+
+[[pid]]
+id = 0x5E
+what = "Fuel the engine is using, in litres an hour."

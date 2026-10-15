@@ -1,0 +1,107 @@
+# Vehicle profile: 2024 Daihatsu Hijet Jumbo (S510P). Facts from one truck: a reference scan
+# with a handheld scan tool (2026-10-10) and a bench test (2026-10-11). A profile matches when
+# a car's engine ECU lists exactly these live PIDs.
+
+id = "daihatsu-hijet-s510p-2024"
+name = "2024 Daihatsu Hijet Jumbo"
+model = "S510P, KF-VE4 658 cc three-cylinder, 4WD 5-speed manual"
+bitrate = 500000
+addressing = "11-bit"
+match_pids = [
+  0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x13, 0x14, 0x15,
+  0x1C, 0x1F, 0x21, 0x2E, 0x33, 0x41, 0x42, 0x45, 0x47, 0x49, 0x4A, 0x4C, 0x4D, 0x4E,
+]
+default_live = [0x0C, 0x0D, 0x05, 0x42, 0x04, 0x06]
+not_reported = "Engine oil temperature, fuel level, outside air temperature and the odometer."
+
+[[ecu]]
+id = 0x7E8
+name = "Engine (ECM)"
+
+[[note]]
+pid = 0x05
+text = "The radiator fan cuts in at about 101 °C (observed on one truck). Scana warns at 107 °C and alarms at 112 °C."
+
+[[note]]
+pid = 0x42
+text = "14.28 V running at the 2026-10-10 scan. Scana alarms below 12.8 V or above 15.2 V with the engine running."
+
+[[note]]
+pid = 0x11
+text = "Reads about 18 % with the throttle closed (2026-10-10 scan)."
+
+[[note]]
+pid = 0x10
+text = "2.89 g/s at a cold idle (2026-10-10 scan). Fuel use is roughly g/s x 0.33 litres an hour (estimate)."
+
+[[note]]
+pid = 0x33
+text = "94 kPa at the 2026-10-10 scan, at about 580 m altitude."
+
+[[limit]]
+pid = 0x05
+caution_above = 107.0
+alarm_above = 112.0
+
+[[limit]]
+pid = 0x42
+alarm_below = 12.8
+alarm_above = 15.2
+only_running = true
+
+# Readings from the 2026-10-10 scan, cold engine, 52 s after starting.
+[[baseline]]
+pid = 0x04
+value = "27.1 %"
+
+[[baseline]]
+pid = 0x05
+value = "30 °C"
+
+[[baseline]]
+pid = 0x06
+value = "-10.2 %"
+
+[[baseline]]
+pid = 0x07
+value = "1.6 %"
+
+[[baseline]]
+pid = 0x0B
+value = "39.0 kPa"
+
+[[baseline]]
+pid = 0x0C
+value = "1874 rpm"
+
+[[baseline]]
+pid = 0x0E
+value = "4.0°"
+
+[[baseline]]
+pid = 0x0F
+value = "22 °C"
+
+[[baseline]]
+pid = 0x10
+value = "2.89 g/s"
+
+[[baseline]]
+pid = 0x11
+value = "18.0 %"
+
+[[baseline]]
+pid = 0x14
+value = "0.250 V"
+
+[[baseline]]
+pid = 0x15
+value = "0.035 V"
+
+[[baseline]]
+pid = 0x33
+value = "94 kPa"
+
+[[baseline]]
+pid = 0x42
+value = "14.28 V"

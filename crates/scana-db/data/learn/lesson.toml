@@ -1,0 +1,29 @@
+# "How OBD-II works": a short lesson for the Learn page. Written for Scana (2026-10-16).
+
+[[section]]
+title = "The plug and the network"
+text = "Every car sold with OBD-II has a 16-pin plug under the dash. On most cars since about 2008 two of its pins (6 and 14) reach the CAN bus: a two-wire network the car's computers share. Scana's bridge is a CAN controller that joins that network."
+
+[[section]]
+title = "Questions and answers"
+text = "A scan tool asks; the computers answer. Each question is a CAN frame of up to 8 bytes. The first byte after the length says which service is wanted: 01 live data, 03 stored codes, 09 vehicle information. Answers come back with 40 added: 41, 43, 49."
+
+[[section]]
+title = "Who answers"
+text = "A question sent to ID 7DF goes to every engine-related computer. Each answers from its own ID: the engine computer from 7E8, a gearbox computer from 7E9. Scana can then ask one computer directly, on 7E0 to 7E7."
+
+[[section]]
+title = "Live values"
+text = "Service 01 asks for PIDs: 0C is engine speed, 05 coolant temperature. The answer holds raw bytes and a formula turns them into a number: engine speed is the two bytes as one number divided by 4. Scana asks for up to six PIDs in one question to save time."
+
+[[section]]
+title = "Long answers"
+text = "A CAN frame holds 8 bytes, so a long answer such as the VIN is split over several frames. The first frame says how long the message is; the tester replies 'go ahead' (flow control); the rest follow numbered 1, 2, 3. This is ISO-TP."
+
+[[section]]
+title = "Codes and the check engine light"
+text = "When a self-test fails twice, the engine computer stores a code and turns on the check engine light, and saves a freeze frame of the conditions. A fault seen once is a pending code. Clearing codes erases them and the freeze frame, and resets the readiness monitors."
+
+[[section]]
+title = "Being polite on the bus"
+text = "The car's computers use the same network to run the car. Scana listens before it talks, finds the bus speed without guessing wrongly in a way that causes errors, asks at most about 20 questions a second, and stops at the first sign of trouble."

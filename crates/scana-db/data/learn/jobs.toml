@@ -1,0 +1,62 @@
+# Guided jobs: step-by-step help for common tasks. Written for Scana (2026-10-16).
+# `page` sends the user to a page: home, health, codes, live, graphs, readiness, tests,
+# info, monitor, sessions, learn, settings.
+
+[[job]]
+id = "mil"
+title = "The check engine light is on"
+why = "Find out which fault turned it on, and what was happening when it did."
+steps = [
+  { text = "Connect to the car with the key on (engine off or running).", page = "home" },
+  { text = "Read the codes. Stored codes turned the light on; pending codes are faults seen once.", page = "codes" },
+  { text = "Click each code: the Learn panel says what it means and what to check first.", page = "codes" },
+  { text = "Read the freeze frame: the conditions when the code was stored.", page = "codes" },
+  { text = "Save a health report before changing anything, so you have a record.", page = "health" },
+  { text = "Fix the cause. Clear the codes only after the fix: clearing also resets the readiness monitors.", page = "codes" },
+  { text = "Drive normally for a few days, then read the codes again to check it stayed fixed.", page = "codes" },
+]
+
+[[job]]
+id = "trip"
+title = "Health check before a trip"
+why = "Catch a problem in the driveway rather than on the highway."
+steps = [
+  { text = "Start the engine and connect.", page = "home" },
+  { text = "Run the health check: check engine light, codes, readiness and key values in one go.", page = "health" },
+  { text = "Watch coolant temperature and voltage while the engine warms up.", page = "live" },
+  { text = "Save the report: it lands in the session folder.", page = "health" },
+]
+
+[[job]]
+id = "used"
+title = "Check a used car"
+why = "Codes cleared just before a sale hide faults. The engine computer's own records give it away."
+steps = [
+  { text = "Connect with the engine running.", page = "home" },
+  { text = "Run the health check.", page = "health" },
+  { text = "Look at readiness: several monitors not complete means the codes were cleared recently.", page = "readiness" },
+  { text = "Check pending and permanent codes too: permanent codes survive a clear.", page = "codes" },
+  { text = "Look at time and distance since codes were cleared (PIDs 4E and 31) in live data.", page = "live" },
+  { text = "Compare the VIN on the Vehicle info page with the papers, if the car reports one.", page = "info" },
+]
+
+[[job]]
+id = "drive"
+title = "Watch values while driving"
+why = "Some faults only show on the road. A passenger runs the laptop; the driver drives."
+steps = [
+  { text = "Pick the values to watch, with the most important first.", page = "live" },
+  { text = "Turn recording on: every frame and value is saved.", page = "home" },
+  { text = "The passenger watches and presses Mark when something happens.", page = "live" },
+  { text = "Afterwards, open the session and look at the graphs around the marks.", page = "sessions" },
+]
+
+[[job]]
+id = "intermittent"
+title = "Catch a fault that comes and goes"
+why = "A fault that won't show on demand needs a recording of the moment it happens."
+steps = [
+  { text = "Pick the values related to the fault, for example rpm, fuel trims and oxygen sensors for a hesitation.", page = "live" },
+  { text = "Record a session on drives where it usually happens. Press Mark when it does.", page = "live" },
+  { text = "Open the session and compare the values just before and after each mark.", page = "graphs" },
+]

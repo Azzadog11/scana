@@ -1,0 +1,18 @@
+[package]
+name = "scana-link"
+description = "Links to a CAN bus: the scana-bridge over USB serial, the simulator, and replays."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+scana-proto.workspace = true
+scana-sim.workspace = true
+thiserror.workspace = true
+serialport.workspace = true
+
+[lints]
+workspace = true

@@ -866,6 +866,9 @@ fn ports() -> Result<()> {
 fn probe(client: &mut Client) -> Result<()> {
     let link = client.link();
     println!("Link:      {}", link.describe());
+    if let Some(r) = link.start_report() {
+        println!("Started:   {} ({r})", scana_proto::slcan::describe_reset(&r));
+    }
     match link.self_test()? {
         Some(Ok(())) => println!("Self-test: PASS (the CAN chip answers, registers work, a loopback frame came back)"),
         Some(Err((step, detail))) => {

@@ -930,7 +930,11 @@ impl Worker {
                         && let Some(r) = r.as_mut()
                     {
                         r.rebase(client.now_ms());
-                        r.event(&format!("opened the link again: {}", client.link().describe()));
+                        // Opening the port resets the Uno, so this report is about that reset;
+                        // its warm start count still shows how many resets came before.
+                        let started =
+                            client.link().start_report().map_or_else(String::new, |s| format!(" (bridge start: {s})"));
+                        r.event(&format!("opened the link again: {}{started}", client.link().describe()));
                     }
                     self.client = Some(client);
                 }

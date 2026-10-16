@@ -83,6 +83,12 @@ pub trait Link: Send {
     fn health(&mut self) -> Result<Option<Health>, LinkError> {
         Ok(None)
     }
+    /// The bridge's reset report from when this link opened it (firmware 0.1.1 and later):
+    /// see `scana_proto::slcan::describe_reset`.
+    fn start_report(&self) -> Option<String> {
+        None
+    }
+
     /// The bridge's self-test (bus must be closed): `Ok(())` or the failed step and value read.
     fn self_test(&mut self) -> Result<Option<SelfTestResult>, LinkError> {
         Ok(None)

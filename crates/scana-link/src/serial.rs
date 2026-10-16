@@ -57,6 +57,8 @@ pub struct BridgeInfo {
     /// False if the MCP2515 on the shield didn't answer.
     pub chip_ok: bool,
     pub identity: String,
+    /// The reset report from the `#R` line (empty before firmware 0.1.1).
+    pub reset: String,
 }
 
 pub struct SlcanLink {
@@ -111,7 +113,13 @@ impl SlcanLink {
         };
 
         let mut link = SlcanLink {
-            info: BridgeInfo { path: path.clone(), version: String::new(), chip_ok: false, identity: String::new() },
+            info: BridgeInfo {
+                path: path.clone(),
+                version: String::new(),
+                chip_ok: false,
+                identity: String::new(),
+                reset: String::new(),
+            },
             writer: port,
             replies,
             events,
@@ -128,9 +136,10 @@ impl SlcanLink {
         let deadline = Instant::now() + Duration::from_millis(3000);
         while Instant::now() < deadline {
             match link.events.recv_timeout(Duration::from_millis(50)) {
-                Ok(LinkEvent::BridgeReady { version, chip_ok, .. }) => {
+                Ok(LinkEvent::BridgeReady { version, chip_ok, reset }) => {
                     link.info.version = version;
                     link.info.chip_ok = chip_ok;
+                    link.info.reset = reset;
                     break;
                 }
                 Ok(_) | Err(RecvTimeoutError::Timeout) => {}
@@ -218,6 +227,10 @@ impl SlcanLink {
 impl Link for SlcanLink {
     fn describe(&self) -> String {
         format!("scana-bridge {} on {}", self.info.version, self.info.path)
+    }
+
+    fn start_report(&self) -> Option<String> {
+        (!self.info.reset.is_empty()).then(|| self.info.reset.clone())
     }
 
     fn now_ms(&self) -> u64 {

@@ -43,6 +43,7 @@ fn main() -> ExitCode {
         match a.as_str() {
             "--demo" => demo = Some(Source::Demo),
             "--demo-faults" => demo = Some(Source::DemoFaults),
+            "--demo-corolla" => demo = Some(Source::DemoCorolla),
             "--screenshots" => match args.next() {
                 Some(d) => shots = Some(PathBuf::from(d)),
                 None => {

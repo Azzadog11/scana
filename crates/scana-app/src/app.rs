@@ -110,6 +110,7 @@ pub enum SourceChoice {
     Bridge,
     Demo,
     DemoFaults,
+    DemoCorolla,
 }
 
 pub struct ScanaApp {
@@ -159,7 +160,8 @@ pub struct ScanaApp {
     pub diag_filter: String,
     pub diag_open: Option<String>,
     pub diag_measure: Option<crate::pages::diagnose::DiagMeasure>,
-    pub diag_wait: Option<crate::pages::diagnose::DiagWait>,
+    /// One-off reads waiting to answer tests (several can wait at once).
+    pub diag_wait: Vec<crate::pages::diagnose::DiagWait>,
     applied: Option<(ThemeChoice, f32)>,
 }
 
@@ -211,7 +213,7 @@ impl ScanaApp {
             diag_filter: String::new(),
             diag_open: None,
             diag_measure: None,
-            diag_wait: None,
+            diag_wait: Vec::new(),
             applied: None,
         };
         app.push_gaps();
@@ -232,6 +234,7 @@ impl ScanaApp {
             SourceChoice::Bridge => Source::Bridge { port: self.port_choice.clone() },
             SourceChoice::Demo => Source::Demo,
             SourceChoice::DemoFaults => Source::DemoFaults,
+            SourceChoice::DemoCorolla => Source::DemoCorolla,
         };
         if self.settings.first_run {
             self.settings.first_run = false;

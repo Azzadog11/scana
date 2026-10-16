@@ -39,6 +39,9 @@ struct Cli {
     /// With --sim: the demo car with faults (key on, engine off).
     #[arg(long, global = true)]
     sim_faults: bool,
+    /// Use a simulated 2006 Corolla with P0420 (a worn catalyst) instead of the bridge.
+    #[arg(long, global = true)]
+    sim_corolla: bool,
     /// The bridge's serial port (default: find it).
     #[arg(long, global = true)]
     port: Option<String>,
@@ -530,6 +533,15 @@ fn run_guide(
             }
             d.measured.insert(t.id.clone(), m);
         }
+        // Say what was read: these tests are answered now and won't be asked.
+        if !d.measured.is_empty() {
+            println!("\nScana read these from the car:");
+            for t in g.test.iter().filter(|t| d.measured.contains_key(&t.id)) {
+                let m = &d.measured[&t.id];
+                let answer = d.chosen(&t.id).map(|r| format!(" Answer: {}.", r.text)).unwrap_or_default();
+                println!("{}", wrap(&format!("- {}: {}{answer}", t.title, m.text), "  "));
+            }
+        }
         if let Some((ecu, supported)) = ecus.first() {
             live = Some((client, *ecu, supported.clone()));
         }
@@ -608,7 +620,6 @@ fn run_guide(
             if stdin.lock().read_line(&mut line)? > 0 && line.trim().is_empty() {
                 match measure_live(client, *ecu, a) {
                     Ok(m) => {
-                        println!("{}", wrap(&format!("Measured: {}", m.text), "  "));
                         d.measured.insert(t.id.clone(), m);
                     }
                     Err(e) => println!("  Couldn't measure: {e:#}"),
@@ -684,6 +695,11 @@ fn chrono_now() -> String {
 }
 
 fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {
+    if cli.sim_corolla {
+        let link = SimLink::new(VirtualCar::corolla_2006());
+        eprintln!("Using a {}: a 2006 Corolla with P0420", link.describe());
+        return Ok(Box::new(link));
+    }
     if cli.sim {
         let car = if cli.sim_faults {
             let mut c = VirtualCar::hijet_with_faults();
@@ -708,6 +724,9 @@ fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {
 }
 
 fn source_of(cli: &Cli) -> Source {
+    if cli.sim_corolla {
+        return Source::DemoCorolla;
+    }
     match (cli.sim, cli.sim_faults) {
         (true, true) => Source::DemoFaults,
         (true, false) => Source::Demo,
@@ -1088,6 +1107,14 @@ fn codes(client: &mut Client) -> Result<()> {
         [(obd::STORED_CODES, "Stored"), (obd::PENDING_CODES, "Pending"), (obd::PERMANENT_CODES, "Permanent")]
     {
         let per_ecu = readers::read_codes(client, service)?;
+        if per_ecu.is_empty() {
+            let why = if service == obd::PERMANENT_CODES {
+                "no ECU answered (normal for cars from before about 2010, which don't keep permanent codes)"
+            } else {
+                "no ECU answered"
+            };
+            println!("{label:<10} {why}");
+        }
         for (ecu, codes) in per_ecu {
             if codes.is_empty() {
                 println!("{label:<10} {ecu}: none");
@@ -1101,10 +1128,10 @@ fn codes(client: &mut Client) -> Result<()> {
     Ok(())
 }
 
-/// The car's maker family, from the matching vehicle profile.
+/// The car's maker family: from the matching vehicle profile, else the make in its VIN.
 fn family_of(client: &mut Client, d: &Detected) -> Result<Option<&'static str>> {
     let ecus = ecus_with_pids(client, d)?;
-    Ok(ecus.first().and_then(|e| scana_db::profile::find_match(&e.1)).and_then(|p| p.family()))
+    Ok(readers::identify(client, &ecus)?.family())
 }
 
 fn print_module(m: &ModuleInfo) {
@@ -1348,13 +1375,11 @@ fn tests(client: &mut Client) -> Result<()> {
         println!("\nECU {ecu}: {} test results", results.len());
         for t in results {
             println!(
-                "  {:<42} {:<40} {:>10.3} {:<6} limits {:.3} to {:.3}  {}",
+                "  {:<42} {:<40} {:>14}  limits {:<12} {}",
                 mode06::monitor_name(t.mid),
                 mode06::test_name(t.mid, t.tid),
-                t.value,
-                t.unit,
-                t.min,
-                t.max,
+                t.value_text(),
+                t.limits_text(),
                 if t.passed() { "pass" } else { "FAIL" }
             );
         }
@@ -1366,10 +1391,10 @@ fn tests(client: &mut Client) -> Result<()> {
 fn health(client: &mut Client) -> Result<PathBuf> {
     let d = find_car(client, true)?;
     let ecus = ecus_with_pids(client, &d)?;
-    let profile = ecus.first().and_then(|e| scana_db::profile::find_match(&e.1));
-    let vehicle = profile.map_or("Unknown car".to_string(), |p| p.name.clone());
+    let id = readers::identify(client, &ecus)?;
+    let vehicle = id.name.clone();
     let protocol = format!("ISO 15765-4 CAN, {}, {}", d.addressing.name(), d.bitrate);
-    let report = report::run_health_check(client, &ecus, profile, &vehicle, &protocol)?;
+    let report = report::run_health_check(client, &ecus, id.profile, &vehicle, &protocol)?;
     println!("\nHealth check: {vehicle}");
     for (tone, line) in report.summary() {
         let mark = match tone {

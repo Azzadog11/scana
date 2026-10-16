@@ -43,6 +43,8 @@ pub enum Source {
     Demo,
     /// The simulated Hijet with faults, key on and engine off, so clearing codes can be tried.
     DemoFaults,
+    /// A simulated 2006 Corolla with P0420 and a worn catalyst, engine running and warm.
+    DemoCorolla,
 }
 
 impl Source {
@@ -52,6 +54,7 @@ impl Source {
             Source::Bridge { port: None } => "Scana bridge (USB)".into(),
             Source::Demo => "Demo car".into(),
             Source::DemoFaults => "Demo car with faults".into(),
+            Source::DemoCorolla => "Demo Corolla with P0420".into(),
         }
     }
 }
@@ -144,6 +147,8 @@ pub struct ConnectionInfo {
     pub ecus: Vec<EcuView>,
     pub profile_id: Option<String>,
     pub vehicle: String,
+    /// The make: from the profile, else from the VIN.
+    pub make: Option<String>,
     pub other_tester: bool,
     pub log: Vec<String>,
     /// The live values being polled right after connecting: (ECU, PID).
@@ -169,6 +174,8 @@ pub struct CodeSet {
     pub stored: Vec<Dtc>,
     pub pending: Vec<Dtc>,
     pub permanent: Vec<Dtc>,
+    /// False if the ECU didn't answer for permanent codes (cars before about 2010 don't keep them).
+    pub permanent_read: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -517,10 +524,14 @@ impl Worker {
         }
     }
 
-    /// The maker family for module names and gateways: from the vehicle profile.
+    /// The maker family for module names and gateways: from the vehicle profile, else the make.
     fn family(&self) -> Option<&'static str> {
-        let id = self.conn.as_ref()?.profile_id.as_ref()?;
-        scana_db::profile::builtin().iter().find(|p| &p.id == id)?.family()
+        let conn = self.conn.as_ref()?;
+        let from_profile =
+            conn.profile_id.as_ref().and_then(|id| scana_db::profile::builtin().iter().find(|p| &p.id == id));
+        from_profile
+            .and_then(|p| p.family())
+            .or_else(|| conn.make.as_deref().and_then(scana_db::modules::family_of_make))
     }
 
     /// Gives a module the OBD ECU's name from the profile, where it is one.
@@ -729,6 +740,7 @@ impl Worker {
         Ok(match source {
             Source::Bridge { port } => Box::new(SlcanLink::connect(port.as_deref())?),
             Source::Demo => Box::new(SimLink::new(VirtualCar::hijet().with_dash())),
+            Source::DemoCorolla => Box::new(SimLink::new(VirtualCar::corolla_2006())),
             Source::DemoFaults => {
                 let mut car = VirtualCar::hijet_with_faults();
                 car.set_engine_running(false);
@@ -830,7 +842,9 @@ impl Worker {
             let supported = readers::supported_pids(client, *id)?;
             ecus.push(EcuView { id: *id, name: report::ecu_default_name(*id), supported });
         }
-        let profile = ecus.first().and_then(|e| scana_db::profile::find_match(&e.supported));
+        let pid_lists: Vec<(CanId, Vec<u8>)> = ecus.iter().map(|e| (e.id, e.supported.clone())).collect();
+        let id = readers::identify(client, &pid_lists)?;
+        let profile = id.profile;
         if let Some(p) = profile {
             for e in &mut ecus {
                 if let Some(n) = p.ecu_name(u16::try_from(e.id.raw()).unwrap_or(0)) {
@@ -844,7 +858,8 @@ impl Worker {
             bitrate: detected.bitrate,
             addressing: detected.addressing,
             profile_id: profile.map(|p| p.id.clone()),
-            vehicle: profile.map_or_else(|| "Unknown car".to_string(), |p| p.name.clone()),
+            vehicle: id.name.clone(),
+            make: id.make.clone(),
             other_tester: detected.other_tester,
             log: detected.log,
             ecus,
@@ -1050,7 +1065,13 @@ impl Worker {
         for (ecu, _) in self.ecus() {
             let get =
                 |l: &[(CanId, Vec<Dtc>)]| l.iter().find(|(e, _)| *e == ecu).map(|(_, c)| c.clone()).unwrap_or_default();
-            sets.push(CodeSet { ecu, stored: get(&stored), pending: get(&pending), permanent: get(&permanent) });
+            sets.push(CodeSet {
+                ecu,
+                stored: get(&stored),
+                pending: get(&pending),
+                permanent: get(&permanent),
+                permanent_read: permanent.iter().any(|(e, _)| *e == ecu),
+            });
         }
         self.send(Update::Codes(sets));
         Ok(())

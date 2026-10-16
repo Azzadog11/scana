@@ -79,6 +79,11 @@ impl ScanaApp {
                 SourceChoice::DemoFaults,
                 "Demo car with faults: key on, engine off, a stored code, a pending code and a failed test. Safe to try clearing codes",
             );
+            ui.radio_value(
+                &mut self.source_choice,
+                SourceChoice::DemoCorolla,
+                "Demo Corolla: a simulated 2006 Corolla with P0420 (a worn catalyst), engine warm. Try the diagnosis guide on it",
+            );
             ui.add_space(6.0);
             let busy = matches!(self.model.state, Some(LinkState::Connecting(_)));
             if ui.add_enabled(!busy, egui::Button::new(RichText::new("Connect").strong()).fill(pal.accent)).clicked() {

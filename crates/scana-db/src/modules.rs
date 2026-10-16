@@ -70,6 +70,19 @@ pub fn family_of_make(make: &str) -> Option<&'static str> {
 }
 
 /// The family from a VIN's maker code (its first three characters), where Scana knows it.
+/// The make from a VIN's maker code (its first characters), for the makes Scana knows.
+pub fn make_of_vin(vin: &str) -> Option<&'static str> {
+    let wmi: String = vin.chars().take(3).collect::<String>().to_ascii_uppercase();
+    let table: [(&[&str], &str); 5] = [
+        (&["JTH", "2T2"], "Lexus"),
+        (&["JDA", "MHK"], "Daihatsu"),
+        (&["JT", "2T", "4T", "5T", "MR0", "NMT", "SB1", "VNK"], "Toyota"),
+        (&["6G1", "6H8"], "Holden"),
+        (&["1G", "2G", "3G", "KL"], "GM"),
+    ];
+    table.iter().find(|(prefixes, _)| prefixes.iter().any(|p| wmi.starts_with(p))).map(|(_, m)| *m)
+}
+
 pub fn family_of_vin(vin: &str) -> Option<&'static str> {
     let wmi: String = vin.chars().take(3).collect::<String>().to_ascii_uppercase();
     // Toyota (JT, 2T, 4T, 5T, MR0, NMT, SB1, VNK), Lexus (JTH, 2T2), Daihatsu (JDA, MHK).
@@ -107,6 +120,11 @@ mod tests {
         assert_eq!(family_of_make("Ford"), None);
         assert_eq!(family_of_vin("JDA00000000000000"), Some("toyota"));
         assert_eq!(family_of_vin("WVW00000000000000"), None);
+        assert_eq!(make_of_vin("JTDSCANSM60000001"), Some("Toyota"));
+        assert_eq!(make_of_vin("JTHBA00000000000"), Some("Lexus"));
+        assert_eq!(make_of_vin("6G1ZZZ00000000000"), Some("Holden"));
+        assert_eq!(make_of_vin("WVW00000000000000"), None);
+        assert_eq!(make_of_vin("JTD").and_then(family_of_make), Some("toyota"));
         for a in addresses() {
             assert!(matches!(a.source.as_str(), "iso" | "opendbc" | "toyotadx"), "{a:?}");
         }

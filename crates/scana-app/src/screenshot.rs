@@ -47,6 +47,8 @@ enum Act {
     Diagnose(&'static str),
     Answer(&'static str, &'static str),
     MeasureTest(&'static str),
+    /// Wait until the diagnosis's live measurement (if any) has finished.
+    WaitMeasured,
     OpenTest(&'static str),
     CloseDiag,
     Lookup(&'static str),
@@ -191,6 +193,50 @@ impl ShotPlan {
             Size(1024.0, 700.0),
             Wait(1.5),
             Shot("16-live-narrow"),
+            // The simulated 2006 Corolla with P0420: an older car with no profile.
+            Size(1366.0, 768.0),
+            Connect(Source::DemoCorolla),
+            WaitConnected,
+            Go(Page::Home),
+            Wait(1.0),
+            Shot("26-corolla-home"),
+            Read("health"),
+            Go(Page::Health),
+            WaitHealth,
+            Wait(1.0),
+            Shot("27-corolla-health"),
+            Read("codes"),
+            Read("freeze"),
+            Go(Page::Codes),
+            WaitCodes,
+            Topic(Some(crate::app::Topic::Dtc(Dtc(0x0420)))),
+            Wait(1.0),
+            Shot("28-corolla-codes"),
+            Topic(None),
+            Read("tests"),
+            Go(Page::Tests),
+            Wait(3.0),
+            Shot("29-corolla-tests"),
+            Go(Page::Live),
+            Topic(Some(crate::app::Topic::Pid(ecm, 0x3C))),
+            Wait(2.0),
+            Shot("30-corolla-live"),
+            Topic(None),
+            // The quick tests (other codes, the catalyst test result) are read when the guide opens.
+            Diagnose("P0420"),
+            Wait(3.0),
+            Answer("age", "high"),
+            MeasureTest("rear-compare"),
+            OpenTest("rear-compare"),
+            Wait(3.0),
+            Shot("31-corolla-diagnose-measuring"),
+            WaitMeasured,
+            MeasureTest("rear-level"),
+            WaitMeasured,
+            OpenTest("rear-level"),
+            Wait(1.5),
+            Shot("32-corolla-diagnose-result"),
+            CloseDiag,
         ];
         ShotPlan { dir, steps, idx: 0, started: None, pending: None }
     }
@@ -335,6 +381,7 @@ pub fn step(app: &mut ScanaApp, mut plan: ShotPlan, ctx: &egui::Context) -> Opti
             }
             true
         }
+        Act::WaitMeasured => app.diag_measure.is_none() || elapsed > 200.0,
         Act::OpenTest(test) => {
             app.diag_open = Some(test.to_string());
             true

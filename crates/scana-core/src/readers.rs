@@ -200,6 +200,51 @@ pub struct VehicleInfo {
     pub supported: Vec<u8>,
 }
 
+/// The VIN alone (service 09, item 02), or `None` if the ECU doesn't report one.
+pub fn read_vin(client: &mut Client, ecu: CanId) -> Result<Option<String>, CoreError> {
+    match client.request_one(ecu, &obd::vehicle_info_request(0x02)) {
+        Ok(d) => Ok(obd::parse_vin(d.get(1..).unwrap_or_default())),
+        Err(CoreError::Refused { .. } | CoreError::NoReply(_)) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Who the car is: its vehicle profile if one matches, else its make from the engine
+/// computer's VIN (when it reports one), else unknown.
+#[derive(Clone, Debug)]
+pub struct VehicleId {
+    pub profile: Option<&'static scana_db::profile::Profile>,
+    pub make: Option<String>,
+    /// "2024 Daihatsu Hijet Jumbo", "Unknown Toyota" or "Unknown car".
+    pub name: String,
+}
+
+impl VehicleId {
+    /// The maker family, for module names and gateways.
+    pub fn family(&self) -> Option<&'static str> {
+        self.profile
+            .and_then(|p| p.family())
+            .or_else(|| self.make.as_deref().and_then(scana_db::modules::family_of_make))
+    }
+}
+
+/// Identifies the car from the first ECU's live PID list (`ecus`: each ECU and its PIDs). Reads
+/// the VIN only when no profile matches.
+pub fn identify(client: &mut Client, ecus: &[(CanId, Vec<u8>)]) -> Result<VehicleId, CoreError> {
+    let profile = ecus.first().and_then(|e| scana_db::profile::find_match(&e.1));
+    if let Some(p) = profile {
+        return Ok(VehicleId { profile, make: p.make.clone(), name: p.name.clone() });
+    }
+    let make = match ecus.first() {
+        Some((ecu, _)) => {
+            read_vin(client, *ecu)?.as_deref().and_then(scana_db::modules::make_of_vin).map(str::to_string)
+        }
+        None => None,
+    };
+    let name = make.as_ref().map_or_else(|| "Unknown car".to_string(), |m| format!("Unknown {m}"));
+    Ok(VehicleId { profile: None, make, name })
+}
+
 pub fn vehicle_info(client: &mut Client, ecu: CanId) -> Result<VehicleInfo, CoreError> {
     let mut info = VehicleInfo::default();
     let mask = match client.request_one(ecu, &obd::vehicle_info_request(0x00)) {

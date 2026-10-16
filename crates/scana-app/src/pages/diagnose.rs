@@ -38,8 +38,8 @@ pub enum DiagWait {
 impl ScanaApp {
     /// Starts a diagnosis for a code (from the Codes page, the Learn panel, or typed).
     pub fn start_diagnosis(&mut self, code: Dtc) {
-        let make = self.model.profile().and_then(|p| p.make.as_deref());
-        let found = match Diagnosis::for_code_make(code, make) {
+        let make = self.model.make();
+        let found = match Diagnosis::for_code_make(code, make.as_deref()) {
             Some(d) => Some(d),
             None => {
                 // A maker-specific number: offer the guide it means on the makes that use it.
@@ -67,6 +67,7 @@ impl ScanaApp {
                 self.diag_open = None;
                 self.diag_code_text = code.to_string();
                 self.go(Page::Diagnose);
+                self.measure_quick_tests();
             }
             None => self.model.banner(
                 format!("Scana has no step-by-step guide for {code} yet. The Learn panel shows what it knows."),
@@ -81,6 +82,27 @@ impl ScanaApp {
         self.diag = Some(Diagnosis::new(g, None));
         self.diag_open = None;
         self.go(Page::Diagnose);
+        self.measure_quick_tests();
+    }
+
+    /// On a connected car, reads what the quick tests need (codes, test results, readiness,
+    /// the freeze frame) as soon as a guide opens, like the command line does. Live tests
+    /// wait for the user: they need the engine held at a speed.
+    fn measure_quick_tests(&mut self) {
+        self.diag_wait.clear();
+        if !self.model.connected() {
+            return;
+        }
+        let Some(d) = &self.diag else { return };
+        let quick: Vec<&'static Test> = d
+            .guide
+            .test
+            .iter()
+            .filter(|t| t.auto.as_ref().is_some_and(|a| a.kind != "live") && !d.answers.contains_key(&t.id))
+            .collect();
+        for t in quick {
+            self.measure(t);
+        }
     }
 
     /// Sees every update first: collects live samples for a measurement, and answers tests
@@ -122,38 +144,48 @@ impl ScanaApp {
 
     /// Answers a waiting test once its read arrived (called after the model is updated).
     pub fn diag_after_updates(&mut self) {
-        let Some(w) = self.diag_wait.clone() else { return };
-        let Some(d) = &self.diag else {
-            self.diag_wait = None;
+        if self.diag.is_none() {
+            self.diag_wait.clear();
             return;
-        };
-        let (test, measured) = match &w {
+        }
+        let mut done = Vec::new();
+        for w in self.diag_wait.clone() {
+            if let Some((test, measured)) = self.evaluate_wait(&w) {
+                done.push(w);
+                self.apply_measured(&test, measured);
+            }
+        }
+        self.diag_wait.retain(|w| !done.contains(w));
+    }
+
+    /// A waiting test's measurement, once the read it waits for has arrived.
+    fn evaluate_wait(&self, w: &DiagWait) -> Option<(String, Measured)> {
+        let d = self.diag.as_ref()?;
+        Some(match w {
             DiagWait::Codes(t) => {
-                let Some(sets) = &self.model.codes else { return };
+                let sets = self.model.codes.as_ref()?;
                 let codes: Vec<Dtc> =
                     sets.iter().flat_map(|s| s.stored.iter().chain(s.pending.iter()).copied()).collect();
-                let Some(a) = d.test(t).and_then(|x| x.auto.as_ref()) else { return };
+                let a = d.test(t)?.auto.as_ref()?;
                 (t.clone(), diagnose::evaluate_codes(a, &codes))
             }
             DiagWait::Tests(t) => {
-                let Some(r) = &self.model.tests else { return };
-                let Some(a) = d.test(t).and_then(|x| x.auto.as_ref()) else { return };
+                let r = self.model.tests.as_ref()?;
+                let a = d.test(t)?.auto.as_ref()?;
                 (t.clone(), diagnose::evaluate_mode06(a, r))
             }
             DiagWait::Readiness(t) => {
-                let Some(r) = &self.model.readiness else { return };
-                let Some(a) = d.test(t).and_then(|x| x.auto.as_ref()) else { return };
+                let r = self.model.readiness.as_ref()?;
+                let a = d.test(t)?.auto.as_ref()?;
                 let statuses: Vec<_> = r.iter().map(|(_, s)| s.clone()).collect();
                 (t.clone(), diagnose::evaluate_readiness(a, &statuses))
             }
             DiagWait::Freeze(t) => {
-                let Some(f) = &self.model.freeze else { return };
-                let Some(a) = d.test(t).and_then(|x| x.auto.as_ref()) else { return };
+                let f = self.model.freeze.as_ref()?;
+                let a = d.test(t)?.auto.as_ref()?;
                 (t.clone(), diagnose::evaluate_freeze(a, f))
             }
-        };
-        self.diag_wait = None;
-        self.apply_measured(&test, measured);
+        })
     }
 
     fn apply_measured(&mut self, test: &str, m: Measured) {
@@ -186,22 +218,22 @@ impl ScanaApp {
         let Some(auto) = &t.auto else { return };
         match auto.kind.as_str() {
             "codes" => {
-                self.diag_wait = Some(DiagWait::Codes(t.id.clone()));
+                self.diag_wait.push(DiagWait::Codes(t.id.clone()));
                 self.model.codes = None;
                 self.session.send(Command::ReadCodes);
             }
             "mode06" => {
-                self.diag_wait = Some(DiagWait::Tests(t.id.clone()));
+                self.diag_wait.push(DiagWait::Tests(t.id.clone()));
                 self.model.tests = None;
                 self.session.send(Command::ReadTests);
             }
             "readiness" => {
-                self.diag_wait = Some(DiagWait::Readiness(t.id.clone()));
+                self.diag_wait.push(DiagWait::Readiness(t.id.clone()));
                 self.model.readiness = None;
                 self.session.send(Command::ReadReadiness);
             }
             "freeze" => {
-                self.diag_wait = Some(DiagWait::Freeze(t.id.clone()));
+                self.diag_wait.push(DiagWait::Freeze(t.id.clone()));
                 self.model.freeze = None;
                 self.session.send(Command::ReadFreeze);
             }
@@ -275,9 +307,10 @@ impl ScanaApp {
                 if !codes.is_empty() {
                     ui.add_space(10.0);
                     ui.label(RichText::new("This car:").color(pal.dim));
-                    let make = self.model.profile().and_then(|p| p.make.as_deref());
+                    let make = self.model.make();
                     for c in codes {
-                        let has = diag::guide_for_make(c, make).is_some() || !diag::maker_hints(c).is_empty();
+                        let has =
+                            diag::guide_for_make(c, make.as_deref()).is_some() || !diag::maker_hints(c).is_empty();
                         let b = egui::Button::new(RichText::new(c.to_string()).monospace());
                         if ui.add_enabled(has, b).on_disabled_hover_text("No guide for this code yet").clicked() {
                             start = Some(c);

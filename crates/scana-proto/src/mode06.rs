@@ -190,12 +190,34 @@ pub struct TestResult {
     pub unit: &'static str,
     /// False if the unit-and-scaling ID is unknown: the numbers are raw.
     pub scaled: bool,
+    /// The maximum is the largest number the record can hold: in effect no upper limit (misfire
+    /// counts, for example).
+    pub max_open: bool,
 }
 
 impl TestResult {
     /// Within its limits (minimum and maximum included).
     pub fn passed(&self) -> bool {
         self.value >= self.min && self.value <= self.max
+    }
+
+    fn number(&self, v: f64) -> String {
+        crate::pids::format_value(v, if self.unit.is_empty() { "x" } else { self.unit })
+    }
+
+    /// The value with its unit: "0.707 ratio", "0 counts", "68 ms".
+    pub fn value_text(&self) -> String {
+        let unit = if self.unit == "counts" && self.value == 1.0 { "count" } else { self.unit };
+        format!("{} {unit}", self.number(self.value)).trim_end().to_string()
+    }
+
+    /// The limits in words: "0 to 0.602", "at least 2", or "no limits".
+    pub fn limits_text(&self) -> String {
+        match (self.min == 0.0, self.max_open) {
+            (true, true) => "no limits".into(),
+            (false, true) => format!("at least {}", self.number(self.min)),
+            _ => format!("{} to {}", self.number(self.min), self.number(self.max)),
+        }
     }
 }
 
@@ -230,6 +252,7 @@ pub fn parse_results(data: &[u8]) -> Result<Vec<TestResult>, ObdError> {
                 max: scale([r[7], r[8]], sc),
                 unit: sc.map_or("", |s| s.unit),
                 scaled: sc.is_some(),
+                max_open: [r[7], r[8]] == [0xFF, 0xFF] && !sc.is_some_and(|s| s.signed),
             }
         })
         .collect())
@@ -294,5 +317,15 @@ mod tests {
         assert_eq!(test_name(0x21, 0x91), "Maker's test 91");
         assert_eq!(test_name(0xA2, 0x0C), "Misfires, this or the last drive");
         assert_eq!(test_name(0x01, 0x0C), "Test 0C");
+    }
+
+    #[test]
+    fn values_and_limits_in_words() {
+        // Misfire counts: 0, limits 0 to 65535 (no limit in effect).
+        let m = &parse_results(&[0xA2, 0x0B, 0x24, 0, 0, 0, 0, 0xFF, 0xFF]).unwrap()[0];
+        assert_eq!((m.value_text().as_str(), m.limits_text().as_str()), ("0 counts", "no limits"));
+        // O2 sensor switch time 68 ms, limits 0 to 150 ms.
+        let t = &parse_results(&[0x01, 0x05, 0x10, 0, 68, 0, 0, 0, 150]).unwrap()[0];
+        assert_eq!((t.value_text().as_str(), t.limits_text().as_str()), ("68 ms", "0 to 150"));
     }
 }

@@ -56,6 +56,15 @@ impl ScanaApp {
                     self.code_row(ui, label, *code, color);
                 }
             }
+            if !set.permanent_read {
+                ui.label(
+                    RichText::new(
+                        "This computer doesn't report permanent codes: normal for cars from before about 2010.",
+                    )
+                    .small()
+                    .color(pal.dim),
+                );
+            }
             ui.add_space(8.0);
         }
         if let Some(frames) = self.model.freeze.clone() {

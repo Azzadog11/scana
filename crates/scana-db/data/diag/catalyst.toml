@@ -262,7 +262,7 @@ result = "normal"
 result = "high"
 [[test.result]]
 id = "normal"
-text = "Mostly between about 0.5 and 0.8 V"
+text = "In between: averages about 0.3 to 0.85 V (a good converter holds it steady near 0.6-0.7 V)"
 [[test.result]]
 id = "low"
 text = "Stays low, under about 0.3 V"

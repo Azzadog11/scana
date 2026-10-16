@@ -6,6 +6,10 @@
 //! no codes. Values move over time (idle, revs, warming up) so screens and graphs have
 //! something to show. Time is passed in as milliseconds; nothing here reads a clock.
 //!
+//! [`VirtualCar::corolla_2006`] is a 2006 Toyota Corolla 1.8 (1ZZ-FE) with a worn catalyst
+//! and P0420 stored, built for trying the diagnosis guides. It is simulated on CAN; a real
+//! car of that age may use the K-line instead (see its doc).
+//!
 //! Beyond OBD-II, the car carries simulated modules ([`modules`]): brakes, airbags, the
 //! instrument cluster, body control and air conditioning, answering UDS or KWP2000 reads.
 
@@ -32,6 +36,17 @@ pub struct Faults {
     pub busy_vehicle_info: bool,
 }
 
+/// Which engine an ECU simulates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EngineKind {
+    /// The Hijet's KF: 658 cc three-cylinder, started cold, a throttle blip every 20 s.
+    HijetKf,
+    /// A 2006 Corolla's 1ZZ-FE: 1.8 L four-cylinder, already warm. Every 90 s it idles for
+    /// 45 s, then holds about 2500 rpm for 45 s, like a helper holding the revs for a test.
+    /// Its catalyst is worn, so the rear oxygen sensor swings almost like the front one.
+    Corolla1zz,
+}
+
 /// One simulated ECU.
 #[derive(Debug)]
 pub struct Ecu {
@@ -54,6 +69,11 @@ pub struct Ecu {
     pub monitors_incomplete: bool,
     /// Service 06 results: (MID, TID, unit-and-scaling ID, value, minimum, maximum), raw.
     pub tests: Vec<(u8, u8, u8, u16, u16, u16)>,
+    pub engine: EngineKind,
+    /// Service 0A (permanent codes) arrived around 2010: older ECUs refuse it.
+    pub permanent_supported: bool,
+    /// Freeze frame values that differ from the live model (a code set while driving).
+    pub freeze_overrides: Vec<(u8, Vec<u8>)>,
     reply_delay_ms: u64,
     /// A multi-frame reply in progress, and when to look at it next.
     tx: Option<(Sender, u64)>,
@@ -76,6 +96,9 @@ impl Ecu {
             freeze: None,
             monitors_incomplete: false,
             tests: vec![],
+            engine: EngineKind::HijetKf,
+            permanent_supported: true,
+            freeze_overrides: vec![],
             reply_delay_ms: 2,
             tx: None,
         }
@@ -136,7 +159,8 @@ impl Ecu {
     }
 
     fn value_at(&self, pid: u8, t_ms: u64, running: bool) -> Vec<u8> {
-        let e = Engine::at(t_ms, running, self.stored.len());
+        let e = Engine::at(self.engine, t_ms, running, self.stored.len());
+        let corolla = self.engine == EngineKind::Corolla1zz;
         let incomplete = if self.monitors_incomplete { 0x65 } else { 0x00 };
         let u8c = |v: f64| v.round().clamp(0.0, 255.0) as u8;
         let u16c = |v: f64| (v.round().clamp(0.0, 65535.0) as u16).to_be_bytes().to_vec();
@@ -159,10 +183,19 @@ impl Ecu {
             0x13 => vec![0x03],
             0x14 => vec![u8c(e.o2_front * 200.0), trim(e.stft)],
             0x15 => vec![u8c(e.o2_rear * 200.0), 0xFF],
-            0x1C => vec![10],
+            // JOBD for the Hijet; EOBD for the Corolla (Australian cars follow ADR 79/01, an
+            // estimate for this one).
+            0x1C => vec![if corolla { 6 } else { 10 }],
             0x1F => u16c(e.run_s),
-            0x21 | 0x4D => vec![0, 0],
+            // Distance (km) and time (min) with the MIL on.
+            0x21 => u16c(if corolla && e.mil { 340.0 } else { 0.0 }),
+            0x4D => u16c(if corolla && e.mil { 410.0 } else { 0.0 }),
             0x2E => vec![pct(if e.closed_loop { 12.0 } else { 0.0 })],
+            0x30 => vec![38],
+            0x31 => u16c(1250.0),
+            0x3C => u16c((e.cat_temp + 40.0) * 10.0),
+            0x43 => u16c(e.load * 0.85 * 255.0 / 100.0),
+            0x44 => u16c(32768.0),
             0x33 => vec![94],
             0x42 => u16c(e.volts * 1000.0),
             0x45 => vec![pct(e.throttle * 0.3)],
@@ -202,7 +235,29 @@ fn demo_tests(failing_catalyst: bool) -> Vec<(u8, u8, u8, u16, u16, u16)> {
     ]
 }
 
-/// The Hijet's engine at a moment: a deterministic model, no randomness.
+/// Service 06 results for the Corolla (raw values), a four-cylinder with a worn catalyst.
+fn corolla_tests() -> Vec<(u8, u8, u8, u16, u16, u16)> {
+    vec![
+        // Oxygen sensor B1S1: switch times in ms, voltages in mV.
+        (0x01, 0x05, 0x10, 68, 0, 150),
+        (0x01, 0x06, 0x10, 79, 0, 150),
+        (0x01, 0x07, 0x0B, 61, 0, 300),
+        (0x01, 0x08, 0x0B, 824, 600, 1100),
+        // Catalyst B1: a maker's ratio (1/256 steps), over its limit: why P0420 set.
+        (0x21, 0x80, 0x20, 181, 0, 154),
+        // Oxygen sensor heaters B1S1 and B1S2: resistance in ohms.
+        (0x41, 0x81, 0x14, 7, 2, 14),
+        (0x42, 0x81, 0x14, 9, 2, 16),
+        // Misfire counts: general, then cylinders 1-4. None.
+        (0xA1, 0x0B, 0x24, 0, 0, 65535),
+        (0xA2, 0x0B, 0x24, 0, 0, 65535),
+        (0xA3, 0x0B, 0x24, 0, 0, 65535),
+        (0xA4, 0x0B, 0x24, 0, 0, 65535),
+        (0xA5, 0x0B, 0x24, 0, 0, 65535),
+    ]
+}
+
+/// An engine at a moment: a deterministic model, no randomness.
 struct Engine {
     rpm: f64,
     load: f64,
@@ -216,14 +271,18 @@ struct Engine {
     o2_rear: f64,
     volts: f64,
     run_s: f64,
+    cat_temp: f64,
     closed_loop: bool,
     mil: bool,
     codes: usize,
 }
 
 impl Engine {
-    fn at(t_ms: u64, running: bool, codes: usize) -> Self {
+    fn at(kind: EngineKind, t_ms: u64, running: bool, codes: usize) -> Self {
         let t = t_ms as f64 / 1000.0;
+        if running && kind == EngineKind::Corolla1zz {
+            return Self::corolla(t, codes);
+        }
         if !running {
             return Engine {
                 rpm: 0.0,
@@ -238,6 +297,7 @@ impl Engine {
                 o2_rear: 0.45,
                 volts: 12.6,
                 run_s: 0.0,
+                cat_temp: 20.0,
                 closed_loop: false,
                 mil: codes > 0,
                 codes,
@@ -262,6 +322,47 @@ impl Engine {
             o2_rear: 0.035 + 0.6 * warm,
             volts: 14.28 + 0.04 * (t * 0.9).sin(),
             run_s: t + 52.0,
+            cat_temp: 300.0 + 150.0 * warm + 120.0 * blip,
+            closed_loop,
+            mil: codes > 0,
+            codes,
+        }
+    }
+
+    /// The Corolla's 1ZZ-FE, warm from a drive to the workshop. Typical values for a warm
+    /// 1.8 L four-cylinder (estimates, not measured on a car): about 700 rpm and 3 g/s at idle.
+    fn corolla(t: f64, codes: usize) -> Self {
+        // 0-45 s idle, 45-90 s about 2500 rpm, with 3 s ramps between.
+        let c = t % 90.0;
+        let up = if c < 45.0 {
+            0.0
+        } else if c < 48.0 {
+            (c - 45.0) / 3.0
+        } else if c < 87.0 {
+            1.0
+        } else {
+            (90.0 - c) / 3.0
+        };
+        let closed_loop = up == 0.0 || up == 1.0;
+        // A narrow-band front sensor swings rich and lean, faster at 2500 rpm.
+        let front = if closed_loop { 0.45 + 0.38 * (t * (5.0 + 3.0 * up)).sin() } else { 0.7 };
+        // A worn catalyst stores little oxygen: the rear sensor follows the front, a little
+        // late and a little smaller. A good catalyst would hold it steady near 0.6-0.7 V.
+        let rear = if closed_loop { 0.45 + 0.3 * (t * (5.0 + 3.0 * up) - 0.8).sin() } else { 0.6 };
+        Engine {
+            rpm: 700.0 + 15.0 * (t * 0.7).sin() + 1800.0 * up + 30.0 * up * (t * 0.4).sin(),
+            load: 22.0 + 14.0 * up,
+            coolant: 89.0 + 2.0 * (t / 40.0).sin(),
+            map: 30.0 + 12.0 * up,
+            maf: 3.0 + 0.2 * (t * 0.7).sin().abs() + 6.5 * up,
+            timing: 10.0 + 2.0 * (t * 0.5).sin() + 22.0 * up,
+            throttle: 14.0 + 7.0 * up,
+            stft: if closed_loop { 4.0 * (t * 1.3).sin() + 1.0 } else { 0.0 },
+            o2_front: front,
+            o2_rear: rear,
+            volts: 14.05 + 0.05 * (t * 0.9).sin(),
+            run_s: t + 900.0,
+            cat_temp: 520.0 + 160.0 * up,
             closed_loop,
             mil: codes > 0,
             codes,
@@ -336,6 +437,46 @@ impl VirtualCar {
         e.tests = demo_tests(true);
         car.modules = modules::hijet_demo_modules_with_faults();
         car
+    }
+
+    /// A 2006 Toyota Corolla 1.8 (1ZZ-FE, ZZE122) with a worn catalyst: P0420 stored, the MIL
+    /// on, a freeze frame from a cruise, and a catalyst test result over its limit. The rear
+    /// oxygen sensor swings almost like the front one. The engine idles, then holds about
+    /// 2500 rpm, in turns of 45 s (see [`EngineKind::Corolla1zz`]).
+    ///
+    /// Simulated on CAN at 500 kbit/s with 11-bit IDs, like Toyota's CAN cars. A real 2006
+    /// Corolla may use the K-line (ISO 9141-2 or KWP2000) instead, depending on its market and
+    /// build: a scan tool's protocol line, or pins 6 and 14 in use, tells. The PID list and the
+    /// values are typical for the car, not read from one. No enhanced modules (on a car of that
+    /// age they aren't on CAN).
+    pub fn corolla_2006() -> Self {
+        let pids = vec![
+            0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x13, 0x14, 0x15, 0x1C, 0x1F, 0x21,
+            0x2E, 0x30, 0x31, 0x33, 0x3C, 0x41, 0x42, 0x43, 0x44, 0x45, 0x47, 0x49, 0x4A, 0x4C, 0x4D,
+        ];
+        let mut ecm =
+            Ecu::new("Engine (simulated 2006 Corolla 1ZZ-FE)", CanId::Standard(0x7E0), CanId::Standard(0x7E8), pids);
+        ecm.engine = EngineKind::Corolla1zz;
+        // A made-up VIN with Toyota's maker code (JT) and 2006 in place 10. The check digit
+        // (place 9) is a letter, so it can't be a real VIN.
+        ecm.vin = Some("JTDSCANSM60000001".into());
+        ecm.calibration_id = Some("SIMCAL-1ZZ-00001".into());
+        ecm.permanent_supported = false;
+        ecm.stored = vec![Dtc(0x0420)];
+        // P0420 sets on a steady cruise: the freeze frame comes from the 2500 rpm part, at 72 km/h.
+        ecm.freeze = Some((Dtc(0x0420), 60_000));
+        ecm.freeze_overrides = vec![(0x0D, vec![72])];
+        ecm.tests = corolla_tests();
+        VirtualCar {
+            bitrate: Bitrate::K500,
+            extended_ids: false,
+            ecus: vec![ecm],
+            modules: vec![],
+            faults: Faults::default(),
+            other_tester: None,
+            out: VecDeque::new(),
+            replies: 0,
+        }
     }
 
     /// The car without its enhanced modules (OBD-II only).
@@ -520,7 +661,12 @@ impl VirtualCar {
                         }
                     }
                     (Some((_, t)), p) if ecu.freeze_pids().contains(&p) => {
-                        vec![(0, [&[0x42, p, 0x00][..], &ecu.value_at(p, t, true)].concat())]
+                        let value = ecu
+                            .freeze_overrides
+                            .iter()
+                            .find(|(q, _)| *q == p)
+                            .map_or_else(|| ecu.value_at(p, t, true), |(_, v)| v.clone());
+                        vec![(0, [&[0x42, p, 0x00][..], &value].concat())]
                     }
                     _ => silent_or(0x12),
                 }
@@ -546,6 +692,7 @@ impl VirtualCar {
                 }
                 if msg.len() == 1 { silent_or(0x12) } else { vec![(0, msg)] }
             }
+            0x0A if !ecu.permanent_supported => silent_or(0x11),
             0x03 | 0x07 | 0x0A => {
                 let codes = match service {
                     0x03 => &ecu.stored,
@@ -873,5 +1020,28 @@ mod tests {
         // 11-bit requests are ignored.
         car.receive(&req(0x7DF, &[0x02, 0x01, 0x00]), 20);
         assert!(car.poll(40).is_empty());
+    }
+
+    #[test]
+    fn the_2006_corolla_has_p0420_and_no_permanent_codes() {
+        let mut car = VirtualCar::corolla_2006();
+        // Stored codes: P0420.
+        car.receive(&req(0x7E0, &[0x01, 0x03]), 100);
+        assert_eq!(car.poll(200)[0].data()[..5], [0x04, 0x43, 0x01, 0x04, 0x20]);
+        // Permanent codes: refused (service not supported), as on cars before about 2010.
+        car.receive(&req(0x7E0, &[0x01, 0x0A]), 300);
+        assert_eq!(car.poll(400)[0].data()[..4], [0x03, 0x7F, 0x0A, 0x11]);
+        // The freeze frame was stored on a cruise: 72 km/h, though the car stands still now.
+        car.receive(&req(0x7E0, &[0x03, 0x02, 0x0D, 0x00]), 500);
+        assert_eq!(car.poll(600)[0].data()[..5], [0x04, 0x42, 0x0D, 0x00, 72]);
+        car.receive(&req(0x7E0, &[0x02, 0x01, 0x0D]), 700);
+        assert_eq!(car.poll(800)[0].data()[..4], [0x03, 0x41, 0x0D, 0x00]);
+        // It idles at about 700 rpm, then holds about 2500 rpm.
+        let rpm = |t: u64| {
+            let d = car.ecus[0].pid_value(0x0C, t).unwrap();
+            f64::from(u16::from_be_bytes([d[0], d[1]])) / 4.0
+        };
+        assert!((650.0..760.0).contains(&rpm(20_000)));
+        assert!((2400.0..2600.0).contains(&rpm(60_000)));
     }
 }

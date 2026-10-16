@@ -329,6 +329,16 @@ fn mean(v: &[f64]) -> Option<f64> {
 }
 
 /// Live: the measure over samples taken while the hold condition was met.
+/// Seconds actually measured: samples only come while the test's conditions hold, so a gap of
+/// over 1.5 s between readings is a pause (the revs left the range), not measuring time.
+fn measured_seconds(times: impl Iterator<Item = u64>) -> f64 {
+    let mut ts: Vec<u64> = times.collect();
+    ts.sort_unstable();
+    ts.dedup();
+    let s: u64 = ts.windows(2).map(|w| w[1] - w[0]).filter(|d| *d <= 1500).sum();
+    (s as f64 / 1000.0).max(1.0)
+}
+
 pub fn evaluate_live(auto: &Auto, samples: &[Sample]) -> Measured {
     let pids: Vec<u8> = auto.pids.iter().filter_map(|p| u8::from_str_radix(p, 16).ok()).collect();
     let Some(&p0) = pids.first() else { return Measured::none("The test names no value to measure.") };
@@ -337,11 +347,7 @@ pub fn evaluate_live(auto: &Auto, samples: &[Sample]) -> Measured {
         return Measured::none("No readings were collected.");
     }
     let name = |p: u8| scana_proto::pids::def(p).map_or_else(|| format!("PID {p:02X}"), |d| d.name.to_string());
-    let span_s = {
-        let ts: Vec<u64> = samples.iter().filter(|s| s.pid == p0).map(|s| s.t_ms).collect();
-        let (lo, hi) = (ts.iter().min().copied().unwrap_or(0), ts.iter().max().copied().unwrap_or(0));
-        ((hi - lo) as f64 / 1000.0).max(1.0)
-    };
+    let span_s = measured_seconds(samples.iter().filter(|s| s.pid == p0).map(|s| s.t_ms));
     let measure = auto.measure.as_deref().unwrap_or("mean");
     let (value, text) = match measure {
         "mean" | "min" | "max" | "spread" => {
@@ -436,13 +442,11 @@ pub fn evaluate_mode06(auto: &Auto, results: &[(CanId, Vec<MonitorResult>)]) -> 
         Some((r, t)) => Measured {
             value: Some(r),
             text: format!(
-                "{}, {}: {:.3} {} (limits {:.3} to {:.3}): {}",
+                "{}, {}: {} (limits {}): {}",
                 mode06::monitor_name(t.mid),
                 mode06::test_name(t.mid, t.tid),
-                t.value,
-                t.unit,
-                t.min,
-                t.max,
+                t.value_text(),
+                t.limits_text(),
                 if t.passed() {
                     format!("passes, at {:.0} % of the limit", r * 100.0)
                 } else {
@@ -599,6 +603,7 @@ mod tests {
             max: 0.6,
             unit: "",
             scaled: true,
+            max_open: false,
         };
         let m = evaluate_mode06(auto, &[(CanId::Standard(0x7E8), vec![fail.clone()])]);
         assert_eq!(m.result.as_deref(), Some("just"), "{}", m.text);
@@ -622,5 +627,39 @@ mod tests {
         assert_eq!(effect_words(1), "twice as likely");
         assert_eq!(effect_words(-2), "a quarter as likely");
         assert_eq!(effect_words(5), "32 times as likely");
+    }
+
+    #[test]
+    fn pauses_in_a_live_test_dont_count_as_time() {
+        // 10 s of readings, a 50 s pause (the revs left the range), 10 s more.
+        let t: Vec<u64> = (0..100).map(|i| i * 100).chain((0..100).map(|i| 60_000 + i * 100)).collect();
+        let s = measured_seconds(t.into_iter());
+        assert!((19.0..=20.0).contains(&s), "{s}");
+        assert_eq!(measured_seconds(std::iter::empty()), 1.0);
+    }
+
+    /// The sensors' voltages from a simulated car's engine computer, every 100 ms over `from..to` ms.
+    fn car_o2_samples(car: &scana_sim::VirtualCar, from: u64, to: u64) -> Vec<Sample> {
+        let ecu = &car.ecus[0];
+        let mut out = Vec::new();
+        for t in (from..to).step_by(100) {
+            for pid in [0x14u8, 0x15] {
+                let raw = ecu.pid_value(pid, t).unwrap();
+                out.push(Sample { t_ms: t, pid, value: f64::from(raw[0]) / 200.0 });
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn the_corollas_worn_converter_shows_in_the_sensor_test() {
+        let g = scana_db::diag::guide("catalyst").unwrap();
+        let auto = g.test.iter().find(|t| t.id == "rear-compare").unwrap().auto.as_ref().unwrap();
+        // During the Corolla's 2500 rpm hold (50-80 s), the rear sensor copies the front.
+        let m = evaluate_live(auto, &car_o2_samples(&scana_sim::VirtualCar::corolla_2006(), 50_000, 80_000));
+        assert_eq!(m.result.as_deref(), Some("copies"), "{}", m.text);
+        // The Hijet's good converter keeps the rear sensor steady.
+        let m = evaluate_live(auto, &car_o2_samples(&scana_sim::VirtualCar::hijet(), 300_000, 330_000));
+        assert_eq!(m.result.as_deref(), Some("steady"), "{}", m.text);
     }
 }

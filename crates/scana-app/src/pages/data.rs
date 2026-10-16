@@ -385,12 +385,8 @@ impl ScanaApp {
                         last_mid = Some(t.mid);
                     }
                     ui.label(format!("    {}", mode06::test_name(t.mid, t.tid)));
-                    let f = |v: f64| pids::format_value(v, if t.unit.is_empty() { "x" } else { t.unit });
-                    let unit = if t.unit == "counts" && t.value == 1.0 { "count" } else { t.unit };
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.label(format!("{} {unit}", f(t.value)))
-                    });
-                    ui.label(format!("{} to {}", f(t.min), f(t.max)));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| ui.label(t.value_text()));
+                    ui.label(t.limits_text());
                     if t.passed() {
                         ui.label(RichText::new("✔ pass").color(pal.good));
                     } else {

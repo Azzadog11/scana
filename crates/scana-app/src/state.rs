@@ -62,6 +62,49 @@ mod tests {
         i.update(vec![1, 8, 4, 7], 300);
         assert_eq!(i.changes, vec![0, 0, 0, 1]);
     }
+
+    fn conn(source: scana_core::session::Source, vehicle: &str, pids: Vec<u8>) -> ConnectionInfo {
+        ConnectionInfo {
+            source,
+            link: "simulated".into(),
+            bitrate: scana_proto::Bitrate::K500,
+            addressing: scana_core::Addressing::Standard,
+            ecus: vec![scana_core::session::EcuView {
+                id: CanId::Standard(0x7E8),
+                name: "Engine".into(),
+                supported: pids,
+            }],
+            profile_id: None,
+            vehicle: vehicle.into(),
+            make: None,
+            other_tester: false,
+            log: vec![],
+            live: vec![],
+        }
+    }
+
+    #[test]
+    fn a_different_car_starts_clean_and_the_same_car_keeps_its_results() {
+        use scana_core::session::Source;
+        let health = || HealthReport {
+            when: "now".into(),
+            vehicle: "Truck".into(),
+            link: String::new(),
+            protocol: String::new(),
+            ecus: vec![],
+            modules: vec![],
+        };
+        let mut m = Model::default();
+        m.apply(Update::Connected(conn(Source::Demo, "Truck", vec![0x0C])));
+        m.health = Some((health(), None));
+        m.codes = Some(vec![]);
+        // The same car back after a lost link: results stay.
+        m.apply(Update::Connected(conn(Source::Demo, "Truck", vec![0x0C])));
+        assert!(m.health.is_some() && m.codes.is_some());
+        // Another car: nothing from the truck remains.
+        m.apply(Update::Connected(conn(Source::DemoCorolla, "Unknown Toyota", vec![0x0C, 0x3C])));
+        assert!(m.health.is_none() && m.codes.is_none());
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -183,6 +226,11 @@ impl Model {
         profile::builtin().iter().find(|p| &p.id == id)
     }
 
+    /// The car's make: from its profile, else from its VIN.
+    pub fn make(&self) -> Option<String> {
+        self.profile().and_then(|p| p.make.clone()).or_else(|| self.conn.as_ref()?.make.clone())
+    }
+
     pub fn ecu_name(&self, id: CanId) -> String {
         self.conn
             .as_ref()
@@ -224,6 +272,7 @@ impl Model {
     fn reset_car(&mut self) {
         self.conn = None;
         self.live.clear();
+        self.health = None;
         self.codes = None;
         self.freeze = None;
         self.readiness = None;
@@ -249,10 +298,20 @@ impl Model {
                 self.state = Some(s);
             }
             Update::Connected(info) => {
-                self.selected = info.live.clone();
-                self.history.clear();
-                self.marks.clear();
-                self.reset_car();
+                // The same car back after a lost link (a bridge restart mid-drive) keeps what was
+                // read and the graphs; a different car starts clean, so nothing from the last car
+                // shows under the new one's name.
+                let same_car = self.conn.as_ref().is_some_and(|c| {
+                    c.source == info.source
+                        && c.vehicle == info.vehicle
+                        && c.ecus.iter().map(|e| &e.supported).eq(info.ecus.iter().map(|e| &e.supported))
+                });
+                if !same_car {
+                    self.selected = info.live.clone();
+                    self.history.clear();
+                    self.marks.clear();
+                    self.reset_car();
+                }
                 self.conn = Some(info);
             }
             Update::Values(values) => {

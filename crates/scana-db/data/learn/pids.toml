@@ -189,3 +189,313 @@ normal = "Usually a little above the coolant temperature once warm."
 [[pid]]
 id = 0x5E
 what = "Fuel the engine is using, in litres an hour."
+
+# More values, for cars other than the Hijet (2026-10-16). Standard meanings from SAE J1979;
+# "normal" values are typical, not specifications.
+
+[[pid]]
+id = 0x02
+what = "The fault code that made the engine computer save this freeze frame. It only appears in a freeze frame."
+
+[[pid]]
+id = 0x08
+what = "Short term fuel trim for bank 2: the engine computer's quick correction to the mixture on the second bank of a V engine (the side without cylinder 1)."
+normal = "Swinging a few percent either side of 0 in closed loop, like bank 1."
+read_with = "Bank 1's trims: a fault on one bank only points to that bank (an air leak or an injector there)."
+
+[[pid]]
+id = 0x09
+what = "Long term fuel trim for bank 2: the learned correction on the second bank of a V engine."
+normal = "Within about ±10 %."
+read_with = "Bank 1's long term trim: both high points to something shared, such as the air flow sensor or fuel pressure."
+
+[[pid]]
+id = 0x0A
+what = "Fuel pressure, on the few cars that report it here."
+normal = "Varies by car: see the workshop manual."
+
+[[pid]]
+id = 0x12
+what = "Where the secondary air pump sends air: before the catalytic converter, after it, outside, or off. Only on cars with secondary air injection."
+normal = "On for about the first minute after a cold start, then off."
+
+[[pid]]
+id = 0x16
+what = "Oxygen sensor voltage, bank 1 sensor 3 (further down the exhaust), and the fuel trim it causes. Bank 2 is the side of a V engine without cylinder 1."
+normal = "Fairly steady, often around 0.5-0.8 V, when the converter works."
+
+[[pid]]
+id = 0x17
+what = "Oxygen sensor voltage, bank 1 sensor 4 (further down the exhaust), and the fuel trim it causes. Bank 2 is the side of a V engine without cylinder 1."
+normal = "Fairly steady, often around 0.5-0.8 V, when the converter works."
+
+[[pid]]
+id = 0x18
+what = "Oxygen sensor voltage, bank 2 sensor 1 (before the catalytic converter), and the fuel trim it causes. Bank 2 is the side of a V engine without cylinder 1."
+normal = "Swings between about 0.1 and 0.9 V several times a second when warm, in closed loop."
+
+[[pid]]
+id = 0x19
+what = "Oxygen sensor voltage, bank 2 sensor 2 (after the catalytic converter), and the fuel trim it causes. Bank 2 is the side of a V engine without cylinder 1."
+normal = "Fairly steady, often around 0.5-0.8 V, when the converter works."
+
+[[pid]]
+id = 0x1A
+what = "Oxygen sensor voltage, bank 2 sensor 3 (further down the exhaust), and the fuel trim it causes. Bank 2 is the side of a V engine without cylinder 1."
+normal = "Fairly steady, often around 0.5-0.8 V, when the converter works."
+
+[[pid]]
+id = 0x1B
+what = "Oxygen sensor voltage, bank 2 sensor 4 (further down the exhaust), and the fuel trim it causes. Bank 2 is the side of a V engine without cylinder 1."
+normal = "Fairly steady, often around 0.5-0.8 V, when the converter works."
+
+[[pid]]
+id = 0x1D
+what = "Which oxygen sensors are fitted, on cars that use the four-bank layout for this list."
+
+[[pid]]
+id = 0x1E
+what = "Whether a power take-off (PTO) is working, on vehicles that have one (some trucks)."
+
+[[pid]]
+id = 0x22
+what = "Fuel rail pressure compared with the manifold pressure."
+normal = "Varies by car: see the workshop manual."
+
+[[pid]]
+id = 0x23
+what = "Fuel rail pressure on diesel and direct-injection petrol engines: high, thousands of kPa."
+normal = "Varies by engine and load: see the workshop manual."
+
+[[pid]]
+id = 0x24
+what = "Air-fuel ratio sensor 1 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x25
+what = "Air-fuel ratio sensor 2 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x26
+what = "Air-fuel ratio sensor 3 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x27
+what = "Air-fuel ratio sensor 4 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x28
+what = "Air-fuel ratio sensor 5 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x29
+what = "Air-fuel ratio sensor 6 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x2A
+what = "Air-fuel ratio sensor 7 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x2B
+what = "Air-fuel ratio sensor 8 (a wide-range oxygen sensor): the mixture as lambda, and a voltage. Lambda 1.00 is the ideal mixture; below 1 is rich, above 1 is lean."
+normal = "Close to 1.00 at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x2C
+what = "How far the engine computer asks the EGR valve to open, which lets some exhaust back into the intake."
+normal = "0 % at idle and full throttle on most cars; open at a light cruise."
+
+[[pid]]
+id = 0x2D
+what = "The difference between the EGR opening asked for and the opening measured, as a percentage."
+normal = "Close to 0 %."
+
+[[pid]]
+id = 0x30
+what = "How many times the engine has warmed up since the codes were last cleared. A warm-up is a rise of at least 22 °C that reaches at least 70 °C."
+read_with = "On a used car, a small number with readiness monitors not complete suggests someone cleared the codes recently."
+
+[[pid]]
+id = 0x31
+what = "Distance driven since the codes were last cleared."
+read_with = "On a used car, a short distance with readiness monitors not complete suggests someone cleared the codes recently."
+
+[[pid]]
+id = 0x32
+what = "Pressure in the fuel tank's vapour (EVAP) system, in pascals. The engine computer uses it for its leak test."
+normal = "Close to 0 Pa, moving a little."
+
+[[pid]]
+id = 0x34
+what = "Air-fuel ratio sensor 1 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x35
+what = "Air-fuel ratio sensor 2 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x36
+what = "Air-fuel ratio sensor 3 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x37
+what = "Air-fuel ratio sensor 4 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x38
+what = "Air-fuel ratio sensor 5 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x39
+what = "Air-fuel ratio sensor 6 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x3A
+what = "Air-fuel ratio sensor 7 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x3B
+what = "Air-fuel ratio sensor 8 (a wide-range oxygen sensor): the mixture as lambda, and the sensor's current. Lambda 1.00 is the ideal mixture; the current is near 0 mA there, and moves one way when rich and the other way when lean."
+normal = "Lambda close to 1.00, current close to 0 mA, at a warm idle and a steady cruise."
+read_with = "Fuel trims: the engine computer corrects towards lambda 1."
+
+[[pid]]
+id = 0x3C
+what = "Catalytic converter temperature, bank 1 sensor 1. Most cars calculate it from engine speed and load rather than measure it."
+normal = "About 400-800 °C once warm (typical)."
+
+[[pid]]
+id = 0x3D
+what = "Catalytic converter temperature, bank 2 sensor 1. Most cars calculate it from engine speed and load rather than measure it."
+normal = "About 400-800 °C once warm (typical)."
+
+[[pid]]
+id = 0x3E
+what = "Catalytic converter temperature, bank 1 sensor 2. Most cars calculate it from engine speed and load rather than measure it."
+normal = "About 400-800 °C once warm (typical)."
+
+[[pid]]
+id = 0x3F
+what = "Catalytic converter temperature, bank 2 sensor 2. Most cars calculate it from engine speed and load rather than measure it."
+normal = "About 400-800 °C once warm (typical)."
+
+[[pid]]
+id = 0x43
+what = "How much air the engine takes in on each stroke, compared with its size. It can go above 100 % on a turbo engine."
+normal = "About 15-30 % at a warm idle (typical)."
+read_with = "Calculated engine load: on an engine without a turbo the two are close at part throttle."
+
+[[pid]]
+id = 0x44
+what = "The mixture the engine computer asks for, as lambda. 1.00 is the ideal mixture; below 1 is rich (cold starts, full throttle), above 1 is lean."
+normal = "1.00 in closed loop."
+
+[[pid]]
+id = 0x48
+what = "A third throttle position sensor reading, on cars that have one."
+
+[[pid]]
+id = 0x4B
+what = "A third accelerator pedal sensor reading, on cars that have one."
+
+[[pid]]
+id = 0x51
+what = "The fuel the engine is built for: petrol, diesel, LPG, ethanol, a hybrid and so on."
+
+[[pid]]
+id = 0x52
+what = "How much ethanol is in the fuel, on flex-fuel cars that measure it."
+
+[[pid]]
+id = 0x53
+what = "Absolute pressure in the fuel tank's vapour (EVAP) system."
+normal = "Close to the air pressure outside."
+
+[[pid]]
+id = 0x54
+what = "Pressure in the fuel tank's vapour (EVAP) system, in pascals, with a wider range than PID 32."
+normal = "Close to 0 Pa."
+
+[[pid]]
+id = 0x55
+what = "Short term fuel trim from the oxygen sensor after the converter (banks 1 and 3): a small extra correction on top of the main fuel trims."
+normal = "Close to 0 %."
+
+[[pid]]
+id = 0x56
+what = "Long term fuel trim from the oxygen sensor after the converter (banks 1 and 3): a small extra correction on top of the main fuel trims."
+normal = "Close to 0 %."
+
+[[pid]]
+id = 0x57
+what = "Short term fuel trim from the oxygen sensor after the converter (banks 2 and 4): a small extra correction on top of the main fuel trims."
+normal = "Close to 0 %."
+
+[[pid]]
+id = 0x58
+what = "Long term fuel trim from the oxygen sensor after the converter (banks 2 and 4): a small extra correction on top of the main fuel trims."
+normal = "Close to 0 %."
+
+[[pid]]
+id = 0x59
+what = "Fuel rail pressure (absolute), mostly on direct-injection and diesel engines."
+normal = "Varies by engine and load: see the workshop manual."
+
+[[pid]]
+id = 0x5A
+what = "Accelerator pedal position, scaled so a released pedal reads 0 %."
+normal = "0 % with the foot off the pedal."
+
+[[pid]]
+id = 0x5B
+what = "A percentage for the hybrid battery, on hybrids. The standard calls it the remaining life; many cars report the state of charge here (unverified)."
+
+[[pid]]
+id = 0x5D
+what = "When the injectors fire, in degrees of crankshaft rotation: mostly diesel engines."
+
+[[pid]]
+id = 0x5F
+what = "The emission standard the vehicle was built to, on heavy vehicles."
+
+[[pid]]
+id = 0x61
+what = "The torque the driver asks for with the pedal, as a share of the engine's reference torque (PID 63)."
+
+[[pid]]
+id = 0x62
+what = "The torque the engine makes, as a share of its reference torque (PID 63)."
+read_with = "Driver's demanded torque: the gap shows what the engine computer is holding back."
+
+[[pid]]
+id = 0x63
+what = "The torque that 100 % means for the two torque values (PIDs 61 and 62)."

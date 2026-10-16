@@ -301,13 +301,11 @@ impl HealthReport {
                 for t in &e.tests {
                     let (class, res) = if t.passed() { ("good", "pass") } else { ("bad", "FAIL") };
                     h.push_str(&format!(
-                        "<tr><td>{}</td><td>{}</td><td>{:.3} {}</td><td>{:.3} to {:.3}</td><td class=\"{class}\">{res}</td></tr>",
+                        "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td class=\"{class}\">{res}</td></tr>",
                         esc(&mode06::monitor_name(t.mid)),
                         esc(&mode06::test_name(t.mid, t.tid)),
-                        t.value,
-                        esc(t.unit),
-                        t.min,
-                        t.max
+                        esc(&t.value_text()),
+                        esc(&t.limits_text())
                     ));
                 }
                 h.push_str("</table>");

@@ -40,7 +40,7 @@ This repo is public. Keep it about the software:
 | arduino-cli with the AVR core 1.8.8 | `arduino-cli compile --fqbn arduino:avr:uno firmware/scana-bridge` |
 | The gate | `tools/gate.sh` (or `--no-firmware`): formatting, clippy with `-D warnings`, tests, firmware host tests, firmware build with RAM under 75% |
 | Hardware checks | `cargo run -p scana-cli -- probe`, then `loopback`. With no car attached, `detect` fails after 2 frames |
-| Simulator | `--sim` (simulated Hijet), `--sim-dash` (adds a dash display polling), `--sim-faults` (codes, freeze frame, failing test; engine off) |
+| Simulator | `--sim` (simulated Hijet), `--sim-dash` (adds a dash display polling), `--sim-faults` (codes, freeze frame, failing test; engine off), `--sim-corolla` (a 2006 Corolla with P0420; the app's `--demo-corolla`) |
 | Look at the app | `cargo build -p scana-app && ./target/debug/scana-app --screenshots /tmp/scana-shots`, then look at the PNGs. `--shot-bridge DIR` uses a real bridge. Do this after any UI change |
 
 Work is done when the gate passes and the screenshots look right.
@@ -63,6 +63,9 @@ Work is done when the gate passes and the screenshots look right.
 - Each link's clock starts at 0: the recorder rebases after a reconnect, or times in the logs overlap.
 - A bridge restart mid-session shows first as a refused send (BEL: its bus is closed), before the `#R` line is read. The client looks for that line when a send fails, so the reset report gets logged.
 - The Uno's stock boot loader clears MCUSR, and r2 holds leftovers, not reset flags (both checked on the Uno). Firmware 0.1.1 tells watchdog resets apart with the watchdog interrupt and warm from cold with `.noinit` bytes.
+- Switching cars in one app session: everything read from the last car must be cleared, the health check too (it once stayed and showed under the new car's name). The same car back after a lost link keeps its results and graphs.
+- Several measurements can wait at once in the Diagnose page (`diag_wait` is a list): one slot silently dropped the first when a second started.
+- Older cars: no permanent codes (service 0A), no ECU name; say so rather than show nothing. Try a new kind of car on a simulated one first (`scana-sim`): the 2006 Corolla emulation found several of these problems.
 - Toyota-family facts come from openpilot's opendbc (MIT) and the toyota-diagnostics README: addresses only, no data copied. Name sources in `addresses.toml`.
 
 ## Style

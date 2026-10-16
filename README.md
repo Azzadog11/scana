@@ -42,6 +42,7 @@ cargo run --release -p scana-cli -- module 7B0 --scan 00-FF   # one module: iden
 cargo run --release -p scana-cli -- diagnose P0420   # step-by-step diagnosis, no car needed
 cargo run --release -p scana-cli -- explain fuel trim          # look up a code, a word or a tool
 cargo run --release -p scana-cli -- --sim --sim-dash pids   # the simulated Hijet
+cargo run --release -p scana-cli -- --sim-corolla diagnose P0420 --car   # a simulated 2006 Corolla with a worn catalyst
 tools/gate.sh                                        # formatting, lint, tests, firmware checks
 ```
 

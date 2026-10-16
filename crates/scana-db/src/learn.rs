@@ -155,6 +155,15 @@ mod tests {
     }
 
     #[test]
+    fn every_value_scana_decodes_has_an_explanation() {
+        for p in 0..=255u8 {
+            if scana_proto::pids::def(p).is_some() && !scana_proto::pids::is_support_pid(p) {
+                assert!(pid(p).is_some(), "no explanation for PID {p:02X}");
+            }
+        }
+    }
+
+    #[test]
     fn pages_and_job_steps_point_at_real_pages() {
         for id in PAGE_IDS {
             assert!(page(id).is_some(), "{id}");

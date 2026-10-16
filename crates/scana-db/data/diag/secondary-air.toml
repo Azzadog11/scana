@@ -21,6 +21,8 @@ sources = [
   "'P2440 Secondary Air Injection System (Toyota & Lexus)', hewitt-tech.com, and 'P2440 Code', carparts.com (moisture and debris jam the switching valve; exhaust pulses at the valve inlet mean stuck open) (read 2026-10-16)",
   "Toyota TSB T-SB-0230-12 (2005-2009 4Runner and Land Cruiser 2UZ-FE, P2440 family), static.nhtsa.gov (read 2026-10-16)",
   "Toyota bulletin for 2014-2015 Tundra 3UR: new engine computer logic for P2440 and P2442 from debris or ice (via vehicleservicepros.com 'Check on Toyota Air Switching Valve') (read 2026-10-16)",
+  "AARP 'Technical Service Bulletins Now Available for Free': NHTSA lists bulletins free as Manufacturer Communications by year, make and model (read 2026-10-16)",
+  "Toyota 'What is TIS' (techinfo.toyota.com): subscriptions from 2 days, North American models; reprogramming needs the Professional Diagnostic tier with Techstream (read 2026-10-16)",
 ]
 related = ["o2-sensor", "catalyst"]
 
@@ -61,7 +63,7 @@ id = "software"
 name = "Engine computer software (some models)"
 detail = "Some Toyota models got new engine computer logic for these codes."
 weight = 10
-fix = "Ask a dealer whether an update or bulletin exists for the car."
+fix = "Look up bulletins and updates for the car (see the bulletin test) and apply the one that fits."
 cost = "low"
 
 [[test]]
@@ -175,9 +177,14 @@ effect = { hose = -1 }
 
 [[test]]
 id = "dealer"
-title = "Ask about a bulletin or update"
-why = "Some makers released software or parts updates for these codes."
-steps = ["Ask a dealer for the brand to check the VIN for bulletins or updates about these codes."]
+title = "Look up bulletins and updates"
+why = "Some makers released software or parts updates for these codes. You can look it up yourself."
+steps = [
+  "Note the car's calibration ID: Scana's Vehicle info page shows it (or `scana info`).",
+  "Look up the car's bulletins by year, make and model. For US-market models they are free on nhtsa.gov/recalls, under Manufacturer Communications. Some makers sell short subscriptions to their own repair information, for example Toyota's TIS (techinfo.toyota.com) for North American models, from 2 days.",
+  "Look for a bulletin about secondary air codes. One that lists a newer calibration than the car's means an update applies.",
+  "Installing an update needs the maker's software and a J2534 programming cable. Some makers sell access to anyone; otherwise a dealer or a workshop with the maker's software does it.",
+]
 [[test.result]]
 id = "yes"
 text = "An update or bulletin exists"
@@ -188,4 +195,4 @@ text = "None"
 effect = { software = -2 }
 [[test.result]]
 id = "unknown"
-text = "Not asked"
+text = "Couldn't find out"

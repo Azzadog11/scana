@@ -29,7 +29,7 @@ id = "driving"
 name = "Short trips: the filter never gets hot enough to clear"
 detail = "Town driving, short trips and idling fill the filter faster than regeneration can clear it."
 weight = 35
-fix = "Drive for 20 to 30 minutes at a steady highway speed (as the owner's manual says) to let it regenerate; a workshop can force a regeneration."
+fix = "Drive for 20 to 30 minutes at a steady highway speed (as the owner's manual says) to let it regenerate. A forced regeneration is a scan tool function (not in Scana, which only reads): capable tools and workshops have it."
 cost = "low"
 
 [[cause]]
@@ -53,7 +53,7 @@ id = "ash"
 name = "The filter is full of ash, or cracked"
 detail = "Ash builds up over many years and can't be burnt off; a filter can crack from overheating."
 weight = 20
-fix = "Have the filter professionally cleaned, or replaced."
+fix = "Have the filter cleaned by a DPF cleaning service (it comes off the car, and some services post it back), or replace it."
 cost = "high"
 
 [[test]]

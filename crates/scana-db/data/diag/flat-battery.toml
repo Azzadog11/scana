@@ -14,7 +14,7 @@ terms = ["Alternator", "Parasitic drain", "Voltage regulator", "Relay", "Fuse"]
 safety = [
   "Batteries give off explosive gas: no sparks or flames. Connect and disconnect clamps with everything off.",
   "Remove rings and watches before working near the battery.",
-  "Measuring the car's drain current needs care: a workshop, or the meter's instructions, so you don't blow the meter's fuse.",
+  "Measuring drain current: connect the meter on its 10 A range first, and never crank the engine with the meter in place: it blows the meter's fuse. Many cars need 10 to 40 minutes to fall asleep before the current drops.",
 ]
 sources = [
   "Charging range and battery checks: the charging guide's sources (obd-codes.com P0562, carparts.com) (read 2026-10-16)",
@@ -35,7 +35,7 @@ id = "drain"
 name = "Something draws current with the car off"
 detail = "A boot, glovebox or interior light staying on, an aftermarket accessory (dash camera, alarm), or a module that doesn't go to sleep."
 weight = 25
-fix = "Find the drain: a workshop measures current with everything off and pulls fuses one at a time to find the circuit."
+fix = "Find the drain: a multimeter on its amps range between the negative terminal and its cable, everything off and the car asleep; pull fuses one at a time until the current drops, and that circuit has the drain."
 cost = "low"
 
 [[cause]]

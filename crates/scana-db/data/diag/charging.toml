@@ -63,7 +63,7 @@ id = "drain"
 name = "Something drains the battery while parked"
 detail = "A light left on, a faulty module or an accessory flattens the battery overnight."
 weight = 5
-fix = "Find the drain (a workshop measures current with everything off) and fix it."
+fix = "Find the drain: a multimeter on its amps range between the battery terminal and its cable, everything off and the car asleep; pull fuses one at a time until the current drops (see the flat battery guide)."
 cost = "low"
 
 [[cause]]

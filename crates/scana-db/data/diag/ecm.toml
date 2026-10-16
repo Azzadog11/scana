@@ -9,7 +9,7 @@ how_it_works = [
   "The engine computer checks its own memory and processor as it runs. A fault there, or a battery that dropped too low while it was writing to memory, sets an internal code.",
   "It also feeds several sensors from one regulated 5 V supply (reference A, B, C...). If one sensor or its wire shorts to ground, the supply drops and every sensor on it reads wrongly.",
   "P0603 (memory reset) often follows a battery disconnection and may not come back.",
-  "A new or second-hand computer usually needs programming to the car (VIN, immobiliser, options) by a dealer or specialist.",
+  "A new or second-hand computer usually needs programming to the car (VIN, immobiliser, options) with the maker's software or a capable tool; a used one may first need its old data cleared. Without that the engine may not start.",
 ]
 terms = ["ECU", "Reflash"]
 fix_first = ["P0560-P0563"]
@@ -20,6 +20,8 @@ safety = [
 sources = [
   "SAE J2012 code structure: P0600 to P0610 and P060A to P062F control module internal; P0630 VIN not programmed; P0641 to P0653 sensor reference voltages; P0697 to P0699 (descriptions in Scana's own words)",
   "Low voltage and grounds as causes of module codes: charging and network guide sources (obd-codes.com P0562; apextechnation.com U0100) (read 2026-10-16)",
+  "AARP 'Technical Service Bulletins Now Available for Free': NHTSA lists bulletins free as Manufacturer Communications by year, make and model (read 2026-10-16)",
+  "Toyota 'What is TIS' (techinfo.toyota.com): subscriptions from 2 days, North American models; reprogramming needs the Professional Diagnostic tier with Techstream (read 2026-10-16)",
 ]
 related = ["charging", "network"]
 
@@ -52,7 +54,7 @@ id = "software"
 name = "Software that needs an update or reprogramming"
 detail = "Some internal codes are cured by new software from the maker, or appear after a failed update."
 weight = 15
-fix = "Ask a dealer whether an update or bulletin exists; have it reprogrammed."
+fix = "Look up bulletins and updates for the car (see the bulletin test); install the update with the maker's software, or have it done."
 cost = "medium"
 
 [[cause]]
@@ -60,7 +62,7 @@ id = "computer"
 name = "A failed engine computer"
 detail = "The computer itself fails, often after water, heat or a voltage spike."
 weight = 15
-fix = "Repair or replace the computer, programmed to the car by a dealer or specialist."
+fix = "Repair or replace the computer, then program it to the car (VIN, immobiliser) with the maker's software or a capable tool; computer repairers can also clone the old one's data."
 cost = "high"
 
 [[test]]
@@ -151,9 +153,14 @@ effect = { water = -2 }
 
 [[test]]
 id = "dealer"
-title = "Ask about software updates"
-why = "Some internal codes are fixed by new software."
-steps = ["Ask a dealer for the brand to check the VIN for engine computer updates or bulletins."]
+title = "Look up bulletins and software updates"
+why = "Some internal computer codes are fixed by new software. You can look it up yourself."
+steps = [
+  "Note the car's calibration ID: Scana's Vehicle info page shows it (or `scana info`).",
+  "Look up the car's bulletins by year, make and model. For US-market models they are free on nhtsa.gov/recalls, under Manufacturer Communications. Some makers sell short subscriptions to their own repair information, for example Toyota's TIS (techinfo.toyota.com) for North American models, from 2 days.",
+  "Look for a bulletin about this code or the engine computer. One that lists a newer calibration than the car's means an update applies.",
+  "Installing an update needs the maker's software and a J2534 programming cable. Some makers sell access to anyone; otherwise a dealer or a workshop with the maker's software does it.",
+]
 [[test.result]]
 id = "yes"
 text = "An update exists"
@@ -164,4 +171,4 @@ text = "None"
 effect = { software = -2 }
 [[test.result]]
 id = "unknown"
-text = "Not asked"
+text = "Couldn't find out"

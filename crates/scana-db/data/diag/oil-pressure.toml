@@ -51,7 +51,7 @@ id = "oil-condition"
 name = "Old, thin or wrong oil, or a blocked filter or pick-up"
 detail = "Very old or fuel-diluted oil thins out; sludge blocks the pump's pick-up screen; the wrong filter can starve the engine."
 weight = 15
-fix = "Change the oil and filter with the right grade; a workshop can check the pick-up if sludge is found."
+fix = "Change the oil and filter with the right grade. If you find sludge, drop the sump and clean the oil pick-up screen."
 cost = "low"
 
 [[cause]]
@@ -59,7 +59,7 @@ id = "wear"
 name = "A worn oil pump or worn engine bearings"
 detail = "Wear lets the oil escape too easily, so the pressure drops, worst when hot and at idle."
 weight = 10
-fix = "A workshop confirms with a gauge; repair the engine."
+fix = "Confirm with a mechanical oil pressure gauge screwed in place of the sender, against the workshop manual's figures; then repair the engine."
 cost = "high"
 
 [[test]]

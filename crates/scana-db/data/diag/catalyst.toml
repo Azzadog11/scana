@@ -27,6 +27,8 @@ sources = [
   "'Avoid an $800 to $2,500 Converter Replacement: 7 Steps to Diagnose P0420', kkrichardson.com (read 2026-10-16)",
   "'Can an Exhaust Leak Cause P0420?', torqvo.com (read 2026-10-16)",
   "SAE J1979 / ISO 15031-5: service 06 monitor IDs 21-24 are the catalyst monitors for banks 1-4",
+  "AARP 'Technical Service Bulletins Now Available for Free': NHTSA lists bulletins free as Manufacturer Communications by year, make and model (read 2026-10-16)",
+  "Toyota 'What is TIS' (techinfo.toyota.com): subscriptions from 2 days, North American models; reprogramming needs the Professional Diagnostic tier with Techstream (read 2026-10-16)",
 ]
 
 [[cause]]
@@ -72,7 +74,7 @@ cost = "high"
 [[cause]]
 id = "software"
 name = "The engine computer's software is too strict"
-detail = "On some models the maker later released new engine computer software with a fairer catalyst test. A dealer can check whether a newer calibration exists for the car."
+detail = "On some models the maker later released new engine computer software with a fairer catalyst test. The bulletin test shows how to find out for the car yourself."
 weight = 6
 fix = "Have the engine computer updated (reflashed) to the newest calibration, if one exists."
 cost = "low"
@@ -359,11 +361,13 @@ text = "Not sure"
 
 [[test]]
 id = "software"
-title = "Ask about an engine computer update"
-why = "Some makers released new engine computer software for this code. A dealer can check the VIN."
+title = "Look up bulletins and software updates"
+why = "Some makers released new engine computer software, or a new converter, for this code. You can look it up yourself."
 steps = [
-  "Ask a dealer for the brand whether a newer engine computer calibration or a technical service bulletin exists for this car and this code.",
-  "Give them the VIN and the code.",
+  "Note the car's calibration ID: Scana's Vehicle info page shows it (or `scana info`).",
+  "Look up the car's bulletins by year, make and model. For US-market models they are free on nhtsa.gov/recalls, under Manufacturer Communications. Some makers sell short subscriptions to their own repair information, for example Toyota's TIS (techinfo.toyota.com) for North American models, from 2 days.",
+  "Look for a bulletin about P0420 or the catalyst. One that lists a newer calibration than the car's means an update applies.",
+  "Installing an update needs the maker's software and a J2534 programming cable. Some makers sell access to anyone; otherwise a dealer or a workshop with the maker's software does it.",
 ]
 [[test.result]]
 id = "update"
@@ -376,7 +380,7 @@ text = "No update exists, or it is already done"
 effect = { software = -2 }
 [[test.result]]
 id = "unknown"
-text = "Not asked yet"
+text = "Couldn't find out"
 
 [[test]]
 id = "temperature"
@@ -402,14 +406,16 @@ text = "Can't tell"
 
 [[note]]
 make = "Toyota"
+kind = "bulletin"
 models = "Corolla with the 1ZZ-FE engine (US market)"
 years = "2003-2004"
-text = "Toyota bulletin EG028-04 covers P0420 on these cars built before a production change: the fix was new engine computer software and a new converter (the same repair as bulletin EG016-04 for a sulphur smell). Owners say the old software compared the two oxygen sensors too strictly. For a car from another market, ask a Toyota dealer to check the VIN for updates."
-source = "Toyota TSB EG028-04 (converterwarehouse.com transcription) and toyotanation.com owner reports, read 2026-10-16"
+text = "Toyota bulletin EG028-04 (revised 2004-10-08) covers P0420 on these cars built before a production change. The repair is new engine computer software and a new converter (part 17410-0D360), the same as bulletin EG016-04 for a sulphur smell. It doesn't cover 2005 and later Corollas."
+source = "Toyota TSB EG028-04 'M.I.L. ON DTC P0420': the bulletin (app.mecka.com copy) and the converterwarehouse.com transcription, read 2026-10-16"
 
 [[note]]
 make = "Toyota"
+kind = "owner-reports"
 models = "Corolla with the 1ZZ-FE engine"
 years = "early 2000s"
-text = "Owners report that some early 1ZZ-FE engines burn oil through sticking piston rings, which can coat the converter. Check oil use before fitting a new converter. Owners also report P0420 cured by a new rear oxygen sensor on high-distance cars."
+text = "Owners report that some early 1ZZ-FE engines burn oil through sticking piston rings, which can coat the converter: check oil use before fitting a new one. Some report P0420 cured by a new rear oxygen sensor on high-distance cars, and, on 2003-2004 cars, that the old software compared the two oxygen sensors too strictly."
 source = "toyotanation.com owner reports, read 2026-10-16 (unverified)"

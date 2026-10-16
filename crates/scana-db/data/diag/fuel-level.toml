@@ -12,7 +12,7 @@ how_it_works = [
 terms = ["Fuel pump", "EVAP"]
 safety = [
   "Fuel vapour burns easily: no sparks or flames when working near the tank or the pump module.",
-  "Getting to the sender usually means opening the fuel tank: a workshop job on most cars.",
+  "Getting to the sender means opening the fuel tank: often under the rear seat through an access panel, sometimes only by dropping the tank. Work outdoors, with the tank low, no sparks, and a new seal ready.",
 ]
 sources = [
   "SAE J2012 code structure: P0460 fuel level sensor circuit, P0461 range/performance, P0462 low, P0463 high, P0464 intermittent (descriptions in Scana's own words)",

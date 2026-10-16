@@ -15,7 +15,7 @@ how_it_works = [
 terms = ["Throttle body", "Limp mode", "Electronic throttle"]
 safety = [
   "Turn the ignition off and take the key out before touching the throttle body: the throttle plate can snap shut and trap fingers.",
-  "If the car is in limp mode, drive gently and get it checked: power can be very low when you need it, for example when joining traffic.",
+  "If the car is in limp mode, drive gently and find the cause soon: power can be very low when you need it, for example when joining traffic.",
   "Throttle body cleaner is flammable: engine off and cool, no sparks.",
 ]
 sources = [

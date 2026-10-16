@@ -31,6 +31,9 @@ This repo is public. Keep it about the software:
 - Weights are rough shares from the sources. Effects stay between -4 and +4. A test needs at least two answers; tests needing no tools come first.
 - Thresholds in `auto` are estimates unless a source gives them: say so in the step text ("about"). Values differ by car: point to the workshop manual.
 - Safety first: warn about hot exhausts, running engines, fuel pressure, high voltage, airbags.
+- Write for people who do the work themselves. Give the do-it-yourself way first, with the tool it needs; send them to a dealer, workshop or specialist only where a licence (refrigerant), the maker's software, special equipment or real danger requires it, and say which. "Ask a dealer" is never a test on its own: say how to look it up (bulletins on nhtsa.gov, a maker's paid repair site, the calibration ID Scana reads).
+- Make notes (`[[note]]`) carry a `kind`: `bulletin`, `recall`, `maker` or `owner-reports`. The app shows the label and only the car's make; owner reports must say "unverified" in their source. Keep a bulletin's facts and owners' opinions in separate notes.
+- Linked words: after adding text, run `cargo run -p scana-db --example link_audit -- WORD` for any everyday word that links (ground, knock, session). Fix a wrong sense with a specific alias, or a phrase in `data/learn/no-link.toml`.
 
 ## Tools
 

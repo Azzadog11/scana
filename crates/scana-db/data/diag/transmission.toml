@@ -14,7 +14,7 @@ how_it_works = [
 terms = ["Gearbox computer", "Limp mode", "CVT"]
 safety = [
   "Check fluid only as the workshop manual says: many need the engine running in park, on level ground, at a set temperature. Keep clear of the fan and the hot exhaust.",
-  "If the gearbox slips badly or won't select a gear, stop driving and get it checked: slipping quickly damages it.",
+  "If the gearbox slips badly or won't select a gear, stop driving and check the fluid level first: slipping quickly damages it.",
   "Use only the fluid the maker specifies. The wrong fluid can ruin an automatic or a CVT.",
 ]
 sources = [
@@ -60,7 +60,7 @@ id = "internal"
 name = "Internal wear: clutches, bands, the CVT belt or pump"
 detail = "Gear ratio codes (P0730 to P0736), slipping, and low pressure (P0868) that remain after a fluid service point to internal wear."
 weight = 15
-fix = "A gearbox specialist: repair or replace the gearbox."
+fix = "Rebuild or replace the gearbox: a good used unit is the usual home-mechanic route; a gearbox rebuilder does the inside work."
 cost = "high"
 
 [[cause]]
@@ -129,7 +129,7 @@ id = "fluid-check"
 title = "Check the fluid"
 why = "Low or burnt fluid is the most common root cause."
 steps = [
-  "Check the level by the workshop manual's procedure (many CVTs and newer automatics have no dipstick: a workshop checks them).",
+  "Check the level by the workshop manual's procedure. Many CVTs and newer automatics have no dipstick: the level is checked at a fill plug, at a set fluid temperature, with the engine running and the car level (Scana can show the fluid temperature where the car reports it).",
   "Look at the fluid on a white cloth: it should be clear red or the colour the maker uses, not dark brown, with no burnt smell.",
   "Look under the car for leaks at the gearbox and the cooler lines.",
 ]

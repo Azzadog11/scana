@@ -150,8 +150,18 @@ impl Link {
 struct Phrase {
     text: String,
     exact_case: bool,
-    link: Link,
+    /// `None`: a phrase that stays plain (data/learn/no-link.toml).
+    link: Option<Link>,
 }
+
+#[derive(Default, Deserialize)]
+struct NoLinkFile {
+    phrases: Vec<String>,
+}
+
+static NO_LINK: LazyLock<Vec<String>> = LazyLock::new(|| {
+    toml::from_str::<NoLinkFile>(include_str!("../data/learn/no-link.toml")).unwrap_or_default().phrases
+});
 
 fn is_acronym(s: &str) -> bool {
     s.chars().filter(|c| c.is_ascii_uppercase()).count() >= 2 && !s.chars().any(|c| c.is_lowercase())
@@ -166,10 +176,15 @@ fn first_word(s: &str) -> String {
 static PHRASES: LazyLock<HashMap<String, Vec<Phrase>>> = LazyLock::new(|| {
     let mut seen: HashSet<String> = HashSet::new();
     let mut all: Vec<Phrase> = Vec::new();
+    for p in NO_LINK.iter() {
+        if seen.insert(p.to_lowercase()) {
+            all.push(Phrase { text: p.clone(), exact_case: false, link: None });
+        }
+    }
     for t in topics() {
         for p in std::iter::once(&t.title).chain(t.aliases.iter()) {
             if seen.insert(p.to_lowercase()) {
-                all.push(Phrase { text: p.clone(), exact_case: is_acronym(p), link: Link::Topic(t.id.clone()) });
+                all.push(Phrase { text: p.clone(), exact_case: is_acronym(p), link: Some(Link::Topic(t.id.clone())) });
             }
         }
     }
@@ -178,7 +193,7 @@ static PHRASES: LazyLock<HashMap<String, Vec<Phrase>>> = LazyLock::new(|| {
             all.push(Phrase {
                 text: term.name.clone(),
                 exact_case: is_acronym(&term.name),
-                link: Link::Term(term.name.clone()),
+                link: Some(Link::Term(term.name.clone())),
             });
         }
     }
@@ -223,7 +238,9 @@ pub fn find_links(text: &str, skip: &[Link]) -> Vec<(Range<usize>, Link)> {
             if let Some(cands) = PHRASES.get(&word)
                 && let Some((end, link)) = cands.iter().find_map(|p| matches_at(text, i, p).map(|e| (e, &p.link)))
             {
-                if used.insert(link.clone()) {
+                if let Some(link) = link
+                    && used.insert(link.clone())
+                {
                     out.push((i..end, link.clone()));
                 }
                 i = end;
@@ -465,6 +482,21 @@ mod tests {
         // The longest phrase wins.
         let l = links_in("A torque converter slips.");
         assert_eq!(l.first().map(|(w, _)| w.as_str()), Some("torque converter"), "{l:?}");
+        // Words in another sense stay plain: the ground underfoot, a noise, a verb.
+        let none = |t: &str, w: &str| links_in(t).iter().all(|(x, _)| !x.eq_ignore_ascii_case(w));
+        assert!(none("For tests with the engine running, park on level ground, apply the parking brake.", "ground"));
+        assert!(links_in("A poor ground loses voltage.").iter().any(|(w, _)| w == "ground"));
+        assert!(none("A flashing check engine light means a severe misfire.", "flashing"));
+        assert!(none("It uses it to trim spark timing.", "trim"));
+        assert!(none("Afterwards, open the session and look at the graphs.", "session"));
+        assert!(links_in("Then it opens an extended session.").iter().any(|(w, _)| w == "extended session"));
+        assert!(none("A knock or rattle for a second or two.", "knock"));
+        assert!(links_in("When it hears knock, the computer retards the spark.").iter().any(|(w, _)| w == "knock"));
+        assert_eq!(
+            links_in("Listen for rod knock.").first().map(|(_, l)| l.clone()),
+            Some(Link::Term("Rod knock".into()))
+        );
+        assert!(none("It turns the camshaft ahead (advance) or back.", "advance"));
         // The topic being read doesn't link to itself.
         let skip = [Link::Topic("fuel-trim".into())];
         assert!(find_links("Fuel trim is high.", &skip).iter().all(|(_, l)| *l != skip[0]));

@@ -80,7 +80,7 @@ id = "computer"
 name = "An engine computer fault"
 detail = "Rare. The computer's heater driver or sensor input can fail."
 weight = 5
-fix = "Have it checked after every wire, fuse and sensor test passes."
+fix = "Suspect the computer only after every wire, fuse and sensor test passes (see the engine computer guide)."
 cost = "high"
 
 [[test]]

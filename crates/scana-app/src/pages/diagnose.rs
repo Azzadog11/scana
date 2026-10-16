@@ -419,22 +419,40 @@ impl ScanaApp {
                 },
             );
         }
-        if !g.note.is_empty() {
-            egui::CollapsingHeader::new("Notes for particular makes").id_salt(("notes", &g.id)).show(ui, |ui| {
-                for n in &g.note {
-                    ui.label(
-                        RichText::new(format!(
-                            "{} {}{}",
-                            n.make,
-                            n.models.as_deref().unwrap_or(""),
-                            n.years.as_deref().map(|y| format!(" ({y})")).unwrap_or_default()
-                        ))
-                        .strong(),
-                    );
-                    self.linked(ui, &n.text);
-                    ui.label(RichText::new(format!("Source: {}", n.source)).small().color(pal.dim));
-                }
-            });
+        {
+            // Notes for the connected car's make (all makes, labelled, when no car is known),
+            // and where anyone can check recalls.
+            let make = self.model.make();
+            let notes = g.notes_for(make.as_deref());
+            let title = match (&make, notes.len()) {
+                (Some(m), 0) => format!("Bulletins and recalls ({m}: no notes yet)"),
+                (Some(m), n) => format!("Bulletins, recalls and owner reports ({n} for {m})"),
+                (None, 0) => "Bulletins and recalls".to_string(),
+                (None, n) => format!("Bulletins, recalls and owner reports ({n}, for particular makes)"),
+            };
+            let open_first = make.is_some() && !notes.is_empty();
+            egui::CollapsingHeader::new(title).id_salt(("notes", &g.id, make.clone())).default_open(open_first).show(
+                ui,
+                |ui| {
+                    for n in notes {
+                        ui.horizontal_wrapped(|ui| {
+                            let colour = if n.unverified() { pal.note } else { pal.good };
+                            egui::Frame::new()
+                                .stroke(egui::Stroke::new(1.0, colour))
+                                .corner_radius(8)
+                                .inner_margin(egui::Margin::symmetric(6, 1))
+                                .show(ui, |ui| {
+                                    ui.label(RichText::new(n.kind_label().to_uppercase()).small().color(colour))
+                                });
+                            ui.label(RichText::new(n.heading()).strong());
+                        });
+                        self.linked(ui, &n.text);
+                        ui.label(RichText::new(format!("Source: {}", n.source)).small().color(pal.dim));
+                        ui.add_space(4.0);
+                    }
+                    self.linked_look(ui, diag::RECALL_CHECK, crate::widgets::Look::dim(&pal), &[]);
+                },
+            );
         }
         for (t, r) in d.stops() {
             ui.label(

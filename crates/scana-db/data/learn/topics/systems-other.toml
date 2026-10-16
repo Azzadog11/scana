@@ -69,7 +69,7 @@ faults = [
   "A pinhole in a vapour line or a worn valve seat: a small leak code that returns after the cap is replaced.",
 ]
 more_detail = [
-  "A workshop finds leaks by feeding low-pressure smoke into the system with the vent valve closed. A very small leak shows as a thin wisp, so UV dye helps.",
+  "A smoke machine finds leaks: it feeds low-pressure smoke into the system with the vent valve closed. Workshops have them and cheap DIY ones work too. A very small leak shows as a thin wisp, so UV dye helps.",
   "Leak detection varies. Some cars use engine vacuum and some use a small pump. The workshop manual decides.",
 ]
 related = ["pattern-evap-purge", "fuel-system", "fuel-trim", "pattern-vacuum-leak", "term:EVAP", "term:Charcoal canister", "term:Purge valve", "term:Vent valve", "guide:evap-leak", "guide:evap-purge", "code:P0455", "code:P0457", "page:readiness"]
@@ -216,7 +216,7 @@ faults = [
   "Cordierite melts at about 1200 degrees C, so a badly overloaded filter can melt during regeneration.",
 ]
 more_detail = [
-  "If the lamp comes on, a sustained drive at higher speed often lets the regeneration finish. Follow the owner's manual. If it is ignored the car can go into limp mode, and then a workshop forced regeneration or a new filter is needed.",
+  "If the lamp comes on, a sustained drive at higher speed often lets the regeneration finish. Follow the owner's manual. If it is ignored the car can go into limp mode, and then a forced regeneration (a scan tool function) or a new filter is needed.",
   "Extra fuel from late injection can run down the cylinder walls and dilute the oil. Check the dipstick if the car often regenerates (unverified for all makes).",
 ]
 related = ["diesel-live-data", "egr-system", "scr-adblue", "warning-lights", "turbocharger", "term:Diesel particulate filter", "term:Regeneration", "term:Soot", "term:Differential pressure sensor", "guide:dpf", "code:P2002"]
@@ -639,7 +639,7 @@ body = [
 how_to_read = [
   "Generic OBD-II does not read airbag codes. A scan tool needs the SRS module, see Modules. Codes usually start with B.",
   "Typical faults: a clock spring open circuit, a seat belt buckle switch, a seat occupancy sensor, a crash sensor or an unplugged connector.",
-  "After a crash or deployment, the computer usually has to be replaced or reset by a workshop.",
+  "After a crash or deployment, the airbag computer stores crash data: it has to be replaced, or its crash data cleared with a capable tool.",
 ]
 parts = [
   "Airbag control module: reads the sensors and decides.",
@@ -709,7 +709,7 @@ id = "warning-lights"
 title = "Dash warning lights"
 group = "systems"
 aliases = ["warning lights", "warning light", "dash lights", "dashboard lights", "check engine light", "oil light", "battery light", "temperature light"]
-summary = "Lamps on the dash that show a fault or a state. Red usually means stop, amber means get it checked."
+summary = "Lamps on the dash that show a fault or a state. Red usually means stop, amber means look into it soon."
 body = [
   "Colour tells urgency. Red means a serious fault or a safety risk: stop when safe. Amber or yellow means a fault to check soon. Green, white and blue mean a system is working or in use, such as headlights or cruise control.",
   "Lamps light briefly at key-on to show the bulbs work. They should go out when the engine starts. A lamp that stays on has its own source: the engine computer or another module.",
@@ -760,7 +760,7 @@ how_to_read = [
   "Engine speed of 0 with the car in READY mode is not a fault.",
 ]
 parts = [
-  "High-voltage battery: nickel-metal hydride or lithium-ion cells, with cooling and a monitor.",
+  "High-voltage battery: nickel-metal hydride or lithium-ion cells, with cooling and its own battery computer.",
   "Inverter: converts between battery and motor currents.",
   "Motor-generators: drive the wheels, start the engine and recover energy.",
   "DC-DC converter: charges the 12 V battery.",

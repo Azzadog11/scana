@@ -1,0 +1,13 @@
+# Phrases that never link, though they hold a word Scana explains in another sense: "level
+# ground" is not an electrical ground, "a knock or rattle" is a noise, not pinging. The linker
+# matches these like any phrase (longest first) and leaves them plain. Find candidates with
+# `cargo run -p scana-db --example link_audit -- WORD`.
+
+phrases = [
+  # The ground underfoot, not the electrical return path.
+  "level ground", "on the ground", "loose ground", "sealed ground", "soft ground", "dry ground",
+  # Noises from parts, not knock (fuel burning too early).
+  "knock or rattle", "knock or tapping", "knock or move", "a knock,", "no knock", "can knock", "brief knock",
+  # The verb, not fuel trim.
+  "to trim",
+]

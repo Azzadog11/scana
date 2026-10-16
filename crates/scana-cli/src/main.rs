@@ -421,7 +421,7 @@ fn diagnose(
             }
             return Ok(());
         };
-        return run_guide(Diagnosis::new(g, None), client, answers, list);
+        return run_guide(Diagnosis::new(g, None), client, answers, list, make);
     };
     let hints = diag::maker_hints(code);
     let found = Diagnosis::for_code_make(code, make).or_else(|| {
@@ -437,7 +437,7 @@ fn diagnose(
         println!("Scana has no step-by-step guide for {code} yet. `scana explain {code}` shows what it knows.");
         return Ok(());
     };
-    run_guide(d, client, answers, list)
+    run_guide(d, client, answers, list, make)
 }
 
 /// Works through a guide in the terminal: prints it, measures what it can on a connected
@@ -447,6 +447,7 @@ fn run_guide(
     client: Option<Client>,
     answers: Option<&str>,
     list: bool,
+    make: Option<&str>,
 ) -> Result<()> {
     use scana_core::diagnose::{self, Diagnosis};
     use scana_db::diag;
@@ -464,16 +465,12 @@ fn run_guide(
             println!("{}", wrap(&format!("! {s}"), "  "));
         }
     }
-    for n in &g.note {
-        println!(
-            "\nNote for {} {}{}:",
-            n.make,
-            n.models.as_deref().unwrap_or(""),
-            n.years.as_deref().map(|y| format!(" ({y})")).unwrap_or_default()
-        );
+    for n in g.notes_for(make) {
+        println!("\n[{}] {}:", n.kind_label(), n.heading());
         println!("{}", wrap(&n.text, "  "));
         println!("{}", wrap(&format!("Source: {}", n.source), "  "));
     }
+    println!("\n{}", wrap(diag::RECALL_CHECK, ""));
     if let Some(list) = answers {
         for pair in list.split(',').filter(|p| !p.trim().is_empty()) {
             let (t, r) = pair.split_once('=').with_context(|| format!("answers look like test=result, not {pair}"))?;

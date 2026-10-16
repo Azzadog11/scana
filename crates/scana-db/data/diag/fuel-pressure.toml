@@ -15,7 +15,7 @@ terms = ["Fuel pump"]
 fix_first = ["P0562", "P0563"]
 safety = [
   "Fuel under pressure sprays and burns easily. Work outdoors, engine cold, no flames or sparks, and relieve the pressure as the workshop manual says before opening anything.",
-  "Direct-injection high-pressure systems hold dangerous pressures: leave them to a workshop.",
+  "Direct-injection engines have a high-pressure side (up to hundreds of bar): never open it. The low-pressure side, from the tank pump, is where a fuel pressure gauge goes.",
   "Keep a fire extinguisher nearby when working on fuel parts.",
 ]
 sources = [

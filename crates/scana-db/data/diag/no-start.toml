@@ -46,7 +46,7 @@ id = "immobiliser"
 name = "The immobiliser doesn't recognise the key"
 detail = "A key with a flat or damaged chip, a new key not programmed, or a security fault. The security light often flashes."
 weight = 12
-fix = "Try the spare key. A dealer or locksmith programs keys and checks the immobiliser."
+fix = "Try the spare key. Some cars let the owner add a key with a procedure in the owner's manual; otherwise an auto locksmith (usually cheaper than a dealer) or a capable tool with the car's security code programs one."
 cost = "medium"
 
 [[cause]]

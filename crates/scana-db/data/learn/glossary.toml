@@ -138,11 +138,11 @@ text = "A wide-range oxygen sensor, also called an A/F or wideband sensor. Inste
 
 [[term]]
 name = "TSB"
-text = "Technical service bulletin: a maker's note to its dealers about a known problem on some models, and how to fix it. A dealer can look up bulletins for a car by its VIN."
+text = "Technical service bulletin: a maker's note to its dealers about a known problem on some models, and how to fix it. For US-market models they are free on nhtsa.gov (Manufacturer Communications); some makers sell short subscriptions to their own repair information."
 
 [[term]]
 name = "Reflash"
-text = "Loading new software into a car's computer, usually to fix a known fault. Done by a dealer or a workshop with the maker's tools. Scana never does this."
+text = "Loading new software into a car's computer, usually to fix a known fault. It needs the maker's software and a J2534 programming cable; some makers sell access to anyone. Scana never does this."
 
 [[term]]
 name = "Thermostat"
@@ -178,7 +178,7 @@ text = "A throttle opened by an electric motor instead of a cable from the pedal
 
 [[term]]
 name = "Limp mode"
-text = "A protective mode: when the engine computer finds a serious fault, it limits power (and often engine speed or gears) so the car can still be driven gently to a workshop."
+text = "A protective mode: when the engine computer finds a serious fault, it limits power (and often engine speed or gears) so the car can still be driven gently home or to a workshop."
 
 [[term]]
 name = "Barometric pressure"
@@ -432,7 +432,7 @@ text = "Keeps fuel pressure at the right level for the injectors. On returnless 
 
 [[term]]
 name = "Direct injection"
-text = "Fuel sprayed straight into the cylinder at very high pressure, from an engine-driven pump. Efficient, but its intake valves collect carbon and its high-pressure parts need a workshop."
+text = "Fuel sprayed straight into the cylinder at very high pressure, from an engine-driven pump. Efficient, but its intake valves collect carbon, and its high-pressure side holds dangerous pressure: never open it."
 
 [[term]]
 name = "Port injection"
@@ -472,7 +472,7 @@ text = "A heater in each cylinder of a diesel that helps it start in the cold. A
 
 [[term]]
 name = "Common rail"
-text = "A modern diesel fuel system: one very high-pressure rail feeds electronically controlled injectors. Its pressures are dangerous: workshop only."
+text = "A modern diesel fuel system: one very high-pressure rail feeds electronically controlled injectors. Its pressures are dangerous: never open a high-pressure line, even soon after the engine stops."
 
 [[term]]
 name = "Catalytic converter"
@@ -633,3 +633,8 @@ text = "Calibration verification number: a checksum of the engine computer's sof
 [[term]]
 name = "Maker-specific code"
 text = "A code number whose meaning depends on the make: P1xxx, P30xx to P33xx, B1, B2, C1, C2, U1 and U2 codes. Some C0 numbers are used differently by different makes too. The maker's workshop manual has them."
+
+[[term]]
+name = "Rod knock"
+text = "A deep, regular knocking from low in the engine that speeds up with the revs: a worn big-end bearing, often after low oil pressure. Stop driving the car: it gets worse quickly. Not the same as knock (pinging)."
+

@@ -210,6 +210,9 @@ impl Outcome {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct MakeNote {
     pub make: String,
+    /// Where it comes from: `bulletin` (a maker's service bulletin), `recall`, `maker` (other
+    /// published maker information) or `owner-reports` (what owners say: unverified).
+    pub kind: String,
     #[serde(default)]
     pub models: Option<String>,
     #[serde(default)]
@@ -217,6 +220,42 @@ pub struct MakeNote {
     pub text: String,
     pub source: String,
 }
+
+/// The kinds of note, with the label shown beside each.
+pub const NOTE_KINDS: [(&str, &str); 4] = [
+    ("bulletin", "Maker bulletin"),
+    ("recall", "Recall"),
+    ("maker", "Maker information"),
+    ("owner-reports", "Owner reports, unverified"),
+];
+
+impl MakeNote {
+    pub fn kind_label(&self) -> &'static str {
+        NOTE_KINDS.iter().find(|(k, _)| *k == self.kind).map_or("Note", |(_, l)| l)
+    }
+
+    /// True for what owners say rather than what a maker or a regulator published.
+    pub fn unverified(&self) -> bool {
+        self.kind == "owner-reports"
+    }
+
+    /// "Toyota Corolla with the 1ZZ-FE engine (2003-2004)".
+    pub fn heading(&self) -> String {
+        let models = self.models.as_deref().map(|m| format!(" {m}")).unwrap_or_default();
+        let years = self.years.as_deref().map(|y| format!(" ({y})")).unwrap_or_default();
+        format!("{}{models}{years}", self.make)
+    }
+}
+
+impl Guide {
+    /// The notes for a make (all of them when the make isn't known).
+    pub fn notes_for(&self, make: Option<&str>) -> Vec<&MakeNote> {
+        self.note.iter().filter(|n| make.is_none_or(|m| n.make.eq_ignore_ascii_case(m))).collect()
+    }
+}
+
+/// Where anyone can check a car's recalls, for the notes section of every guide.
+pub const RECALL_CHECK: &str = "Recalls for any car: check its VIN or model on productsafety.gov.au (cars sold in Australia) or nhtsa.gov/recalls (cars sold in the US, which also lists makers' bulletins free under Manufacturer Communications).";
 
 /// A tool a test may need.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
@@ -514,5 +553,21 @@ mod tests {
         assert!(s.contains(&"no-start") && s.contains(&"flat-battery") && !s.contains(&"abs-wheel-speed"));
         assert!(!search("catalytic").is_empty());
         assert!(search("").is_empty());
+    }
+
+    #[test]
+    fn make_notes_say_where_they_come_from() {
+        for g in guides() {
+            for n in &g.note {
+                assert!(NOTE_KINDS.iter().any(|(k, _)| *k == n.kind), "{}: note kind '{}'", g.id, n.kind);
+                if n.unverified() {
+                    assert!(n.source.contains("unverified"), "{}: owner reports must say unverified", g.id);
+                }
+            }
+        }
+        let cat = guide("catalyst").unwrap();
+        assert_eq!(cat.notes_for(Some("Toyota")).len(), cat.note.len());
+        assert!(cat.notes_for(Some("Daihatsu")).is_empty());
+        assert_eq!(cat.notes_for(None).len(), cat.note.len());
     }
 }

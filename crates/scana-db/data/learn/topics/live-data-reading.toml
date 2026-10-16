@@ -296,7 +296,7 @@ sources = [
 id = "timing-advance"
 title = "Reading ignition timing advance"
 group = "live-data"
-aliases = ["timing advance", "ignition advance", "spark advance", "knock retard", "timing retard", "advance"]
+aliases = ["timing advance", "ignition advance", "spark advance", "knock retard", "timing retard"]
 summary = "Timing advance is how many degrees before top dead centre the spark fires; the computer pulls it back when it hears knock."
 body = [
   "The spark fires before the piston reaches the top of its stroke, so the fuel has time to burn and push down at the best moment. How early it fires is the timing advance, in degrees before top dead centre (PID 0E).",

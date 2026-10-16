@@ -325,7 +325,7 @@ sources = [
 id = "uds-security-routines"
 title = "Security access, routines and writing"
 group = "protocols"
-aliases = ["security access", "service 27", "routine control", "service 31", "service 2E", "service 2F", "reprogramming", "flashing", "request download"]
+aliases = ["security access", "service 27", "routine control", "service 31", "service 2E", "service 2F", "reprogramming", "reflashing", "flash programming", "request download"]
 summary = "These UDS services change a module: unlock it, run a routine, write data, drive an output or load software. Scana does not send them."
 body = [
   "27 security access: the module sends a seed, and the tool must return the matching key. It guards the risky services. 2E writes data, such as coding or settings. 2F takes control of an output, such as a pump or a lamp. 31 starts a routine, such as a calibration or a test.",
@@ -514,9 +514,6 @@ text = "A reply that starts with 7F and gives a reason code. The module has refu
 name = "Response pending"
 text = "Negative response code 78: the module got the request and needs more time. Wait for the real answer."
 
-[[term]]
-name = "Session"
-text = "A mode a UDS module is in: default, extended or programming. Each one allows different services."
 
 [[term]]
 name = "Security access"

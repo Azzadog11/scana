@@ -12,7 +12,7 @@ how_it_works = [
 ]
 terms = []
 safety = [
-  "Refrigerant is under high pressure and can freeze skin and eyes. Don't open the system: leave it to a licensed air conditioning technician (in Australia a refrigerant licence is required).",
+  "Refrigerant is under high pressure and can freeze skin and eyes. Don't open the refrigerant side yourself: in Australia handling refrigerant needs a licence by law, and it is under pressure. Everything electrical (fuses, relays, the pressure sensor's wiring and voltages) you can check yourself.",
   "Keep clear of the belts and the fan with the engine running.",
 ]
 sources = [
@@ -25,7 +25,7 @@ id = "leak"
 name = "Low refrigerant from a leak"
 detail = "Refrigerant slowly leaks from seals, hoses, the condenser at the front, or the compressor."
 weight = 35
-fix = "A licensed technician finds the leak (dye or a detector), repairs it, and recharges the system."
+fix = "Have the leak found (dye or a detector), repaired and the system recharged by a licensed air conditioning technician: the law requires a licence for the refrigerant work."
 cost = "medium"
 
 [[cause]]
@@ -41,7 +41,7 @@ id = "sensor"
 name = "A failed pressure sensor"
 detail = "The sensor fails and reads wrongly."
 weight = 20
-fix = "Replace the sensor (on many cars it can be changed without losing refrigerant: a technician will know)."
+fix = "Replace the sensor. On many cars it screws onto a valve, so it can be changed without losing refrigerant: the workshop manual says whether yours does."
 cost = "low"
 
 [[cause]]

@@ -14,9 +14,9 @@ how_it_works = [
 terms = ["ECU"]
 safety = [
   "Never probe, measure or test airbag circuits or connectors with a meter or test light: it can set off an airbag and cause serious injury.",
-  "Before any airbag work, a technician disconnects the battery and waits the time the workshop manual gives (often several minutes) for the system to discharge.",
+  "Before any airbag work: disconnect the battery and wait the time the workshop manual gives (often several minutes) for the system to discharge. Store a removed airbag with its cover facing up.",
   "Never put anything over the airbag covers, and keep the steering wheel airbag pointing away from you when it is out of the car.",
-  "Airbag repairs and replacement are a job for a qualified technician.",
+  "Airbags fire with explosive force. Plug and wiring checks are within reach with the steps above and the workshop manual; replacing a fired airbag or the airbag computer after a crash is best left to someone with the right tools and parts.",
 ]
 sources = [
   "SAE J2012 code structure: B0001 to B0099 are generic restraint system codes (descriptions in Scana's own words); makers add B1xxx codes",
@@ -28,7 +28,7 @@ id = "seat-plug"
 name = "A loose plug under a front seat"
 detail = "Seat airbag, pretensioner and occupant sensor plugs under the seats get knocked or pulled when seats move or are cleaned."
 weight = 30
-fix = "With the battery disconnected and the waiting time passed, a technician reseats the plug firmly and clears the code."
+fix = "With the battery disconnected and the waiting time passed, reseat the plug firmly (they often sit under the front seats), then clear the code."
 cost = "low"
 
 [[cause]]
@@ -36,7 +36,7 @@ id = "clock-spring"
 name = "A worn clock spring in the steering wheel"
 detail = "The coiled cable that connects the steering wheel airbag and buttons wears and breaks."
 weight = 25
-fix = "A technician replaces the clock spring (centred correctly)."
+fix = "Replace the clock spring, centred exactly as the workshop manual shows (a wrongly centred one breaks when the wheel turns)."
 cost = "medium"
 
 [[cause]]
@@ -44,7 +44,7 @@ id = "buckle"
 name = "A seat belt buckle or pretensioner fault"
 detail = "Buckle switches and pretensioner circuits fail or their wiring breaks."
 weight = 15
-fix = "A technician replaces the buckle or pretensioner."
+fix = "Replace the buckle or pretensioner, with the airbag safety steps (the pretensioner is explosive too)."
 cost = "medium"
 
 [[cause]]
@@ -52,7 +52,7 @@ id = "voltage"
 name = "Low battery voltage, or an old code after battery work"
 detail = "A weak battery or battery work can leave an airbag code behind."
 weight = 10
-fix = "Charge or replace the battery; a technician clears the code (many airbag computers need a scan tool to clear)."
+fix = "Charge or replace the battery, then clear the code (many airbag computers need a scan tool that reads the airbag system to clear it)."
 cost = "low"
 
 [[cause]]
@@ -60,7 +60,7 @@ id = "occupant"
 name = "The passenger seat occupant sensor"
 detail = "The sensor that tells the computer whether the passenger seat is occupied fails, or reads wrongly with objects on the seat."
 weight = 10
-fix = "A technician checks and replaces the occupant sensor."
+fix = "Check the occupant sensor's plug under the passenger seat; replace the sensor if the workshop manual's tests fail (some need a calibration afterwards)."
 cost = "medium"
 
 [[cause]]
@@ -68,7 +68,7 @@ id = "crash"
 name = "Crash damage, or a module that stored a crash"
 detail = "After a crash (even without deployment), the computer may store a crash code and need replacing or resetting."
 weight = 10
-fix = "A technician inspects the system and replaces what the workshop manual requires."
+fix = "Inspect the system and replace what the workshop manual requires after a crash: usually the fired parts, the sensors that tripped and often the airbag computer."
 cost = "high"
 
 [[test]]

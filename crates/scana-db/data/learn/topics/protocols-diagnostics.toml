@@ -1,0 +1,551 @@
+# Scana Library: Protocols, diagnostics. Researched for Scana (2026-10-16). Sources per topic.
+
+[[topic]]
+id = "obd2-overview"
+title = "OBD-II: what is standard"
+group = "protocols"
+aliases = ["OBD2", "OBD II", "EOBD", "ADR 79", "on-board diagnostics"]
+summary = "OBD-II is a set of emissions-related diagnostic rules that every modern petrol and diesel car must follow, so one tool can read many cars."
+body = [
+  "OBD-II means on-board diagnostics, second generation. Governments required it so that any workshop could check a car's emissions system with one tool. The law covers the connector, the basic live data, the fault codes and the way a tool asks for them.",
+  "It started in the USA: petrol cars from 1996, and all light vehicles by 2006. Europe's version, EOBD, applied to new petrol cars from 2001 and diesel cars from 2004. Japan has its own variant, JOBD.",
+  "Australia followed Europe through design rule ADR 79/01. Petrol cars: new models from 1 January 2005, all new cars from 1 January 2006. Diesel cars: one year later, 2006 and 2007.",
+  "The standard covers emissions only. Airbags, ABS, gearbox and body modules are not required to answer OBD-II. Makers add those with their own protocols, so Scana reads them with UDS and KWP2000 instead.",
+]
+how_to_read = [
+  "A car that is older than these dates may have a 16-pin socket and still not follow the standard. A tool that connects but gets no data is a sign of this.",
+]
+faults = [
+  "A car built just before its country's start date can have a mix: the right socket, but older signalling such as K-line. A 2006 Corolla is an example, see the K-line topic.",
+]
+more_detail = [
+  "Dates are for passenger cars and are taken from a general reference. Dates for heavier vehicles and for vans differ, and the rules were tightened later (ADR 79/02 from 2008 for new models, 2010 for all). Check the compliance plate or the workshop manual for one car.",
+  "Since 2008 every car sold in the USA must use CAN. Other markets do not have a hard cut-off, so the year alone does not tell you the protocol.",
+]
+related = ["obd-protocols", "obd-services", "pids-explained", "obd-connector", "term:OBD-II", "term:JOBD"]
+sources = [
+  "Wikipedia 'On-board diagnostics' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "obd-protocols"
+title = "The five OBD-II protocols"
+group = "protocols"
+aliases = ["OBD protocols", "J1850 PWM", "J1850 VPW", "ISO 9141-2", "ISO 14230-4", "signalling protocol", "protocol line"]
+summary = "OBD-II allows five ways to talk on the socket: two J1850 types, ISO 9141-2, ISO 14230-4 and CAN. A car uses one."
+body = [
+  "The standard lets a maker pick one of five signalling methods. They all carry the same OBD-II services, but the wires and timing differ. A tool must use the one the car speaks.",
+  "SAE J1850 PWM (41.6 kbit/s) was Ford's choice. J1850 VPW was General Motors'. ISO 9141-2 (10.4 kbit/s) was used mainly by Chrysler, European and Asian makers. ISO 14230-4 is KWP2000 on the same K-line wire. ISO 15765-4 is CAN, at 250 or 500 kbit/s.",
+  "CAN is now the norm. In the USA it is required on all cars from 2008. Scana speaks CAN only.",
+]
+how_to_read = [
+  "A generic scan tool shows a protocol line, for example 'ISO 15765-4 CAN (11 bit ID, 500 kbaud)'. That tells you the bit rate and ID length at once.",
+  "Look at the socket. CAN uses pins 6 and 14. K-line uses pin 7 (and sometimes 15). J1850 PWM uses pins 2 and 10. J1850 VPW uses pin 2 only. Pins 4 and 16 are ground and battery for all.",
+  "A fitted pin is a hint, not proof. Some sockets have extra pins for other modules. Pins 6 and 14 present with no CAN answer, and pin 7 fitted, suggests a car that uses both.",
+]
+faults = [
+  "Plugging a CAN tool into a K-line car: the tool connects to the socket but no reply ever comes. It looks like a dead engine computer but is just the wrong language.",
+]
+more_detail = [
+  "Within CAN there are four combinations in practice: 11-bit or 29-bit IDs, at 250 or 500 kbit/s. Most light cars use 500 kbit/s with 11-bit IDs. The Daihatsu Hijet (JOBD) is one of these.",
+  "A real example of a mixed year: Toyota's US bulletin T-SB-0378-08 says 1ZZ-engine Corollas from 2005 to 2007 use ISO 9141, and 2008 ones use CAN. A 2006 Corolla is therefore K-line if built early in the year and may be CAN if built late (the car's build date decides).",
+]
+related = ["obd2-overview", "k-line", "obd-on-can", "bit-rate", "obd-connector", "term:J1850"]
+sources = [
+  "Wikipedia 'On-board diagnostics' (read 2026-10-16)",
+  "Wikipedia 'ISO 9141' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "k-line"
+title = "The K-line (ISO 9141-2, KWP2000)"
+group = "protocols"
+aliases = ["K line", "K-Line", "ISO 9141", "slow init", "fast init", "5-baud init", "5 baud initialisation", "fast initialisation"]
+summary = "The K-line is a single-wire serial link on pin 7 used by older OBD-II cars at 10.4 kbaud. A CAN-only tool cannot read it."
+body = [
+  "The K-line is one wire, pin 7 of the socket, like a serial port on one line. It idles high, near battery voltage, and a device pulls it to ground to send a bit. Pin 15, the L-line, is sometimes used to wake a module.",
+  "ISO 9141-2 and ISO 14230-4 (KWP2000) share these wires. Both run at about 10.4 kbaud, much slower than CAN. A message can carry up to 255 data bytes.",
+  "A tool cannot just start talking. It must wake the engine computer first, with an initialisation. Slow (5-baud) init sends the module's address one bit at a time at 5 bits per second, then the module answers at full speed. Fast init sends a short low pulse, then a start request. Which one a car accepts depends on the car.",
+  "A CAN-only tool has no K-line driver. CAN uses a differential pair on pins 6 and 14, so the signal levels, speeds and timing all differ. To read K-line you need hardware with a K-line transceiver, such as an ELM327-style adaptor or an interface that bridges to pin 7.",
+]
+how_to_read = [
+  "If pin 7 is fitted and pins 6 and 14 are empty, expect K-line. If both are fitted, try CAN first.",
+]
+faults = [
+  "A K-line car that does not answer: wrong init type, a weak battery, or another module holding the line low. A short to ground on the wire holds all modules silent.",
+]
+more_detail = [
+  "The wire idles high through a pull-up of about 510 ohms to battery voltage. Devices use open-collector drivers, so any one device can drag the line low.",
+  "Toyota's bulletin T-SB-0378-08 puts the 2005 to 2007 1ZZ Corolla on ISO 9141, so a 2006 Corolla built before the CAN change would need a K-line tool. Scana does not read K-line: it is CAN only for now.",
+]
+related = ["obd-protocols", "kwp2000", "obd-on-can", "obd-connector", "term:K-line", "term:KWP2000"]
+sources = [
+  "Wikipedia 'ISO 9141' (read 2026-10-16)",
+  "Wikipedia 'On-board diagnostics' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "obd-on-can"
+title = "OBD-II on CAN (ISO 15765-4)"
+group = "protocols"
+aliases = ["ISO 15765-4", "7DF", "7E0", "7E8", "18DB33F1", "18DAF1", "functional address", "physical address", "OBD CAN IDs"]
+summary = "On CAN, a tool asks on ID 7DF (everyone) or 7E0 to 7E7 (one module), and modules reply on 7E8 to 7EF."
+body = [
+  "With 11-bit IDs, the tool sends a request to 7DF. Every OBD-II module that can answer does so. This is a functional request: 'whoever can answer this'.",
+  "To talk to one module, the tool uses its own request ID, 7E0 to 7E7. The module replies on its ID plus 8. The engine computer is usually 7E0 and replies on 7E8. A gearbox computer is often 7E1 and replies on 7E9.",
+  "Some vans and trucks use 29-bit IDs. The functional request is 18DB33F1. Replies come from 18DAF1xx, where xx is the module's address, for example 18DAF110. Physical requests use 18DAxxF1.",
+]
+how_to_read = [
+  "The Hijet's engine computer replies on 7E8. Seeing 7E8 and 7E9 in the Bus monitor means two modules are answering on the OBD ID range.",
+  "A frame starting with 41, 43, 47, 49 or 4A is a positive answer to services 01, 03, 07, 09 or 0A.",
+]
+faults = [
+  "No reply at all: wrong bit rate, wrong ID length, ignition off, or a K-line car. Wrong bit rate also causes CAN error frames on the bus.",
+]
+more_detail = [
+  "How a tool finds the setup: it tries 500 kbit/s first (11-bit IDs, then 29-bit), then 250 kbit/s, sending a request such as service 01 PID 00. A good answer confirms the match. Sending at the wrong rate disturbs the bus, so a careful tool listens first (listen-only).",
+  "Standard timing: a module should answer within about 50 ms. A module that needs longer says so with a 'response pending' reply (see negative responses), and the tool waits much longer, typically 5 s.",
+  "Requests are 8 bytes. Byte 0 is the length, byte 1 the service, byte 2 the PID, and the rest is padding.",
+]
+related = ["can-id", "bit-rate", "listen-only", "iso-tp", "gateways-addressing", "negative-responses", "term:Functional request", "term:CAN"]
+sources = [
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+  "Wikipedia 'OBD-II PIDs' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "iso-tp"
+title = "ISO-TP: long messages on CAN"
+group = "protocols"
+aliases = ["ISO-TP", "ISO 15765-2", "multi-frame", "multiframe", "single frame", "first frame", "consecutive frame", "flow control", "block size", "separation time", "STmin"]
+summary = "ISO-TP splits a message longer than 7 bytes into several CAN frames, with the receiver pacing the sender through a flow control frame."
+body = [
+  "A CAN frame holds at most 8 bytes. ISO-TP is a small envelope that lets a message be longer, up to 4095 bytes. The first nibble of the first byte says which frame type it is.",
+  "Single frame (0): one frame, up to 7 data bytes. Byte 0 is 0 and the length, such as 02 for two bytes. First frame (1): starts a long message and gives its total length, then the first 6 bytes. Consecutive frame (2): the rest, numbered 1 to F and then round to 0. Flow control (3): sent by the receiver.",
+  "Flow control says 'go' (30), 'wait' (31) or 'overflow' (32). It also gives a block size, how many frames to send before pausing (0 means all), and a separation time, the gap between frames in milliseconds.",
+]
+how_to_read = [
+  "The VIN is the classic long message. Asked with service 09 PID 02, the car sends a first frame such as 10 14 49 02 01 ..., then waits for flow control, then sends consecutive frames 21, 22, 23.",
+  "Frames are often padded to 8 bytes with a fixed filler such as 00, 55 or AA. The filler is not data.",
+]
+faults = [
+  "A multi-frame reply that stops after the first frame: the tool never sent flow control, or another tool on the bus did and changed the pace. See sharing the bus.",
+]
+more_detail = [
+  "Separation time values 0 to 127 mean milliseconds. F1 to F9 mean 100 to 900 microseconds. Byte layout: 30, block size, separation time.",
+  "Some systems add an address byte before the ISO-TP byte (extended addressing). Toyota's gateway uses this, see gateways and addressing.",
+]
+related = ["can-frame", "obd-on-can", "vin", "gateways-addressing", "sharing-the-bus", "term:ISO-TP"]
+sources = [
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "obd-services"
+title = "OBD-II services 01 to 0A"
+group = "protocols"
+aliases = ["OBD services", "OBD modes", "service 01", "service 02", "service 03", "service 04", "service 06", "service 07", "service 09", "mode 01", "mode 09"]
+summary = "OBD-II has ten standard services, from live data (01) to permanent codes (0A). A reply uses the service number plus 40."
+body = [
+  "A service (or 'mode') is a type of request. 01: live data. 02: freeze frame, the snapshot taken when a fault was logged. 03: stored fault codes. 04: clear codes and stored data. 05: oxygen sensor test results (older cars; not used on CAN). 06: results of the car's self-tests, such as misfire counts. 07: pending codes. 08: control a part, such as starting the EVAP leak test. 09: vehicle information, such as the VIN. 0A: permanent codes.",
+  "The reply rule: add 40 to the service. Service 01 is answered by 41, 09 by 49. A negative reply starts with 7F instead.",
+  "Cars need not support every service. Makers may also add their own. Scana shows what the car says it supports.",
+]
+how_to_read = [
+  "Live data shows on Live data and Graphs. Codes and freeze frames on Fault codes. Mode 06 on Test results. Mode 09 feeds the VIN and calibration IDs on Modules.",
+  "Service 04 changes the car's memory (it erases freeze frames and resets readiness). Scana treats it as safety level 1: it asks first and saves a report.",
+]
+faults = [
+  "A car that answers 01 and 03 but not 06 is normal. Not every maker implements every service.",
+]
+more_detail = [
+  "On CAN, service 06 holds the results that service 05 used to hold. Service 08 is rarely supported, and Scana does not send it.",
+]
+related = ["pids-explained", "dtc-format", "permanent-codes", "vin", "mode06-reading", "freeze-frame-reading", "why-read-only", "page:codes", "page:tests", "term:Mode 06"]
+sources = [
+  "Wikipedia 'OBD-II PIDs' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pids-explained"
+title = "PIDs: numbers for live values"
+group = "protocols"
+aliases = ["PIDs", "parameter ID", "supported PIDs", "PID 00", "PID 20", "PID 40", "PID formula"]
+summary = "A PID is a one-byte number naming one live value; the car lists the PIDs it supports in bitmasks at 00, 20, 40."
+body = [
+  "In service 01, each live value has a PID, such as 0C for engine speed. The tool sends 01 0C, and the car replies 41 0C followed by data bytes called A, B and so on.",
+  "A formula turns the bytes into the value. Engine speed is (256 x A + B) / 4 rpm. Coolant temperature is A minus 40, in degrees C. Throttle position is A x 100 / 255 per cent. Mass airflow is (256 x A + B) / 100 g/s. Fuel trim is A x 100 / 128 minus 100, per cent.",
+  "PID 00 does not return a value. It returns four bytes: 32 bits, one for each of PIDs 01 to 20. A 1 means supported. PID 20 covers 21 to 40, PID 40 covers 41 to 60, and so on. The last bit says whether the next list exists.",
+]
+how_to_read = [
+  "Example: BE 1F A8 13 means PIDs 01, 03 to 07, 0C to 0F, 11, 13, 15, 1C, 1F and 20 are supported (the last bit shows PID 20's list exists).",
+]
+faults = [
+  "A car lists only the PIDs its maker built. The same engine in two markets may differ. A missing PID is normal, not a fault.",
+]
+more_detail = [
+  "Some PIDs hold bit flags rather than a number, such as PID 01 (the MIL, code count and readiness). PIDs 0 to 255 exist per service, but only a part is standard. Makers' own live data uses other identifiers (see UDS reading).",
+]
+related = ["obd-services", "reading-live-data", "update-rates", "obd-on-can", "term:PID"]
+sources = [
+  "Wikipedia 'OBD-II PIDs' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "dtc-format"
+title = "How fault codes are built"
+group = "protocols"
+aliases = ["DTC format", "code format", "fault code format", "generic code", "P0 code", "P1 code", "U code", "B code", "C code"]
+summary = "A fault code is a letter and four characters: the letter names the system, the first digit says generic or the maker's own."
+body = [
+  "In P0301, the letter is the system. P: powertrain (engine and gearbox). C: chassis (brakes, steering). B: body (airbags, doors). U: network (module communication).",
+  "The first digit: 0 is a generic code, the same on every car. 1 is the maker's own code, with its own meaning. 2 and 3 are mixed: they depend on the letter and the code range.",
+  "The second digit is the system within that group. For P codes: 1 fuel and air, 2 injector circuit, 3 ignition and misfires, 4 emission controls, 5 idle and speed, 6 computer and outputs, 7 to 9 gearbox. The last two digits pick the exact fault, such as 01 for cylinder 1.",
+  "On the wire, a code is two bytes. The top two bits give the letter, the next two the first digit, and the rest four digits in hex.",
+]
+how_to_read = [
+  "Maker-specific codes (P1xxx) mean different things on different cars. Scana shows what it knows for the make, and says so when it does not.",
+]
+faults = [
+  "A U code means modules could not talk, not that a part failed. Look for a power, ground or bus fault before replacing anything.",
+]
+more_detail = [
+  "UDS and KWP2000 modules store codes in a longer form: three bytes and a status byte. The third byte, the failure type, says how it failed, for example 'circuit short to ground' or 'signal above maximum'. The same base code with a different failure type is a different fault.",
+]
+related = ["permanent-codes", "uds-reading", "obd-services", "page:codes", "term:DTC", "term:Failure type", "term:Maker-specific code"]
+sources = [
+  "Wikipedia 'OBD-II PIDs' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "permanent-codes"
+title = "Permanent codes"
+group = "protocols"
+aliases = ["permanent code", "permanent DTC", "service 0A", "permanent DTCs"]
+summary = "A permanent code is a fault the car keeps even after you clear codes. It goes only when the car re-tests and passes."
+body = [
+  "Clearing codes with a tool used to wipe everything, so a car could pass an inspection with the fault still there. Permanent codes stop this. They live in the car's memory and a scan tool cannot clear them.",
+  "The code clears itself. The car runs the matching monitor on later drives, and if it passes, the code is removed. Disconnecting the battery does not remove it.",
+  "The rule began in the USA, with new cars from about the 2010 model year (unverified exact phase-in). Service 0A reads them. Not every car outside that market supports it.",
+]
+how_to_read = [
+  "A permanent code with nothing else (no stored or pending code) usually means the fault was fixed and cleared, but the car has not yet proved it. Drive normally and check again.",
+]
+faults = [
+  "A permanent code that returns after a drive: the fault is still there.",
+]
+related = ["dtc-format", "obd-services", "readiness-monitors", "page:codes", "term:Permanent code", "term:Drive cycle"]
+sources = [
+  "Wikipedia 'OBD-II PIDs' (service 0A listing) (read 2026-10-16)",
+  "Wikipedia 'On-board diagnostics' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "vin"
+title = "The VIN"
+group = "protocols"
+aliases = ["VIN", "vehicle identification number", "chassis number"]
+summary = "The VIN is a 17-character code unique to each car. Positions 1 to 3 name the maker and position 10 often gives the model year."
+body = [
+  "A VIN has 17 characters: digits and letters, but never I, O or Q. Positions 1 to 3 are the world maker code (WMI). Positions 4 to 9 describe the vehicle (VDS), and the maker chooses how. Positions 10 to 17 identify the car (VIS).",
+  "Position 9 is a check digit. It is required in North America and China, not in Europe. Position 10 is the model year in North America. Position 11 is the plant, and the rest is the serial number. Outside North America these positions are used differently.",
+  "A tool reads it with service 09 PID 02. The reply is long, so it uses ISO-TP: the data is 17 ASCII characters.",
+]
+how_to_read = [
+  "Compare the VIN on Modules with the one on the car. A mismatch can mean a replaced engine computer.",
+  "If Scana shows no VIN, the car may not report it. Many older cars and some other-market cars do not, and that is normal.",
+]
+more_detail = [
+  "The North American check digit is a weighted sum of all positions modulo 11, with a remainder of 10 written as X. A correct digit does not prove the VIN is real: about 1 in 11 wrong VINs still pass.",
+  "The same VIN also appears in UDS as data identifier F190.",
+]
+related = ["iso-tp", "obd-services", "uds-reading", "term:VIN", "page:modules"]
+sources = [
+  "Wikipedia 'Vehicle identification number' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "uds"
+title = "UDS (ISO 14229)"
+group = "protocols"
+aliases = ["UDS", "unified diagnostic services", "ISO 14229", "diagnostic session", "extended session", "default session", "programming session"]
+summary = "UDS is the diagnostic language most modern modules speak, with services numbered by byte and sessions that unlock more actions."
+body = [
+  "UDS is a request and reply protocol. The tool sends a service number and data, and the module answers. It runs over ISO-TP on CAN. Makers use it for airbags, ABS, gearbox and more, beyond OBD-II.",
+  "Main services: 10 session control, 11 reset, 14 clear codes, 19 read codes, 22 read data, 27 security access, 28 communication control, 2E write data, 2F control an output, 31 routines, 34 to 37 download and transfer, 3E tester present, 85 control code setting.",
+  "A positive reply is the service plus 40: a 22 request gets 62. A negative reply is 7F, the service, and a reason code.",
+]
+how_to_read = [
+  "A module starts in the default session. It offers more in the extended session and the most (including reprogramming) in the programming session. Scana stays in the default session.",
+  "A session ends by a timeout if the tool stops sending tester present. The module then drops back to default.",
+]
+more_detail = [
+  "Which services and sessions a module supports is the maker's choice. Only the default session must exist.",
+]
+related = ["uds-reading", "uds-security-routines", "negative-responses", "tester-present", "iso-tp", "why-read-only", "term:UDS", "page:modules", "page:explorer"]
+sources = [
+  "Wikipedia 'Unified Diagnostic Services' (read 2026-10-16)",
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "uds-reading"
+title = "Reading with UDS"
+group = "protocols"
+aliases = ["service 22", "service 19", "read data by identifier", "read DTC information", "status byte", "DTC status", "ECU identification"]
+summary = "Scana reads a module with UDS service 22 (data by identifier) and 19 (fault codes with status). Both only read."
+body = [
+  "Service 22 reads a value by a two-byte data identifier (DID). The tool sends 22 F1 90 and the module replies 62 F1 90 plus the data. DIDs F100 to F1FF are standard for identity data, and other ranges belong to the maker.",
+  "Common identity DIDs: F187 spare part number, F18C ECU serial number, F190 VIN, F189 software version, F191 hardware number. A module may support only some.",
+  "Service 19 reads fault codes. Sub-function 02 asks for codes matching a status mask. Each code is three bytes (the third is the failure type) plus a status byte.",
+]
+how_to_read = [
+  "Status byte bits, low to high: 0 test failed now, 1 failed this drive, 2 pending, 3 confirmed, 4 not tested since clear, 5 failed since clear, 6 not tested this drive, 7 warning lamp requested.",
+  "A code with bit 3 set is stored. Only bit 2 set means pending: the car has seen it once.",
+]
+more_detail = [
+  "Bits 0 to 7 above follow the commonly published UDS layout. The tables in the standard are copyrighted and were not read directly (unverified against the standard).",
+  "Scana lists these under Modules and Data explorer. Read requests change nothing in the module.",
+]
+related = ["uds", "dtc-format", "vin", "negative-responses", "why-read-only", "term:Data identifier", "term:Failure type", "page:modules", "page:explorer"]
+sources = [
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+  "Wikipedia 'Unified Diagnostic Services' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "uds-security-routines"
+title = "Security access, routines and writing"
+group = "protocols"
+aliases = ["security access", "service 27", "routine control", "service 31", "service 2E", "service 2F", "reprogramming", "flashing", "request download"]
+summary = "These UDS services change a module: unlock it, run a routine, write data, drive an output or load software. Scana does not send them."
+body = [
+  "27 security access: the module sends a seed, and the tool must return the matching key. It guards the risky services. 2E writes data, such as coding or settings. 2F takes control of an output, such as a pump or a lamp. 31 starts a routine, such as a calibration or a test.",
+  "34 to 37 load new software: request download, transfer data, and exit. This is reprogramming, or flashing.",
+  "These can change or damage a module. A write at the wrong moment, or loading the wrong software, can leave a module dead (bricked). On an airbag module or an immobiliser, a bad write can disable the safety system or lock the car.",
+]
+how_to_read = [
+  "Scana's safety rule: reads are allowed. Clearing codes needs confirmation. Programming, security access and writing are never sent.",
+]
+related = ["uds", "why-read-only", "negative-responses", "tester-present", "term:Reflash", "term:Immobiliser"]
+sources = [
+  "Wikipedia 'Unified Diagnostic Services' (read 2026-10-16)",
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "kwp2000"
+title = "KWP2000 on CAN"
+group = "protocols"
+aliases = ["KWP2000", "KWP 2000", "keyword protocol", "service 1A", "service 21", "read data by local identifier", "local identifiers"]
+summary = "KWP2000 is the older cousin of UDS. It was born on the K-line, and many makers still use it over CAN for enhanced diagnostics."
+body = [
+  "KWP2000 (ISO 14230) was first made for the K-line. Later, makers put the same services on CAN, over ISO-TP. Toyota-family cars use it for engine-computer enhanced data, among others.",
+  "The shape is like UDS. A positive reply is the service plus 40. A negative reply starts with 7F. But the services have different numbers: 1A reads ECU identification, 21 reads data by a one-byte local identifier, 18 reads codes by status, 17 reads the status of one code, and 3E is tester present.",
+  "A local identifier is a one-byte number the maker chose for a block of data. Each maker's list is private, so Scana uses lists that come from public documents.",
+]
+how_to_read = [
+  "If a module answers a UDS request with a negative reply for 'service not supported' (11), it may speak KWP2000 instead.",
+]
+related = ["uds", "k-line", "tester-present", "negative-responses", "gateways-addressing", "term:KWP2000", "term:Local identifier"]
+sources = [
+  "Wikipedia 'ISO 9141' (KWP2000 section) (read 2026-10-16)",
+  "Wikipedia 'Unified Diagnostic Services' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "negative-responses"
+title = "Negative responses"
+group = "protocols"
+aliases = ["negative response", "7F", "NRC", "response pending", "service not supported", "conditions not correct"]
+summary = "A negative response starts with 7F, repeats the service, and ends with a code that says why the module said no."
+body = [
+  "When a module will not do a request, it replies 7F, the service number, and a reason code (NRC). For example, 7F 22 31 means: to your 22 request, the answer is 'out of range'. It is a polite refusal, not a fault.",
+  "Common codes: 11 service not supported. 12 sub-function not supported. 13 wrong length or format. 22 conditions not correct, for example the engine is running. 31 request out of range (that identifier does not exist). 33 security access denied. 35 invalid key. 78 request received, response pending.",
+]
+how_to_read = [
+  "11, 12 and 31 on a read mean the module does not have that item. Ignore them: it is how Scana learns what a module offers.",
+  "22 means try again in other conditions, such as key on, engine off.",
+  "33 means the item is locked. Scana will not try to unlock it.",
+  "78 means wait. The module is busy, and the real answer will come, often within seconds.",
+]
+related = ["uds", "kwp2000", "obd-on-can", "tester-present", "uds-security-routines"]
+sources = [
+  "Wikipedia 'Unified Diagnostic Services' (read 2026-10-16)",
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "gateways-addressing"
+title = "Gateways and addressing"
+group = "protocols"
+aliases = ["gateway ECU", "central gateway", "extended addressing", "address byte", "normal fixed addressing", "physical request", "750 gateway"]
+summary = "Some cars put a gateway between the OBD socket and the modules. A request then needs the right IDs, and sometimes an address byte."
+body = [
+  "A physical request goes to one module. A functional request, such as 7DF, goes to all that listen. OBD-II uses both. Other modules (airbags, ABS) usually answer only physical requests.",
+  "On a gateway car, the socket sees only the gateway. The tool names the target module in the frame. In extended addressing, the first data byte is the target's address, and the ISO-TP byte follows it. This leaves 6 bytes for data per frame, not 7.",
+  "Toyota-family cars use this with a gateway ID of 750. The first byte picks the module (unverified detail; replies on 758). In 29-bit normal fixed addressing, the target and sender addresses sit inside the 29-bit ID instead.",
+]
+how_to_read = [
+  "If a module only shows up in Modules after Scana scans with address bytes, the car uses extended addressing.",
+]
+faults = [
+  "Wrong address byte: no reply, or a reply from a different module. Scana's discovery sends only gentle read requests.",
+]
+related = ["iso-tp", "obd-on-can", "can-id", "kwp2000", "term:Gateway", "term:Functional request", "page:modules"]
+sources = [
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+  "Wikipedia 'OBD-II PIDs' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "tester-present"
+title = "Tester present and session timeouts"
+group = "protocols"
+aliases = ["tester present", "service 3E", "keep-alive", "session timeout", "S3 timer"]
+summary = "Tester present (3E) is a tiny message that tells a module the tool is still there, so it stays out of its default session."
+body = [
+  "A module in an extended session starts a timer. If it hears nothing from the tool for a few seconds, it drops back to the default session. Typical value: about 5 seconds (unverified; the maker sets it).",
+  "Tester present resets that timer. The tool sends 3E 00, and the module replies 7E 00. Some tools send 3E 80 which asks for no reply.",
+  "Scana stays in the default session for reads, which has no timer. It uses 3E only to keep a link alive while it is working, and never to hold a changed state.",
+]
+how_to_read = [
+  "If a read that worked a moment ago now gives a refusal, the session may have timed out. Starting it again fixes it.",
+]
+related = ["uds", "kwp2000", "negative-responses", "sharing-the-bus", "term:Tester present"]
+sources = [
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+  "Wikipedia 'Unified Diagnostic Services' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "j1939"
+title = "J1939: trucks, buses and machinery"
+group = "protocols"
+aliases = ["J1939", "SAE J1939", "PGN", "SPN", "heavy vehicle CAN", "parameter group number"]
+summary = "J1939 is the CAN protocol for trucks, buses and machinery: 29-bit IDs at 250 or 500 kbit/s, not spoken by car OBD tools."
+body = [
+  "J1939 runs on CAN with 29-bit IDs. Its bit rate is typically 250 kbit/s, and 500 kbit/s in newer set-ups. Trucks, buses, farm and building machinery, and boats use it, through a 9-pin round connector.",
+  "The 29-bit ID holds a 3-bit priority, an 18-bit parameter group number (PGN), and the sender's 8-bit address. A PGN names a message. A suspect parameter number (SPN) names one value inside it, such as engine speed.",
+  "Modules are not fixed to addresses: they claim them at start-up. Most messages are broadcast without being asked, instead of the ask-and-answer way OBD-II works.",
+]
+how_to_read = [
+  "A light-vehicle tool does not decode J1939. Its OBD requests use other IDs. Some heavy vans do use 29-bit OBD IDs (18DB33F1), which look similar but are OBD-II.",
+]
+related = ["can-id", "obd-on-can", "bit-rate", "can-bus", "other-networks"]
+sources = [
+  "CSS Electronics 'J1939 explained: a simple intro' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "sharing-the-bus"
+title = "Sharing the OBD port with another tester"
+group = "protocols"
+aliases = ["shared bus", "sharing the bus", "OBD splitter", "dash display", "second tester", "polite polling"]
+summary = "Other devices may use the OBD port. Replies can be meant for someone else, and Scana polls gently so it does not disturb them."
+body = [
+  "The OBD port is a shared CAN bus. A dash display or splitter may be asking the engine computer at the same time. Every reply goes on the bus, so Scana sees replies to other tools' requests.",
+  "Two problems follow. First, Scana must check a reply's data matches its own request. Second, a multi-frame reply can be interrupted: if another tool sends flow control, the frames come at its pace, and the gaps or the wrong separation time can confuse the receiver.",
+  "Scana polls politely. It sends one request, waits for the answer, then moves on. With another tester on the bus it leaves at least 100 ms between requests and asks only for what fits a one-frame reply, which the engine computer can't cut off.",
+]
+how_to_read = [
+  "If the Bus monitor shows requests that Scana did not send, another tester is present.",
+  "Odd, repeated gaps in live data can mean another tool is using the bus at the same time.",
+]
+faults = [
+  "A cheap splitter can load the bus or add a loose contact. Unplug the second device to test.",
+]
+related = ["iso-tp", "obd-on-can", "bus-load", "update-rates", "reading-bus-monitor", "page:monitor"]
+sources = [
+  "CSS Electronics 'UDS protocol tutorial' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "why-read-only"
+title = "Why reading is safe and writing is not"
+group = "protocols"
+aliases = ["read-only", "read only", "safety level", "safety levels", "safety model", "bricked module"]
+summary = "A read request changes nothing in a module. Writes, routines and reprogramming can, and a mistake can disable airbags or lock the car."
+body = [
+  "A read is a question: 'what is the value?'. The module answers and keeps its state. Reading live data, codes, identity data and freeze frames leaves nothing different.",
+  "Writing, running routines and reprogramming change the module. Mistakes can brick it, change airbag or ABS behaviour, or lock out an immobiliser key. Repair needs a new module, and sometimes the maker's software.",
+  "Scana has levels. Level 0: read only, the default. Level 1: clear codes, with a confirmation, a saved report and a check that the engine is off. Level 2 (planned, for actuator tests and routines from known sources): extra confirmation and checks. Never: programming, security access, writing data and changing communication.",
+]
+how_to_read = [
+  "Clearing codes is not harmless. It also erases freeze frames and resets readiness, so Scana asks first.",
+]
+related = ["uds-security-routines", "uds", "obd-services", "permanent-codes", "term:Reflash", "term:Immobiliser"]
+sources = [
+  "Scana design notes, section 11 'Safety model' (project document; read 2026-10-16)",
+  "Wikipedia 'Unified Diagnostic Services' (read 2026-10-16)",
+]
+
+[[term]]
+name = "Functional address"
+text = "A request ID that goes to every module that can answer, such as 7DF, instead of one module."
+
+[[term]]
+name = "Physical address"
+text = "A request ID that goes to one module only, such as 7E0 for the engine computer."
+
+[[term]]
+name = "Flow control"
+text = "An ISO-TP frame sent by the receiver that tells the sender how many frames to send and how fast."
+
+[[term]]
+name = "Separation time"
+text = "The gap the receiver asks for between consecutive ISO-TP frames, in milliseconds."
+
+[[term]]
+name = "Negative response"
+text = "A reply that starts with 7F and gives a reason code. The module has refused the request."
+
+[[term]]
+name = "Response pending"
+text = "Negative response code 78: the module got the request and needs more time. Wait for the real answer."
+
+[[term]]
+name = "Session"
+text = "A mode a UDS module is in: default, extended or programming. Each one allows different services."
+
+[[term]]
+name = "Security access"
+text = "UDS service 27. The module sends a seed and the tool must return a key before risky actions are allowed."
+
+[[term]]
+name = "PGN"
+text = "Parameter group number: the 18-bit part of a J1939 ID that names a message."
+
+[[term]]
+name = "SPN"
+text = "Suspect parameter number: names one value inside a J1939 message, such as engine speed."
+
+[[term]]
+name = "DID"
+text = "Data identifier: a two-byte number that names one item a UDS module can report."
+
+[[term]]
+name = "WMI"
+text = "World manufacturer identifier: the first three characters of a VIN. They name the maker."
+
+[[term]]
+name = "Extended addressing"
+text = "An ISO-TP form where the first data byte names the target module. Used behind some gateways."
+
+[[term]]
+name = "Initialisation"
+text = "The wake-up step a K-line tool must do before it can talk to a module. Slow (5-baud) or fast."
+
+[[term]]
+name = "Bricked"
+text = "A module that no longer starts or answers after a failed write or reprogramming."

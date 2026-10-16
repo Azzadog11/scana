@@ -105,7 +105,7 @@ impl ScanaApp {
                 && n <= 4096
                 && (self.explore_kind == DataKind::Did || range.is_some_and(|(a, b)| a.max(b) <= 0xFF));
             if ui
-                .add_enabled(ok && !busy, egui::Button::new(RichText::new("Scan").strong()).fill(pal.accent))
+                .add_enabled(ok && !busy, crate::theme::accent_button(&pal, "Scan"))
                 .on_hover_text("Ask for each ID in the range once")
                 .clicked()
                 && let Some((from, to)) = range

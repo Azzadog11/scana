@@ -8,6 +8,7 @@
 //! ```
 
 mod app;
+mod assets;
 mod chart;
 mod names;
 mod pages;
@@ -15,6 +16,7 @@ mod screenshot;
 mod settings;
 mod state;
 mod theme;
+mod widgets;
 
 use app::ScanaApp;
 use scana_core::recorder;

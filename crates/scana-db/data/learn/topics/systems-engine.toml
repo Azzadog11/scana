@@ -1,0 +1,891 @@
+# Scana Library: Systems, engine management. Researched for Scana (2026-10-16). Sources per topic.
+
+[[topic]]
+id = "engine-management"
+title = "Engine management"
+group = "systems"
+aliases = ["engine management", "engine control", "engine control system", "adaptations", "learned values", "limp-home", "limp home"]
+summary = "The engine computer reads sensors, decides how much fuel and spark to use, and drives actuators, many times a second."
+body = [
+  "The engine computer is the brain of the engine. It reads sensors for air, speed, temperature and oxygen. It then decides how much fuel to inject and when to fire the spark.",
+  "Most of the time it works in a loop. It reads, calculates, acts, then checks the result with the oxygen sensors and corrects. This is closed loop. The corrections show up as fuel trim.",
+  "The computer also learns. It stores small corrections (adaptations) for wear and dirt, such as fuel trim, idle speed and throttle position. A flat battery or a code clear can erase them on many cars, so the engine may idle roughly for a few minutes afterwards.",
+  "If a vital sensor fails, the computer swaps in a safe default and may limit power. This is limp mode. It lights the check engine lamp and stores a code.",
+]
+how_to_read = [
+  "Live data shows what the computer sees (sensor values) and some of what it commands (injector time, spark timing, throttle target). Compare the two to find a fault.",
+  "Fuel trim near 0 percent means the computer has needed little correction. Large or growing trim means something is changing the air or fuel.",
+  "A value that sits at one fixed number while the engine warms up or changes load can mean the computer has stopped trusting that sensor.",
+]
+parts = [
+  "Sensors: measure air, crank and cam position, temperatures, throttle, pedal, oxygen and knock.",
+  "Engine computer: runs the maps and rules, and stores codes and learned values.",
+  "Actuators: injectors, ignition coils, throttle motor, idle and purge valves, VVT valves, wastegate solenoid.",
+  "Relays and power supply: feed the computer and heavy loads such as the fuel pump.",
+]
+faults = [
+  "A failed sensor: a code for that circuit, a default value in live data, and often a worse running engine.",
+  "Open loop stuck on: fuel trim stops moving and the engine runs rich or lean without correction.",
+  "Learned values lost after a battery disconnect or code clear (on many cars): rough idle or hesitation that clears after a short drive.",
+  "Low or noisy supply voltage: odd codes from several sensors at once.",
+]
+more_detail = [
+  "The computer holds maps: tables of fuel and spark against load and speed. It reads a value from the table, then adds corrections for temperature, oxygen sensor feedback and knock. Load comes from a MAF sensor, or from a MAP sensor and engine speed in a speed-density system.",
+  "Short-term fuel trim is a fast correction. Long-term fuel trim is a slow one that the computer keeps in memory. The computer also runs monitors that test its own sensors and actuators while you drive. These give the readiness status.",
+]
+related = ["four-stroke", "sensor-signals", "actuators", "closed-loop", "fuel-trim", "term:Limp mode", "term:Closed loop", "page:live", "page:codes"]
+sources = [
+  "aa1car.com, 'Computer Engine Controls Explained' (read 2026-10-16)",
+  "Wikipedia, 'Engine control unit' (read 2026-10-16)",
+  "aa1car.com, 'How Electronic Fuel Injection Works' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "four-stroke"
+title = "How a petrol engine works"
+group = "systems"
+aliases = ["four-stroke", "four stroke", "four-stroke cycle", "combustion cycle", "intake stroke", "power stroke"]
+summary = "Each cylinder repeats four strokes: intake, compression, power and exhaust. The engine computer times fuel and spark to them."
+body = [
+  "A piston moves up and down in a cylinder. One full cycle takes four strokes and two turns of the crankshaft. Each cylinder makes power on one stroke in four.",
+  "Intake: the piston goes down and the intake valve opens. Air, and in a port-injected engine fuel too, flows in. Compression: both valves close and the piston squeezes the mixture.",
+  "Power: the spark plug fires near the top of the stroke. The burning gas pushes the piston down. Exhaust: the exhaust valve opens and the piston pushes the burnt gas out.",
+  "The camshaft opens the valves, and it turns at half the speed of the crankshaft. That is why the computer needs a cam sensor as well as a crank sensor.",
+]
+how_to_read = [
+  "Engine speed (RPM) counts crankshaft turns. A four-cylinder engine fires twice per turn, so the firing rate is RPM divided by 30 per second.",
+  "Timing advance shows how many degrees before top dead centre the spark fires. In normal running it is typically between about 10 and 40 degrees, and it rises with engine speed.",
+]
+parts = [
+  "Piston and cylinder: the piston squeezes the mixture and takes the push of the burn.",
+  "Intake and exhaust valves: open and close the cylinder to air in and gas out.",
+  "Camshaft: opens the valves at the right time; turns once per two crank turns.",
+  "Crankshaft: turns the up-and-down motion into rotation.",
+  "Spark plug and injector: the computer times these to each stroke.",
+]
+faults = [
+  "Low compression (worn rings, burnt valve, bad head gasket): a misfire on one cylinder and weak power.",
+  "Wrong valve timing (stretched chain, slipped belt): codes for cam and crank correlation, poor running or no start.",
+  "Late or missing spark or fuel in one cylinder: misfire codes P0301 and up, with rough running.",
+]
+more_detail = [
+  "Fuel is lit before the piston reaches the top, so that peak pressure comes just after top dead centre. This lead is the spark advance. More load needs less advance to avoid knock. The computer adjusts it from maps and from the knock sensor.",
+  "Valve overlap is a short time when both valves are slightly open. It can help clear exhaust at high speed but can make idle rough. Variable valve timing can change the overlap (general knowledge; unverified).",
+]
+related = ["engine-management", "ignition-system", "fuel-injectors", "crank-sensor", "cam-sensor", "vvt", "timing-advance", "pattern-misfire", "term:TDC", "term:Compression"]
+sources = [
+  "Wikipedia, 'Four-stroke engine' (read 2026-10-16)",
+  "NASA Glenn Research Center, 'Four Stroke Internal Combustion Engine' (read 2026-10-16)",
+  "Wikipedia, 'Engine knocking' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "fuel-system"
+title = "Fuel system"
+group = "systems"
+aliases = ["fuel system", "fuel filter", "returnless fuel system", "return fuel system"]
+summary = "The fuel system carries fuel from the tank to the injectors at a steady pressure, so the engine computer can meter it by time."
+body = [
+  "An electric pump in the tank pushes fuel through a filter and along a line to the fuel rail. The rail feeds the injectors. The computer sets how much fuel enters the engine by choosing how long each injector stays open.",
+  "That only works if the pressure is steady. A regulator holds it. In a return system, the regulator sits at the rail and sends extra fuel back to the tank. In a returnless system, the pump speed is changed or a regulator sits in the tank, so no line returns.",
+  "Typical pressure for port injection is about 3 to 6 bar (300 to 600 kPa); Bosch gives about 6 bar for its current port system. Direct injection adds a second, mechanical high-pressure pump on the engine. Its rail runs from about 50 bar up to 350 bar on some systems.",
+]
+how_to_read = [
+  "Some cars report fuel rail pressure in Live data. Port-injected values are often a few hundred kPa; direct-injected ones are in the thousands of kPa. Many cars report nothing, so use a gauge.",
+  "Fuel trim that is near zero at idle but climbs at higher RPM points to low fuel pressure, a weak pump, a dirty MAF or a blocked converter.",
+]
+parts = [
+  "Fuel tank: holds fuel and the pump module with its float.",
+  "Low-pressure pump: electric, in the tank. The computer switches it by a relay or a control module.",
+  "Fuel filter: catches dirt. Many are inside the tank and not serviced.",
+  "Pressure regulator: holds rail pressure steady.",
+  "Fuel rail: a tube that feeds all the injectors.",
+  "High-pressure pump and rail pressure sensor: direct injection only.",
+]
+faults = [
+  "Weak pump or blocked filter: hesitation or stalling under load, positive fuel trim, lean codes P0171 and P0174.",
+  "Dead pump or relay: cranks but does not start, with no fuel pressure.",
+  "Stuck regulator: rich with high pressure, or lean with low pressure.",
+  "Direct injection: P0087 (rail pressure too low) and a power cut are typical.",
+]
+more_detail = [
+  "On many cars the pump runs for a second or two at key on to build rail pressure (check the workshop manual). A missing crank signal can also stop the pump from running, which is one reason a crank sensor fault gives a no-start.",
+  "In a direct-injection engine the computer checks rail pressure with the rail pressure sensor and adjusts the high-pressure pump to match a target that changes with load and speed.",
+]
+related = ["fuel-injectors", "pattern-fuel-delivery", "fuel-trim", "actuators", "term:Fuel pump", "term:Fuel rail", "term:Fuel pressure regulator", "term:Direct injection", "term:Port injection"]
+sources = [
+  "Bosch Mobility, 'Gasoline port fuel injection' (read 2026-10-16)",
+  "Bosch Mobility, 'Gasoline direct injection' (read 2026-10-16)",
+  "aa1car.com, 'Diagnosing Returnless Fuel Injection Systems' (read 2026-10-16)",
+  "aa1car.com, 'How Electronic Fuel Injection Works' (read 2026-10-16)",
+  "aa1car.com, 'Basics of Crankshaft & Camshaft Position Sensors' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "fuel-injectors"
+title = "Fuel injectors"
+group = "systems"
+aliases = ["fuel injectors", "injector", "injectors", "injector pulse width", "pulse width", "injection pulse"]
+summary = "A fuel injector is an electric valve that sprays fuel into the engine. The computer sets the amount by how long it holds it open."
+body = [
+  "An injector is a small solenoid valve. When the computer gives it current, a pin lifts and fuel sprays out under pressure. When the current stops, a spring closes it.",
+  "The amount of fuel depends on how long the injector stays open: the pulse width. The pulse is a few milliseconds long at idle and grows under load (typical; it varies by engine). The engine computer works out the time from air flow, temperature and oxygen sensor feedback.",
+  "A port injector sprays into the intake port, just before the valve. A direct injector sprays into the cylinder against rail pressure of 50 bar or more.",
+]
+how_to_read = [
+  "Injector pulse width is not a standard PID. Some cars show it in the data explorer. A pulse that is long at idle can mean low pressure or a clogged injector.",
+  "Compare the cylinders. Fuel trim does not tell you which injector is at fault, but misfire codes for one cylinder (P0301 and up) do.",
+]
+parts = [
+  "Injector body: a coil, a pin and a spring.",
+  "Nozzle: shapes the spray. Dirt or varnish here spoils it.",
+  "Driver in the engine computer: switches the injector to ground.",
+]
+faults = [
+  "Clogged or dirty injector: lean misfire on that cylinder, rough idle, positive fuel trim.",
+  "Leaking injector: rich, hard hot start, fuel smell, and washed-down oil in the worst case.",
+  "Open or shorted coil: a circuit code (P0201 to P0212 for cylinders 1 to 12) and a dead cylinder. The computer can see this because it grounds the injector and watches the circuit.",
+  "Direct injection carbon build-up: intake valves coat with deposits, because fuel no longer washes them.",
+]
+more_detail = [
+  "A high-impedance injector coil typically measures about 12 to 16 ohms. A low-impedance (peak-and-hold) one measures about 1 to 4 ohms. The computer drives a peak-and-hold type with a high opening current, then a lower holding current. Check the workshop manual for the car.",
+  "The injector opens slightly late after the pulse starts. Computers usually correct the pulse width for battery voltage for this reason (general knowledge; unverified).",
+]
+related = ["fuel-system", "ignition-system", "actuators", "pattern-misfire", "term:Fuel injector", "term:Direct injection", "term:Port injection", "term:Pulse width", "term:Solenoid"]
+sources = [
+  "Fluke, 'How to Measure Fuel Injector Pulse Width and Resistance with a Multimeter' (read 2026-10-16)",
+  "aa1car.com, 'How Electronic Fuel Injection Works' (read 2026-10-16)",
+  "Bosch Mobility, 'Gasoline port fuel injection' (read 2026-10-16)",
+  "Bosch Mobility, 'Gasoline direct injection' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "ignition-system"
+title = "Ignition system"
+group = "systems"
+aliases = ["ignition system", "spark plug", "spark plugs", "ignition coils", "coil-on-plug", "wasted spark", "spark timing"]
+summary = "The ignition system makes a high-voltage spark at each spark plug, at a moment the engine computer chooses."
+body = [
+  "A spark plug has a small gap. An ignition coil is a transformer that turns 12 V into roughly 15,000 to 40,000 V, enough to jump that gap. The spark lights the mixture.",
+  "Most cars use coil-on-plug: one coil sits on each plug, and the computer switches each one directly. Older cars used one coil and a distributor. Some used a wasted spark pair: one coil feeds two plugs, and one spark falls in a cylinder on its exhaust stroke where it does nothing.",
+  "The computer fires the coil by interrupting its current. It picks the timing from engine speed, load, temperature and knock. Spark that is too early causes knock. Spark that is too late wastes power and heats the exhaust.",
+]
+how_to_read = [
+  "Timing advance in Live data shows the degrees before top dead centre. Typical values in normal running are about 10 to 40 degrees. It falls under high load if the engine is knocking.",
+  "A misfire count for one cylinder, or code P0301 and up, can point to its coil, plug or injector. Swap the coil with another cylinder to see if the code follows.",
+]
+parts = [
+  "Ignition coil: a transformer that makes the spark voltage.",
+  "Spark plug: the gap where the spark jumps. It has a ceramic insulator and two electrodes.",
+  "Coil driver: a transistor in the coil or the engine computer that switches the current.",
+  "Crank and cam sensors: tell the computer where each piston is.",
+]
+faults = [
+  "Worn plug (wide gap): the coil must make more voltage to jump it, so you get misfire under load, hard starting, and more risk on a turbo engine.",
+  "Failed coil: constant misfire on one cylinder and a flashing check engine lamp, with a coil circuit code P0351 and up.",
+  "A plug fouled with fuel, oil or carbon: the spark leaks along the insulator and the cylinder misfires.",
+  "Unburnt fuel from a misfire can overheat and damage the catalytic converter.",
+]
+more_detail = [
+  "The coil stores energy in a magnetic field while current flows (the dwell time, a few milliseconds). When the current stops, the field collapses and the voltage surges. A misfire results when the voltage the gap needs is higher than the coil can make.",
+  "Many modern coils include the driver and a feedback line, so the computer can see a failed driver and set a circuit code (general knowledge; unverified). Others show only a misfire.",
+]
+related = ["four-stroke", "crank-sensor", "knock-sensor", "timing-advance", "pattern-misfire", "term:Ignition coil", "term:Ignition timing", "term:Misfire", "term:Wasted spark", "term:Coil-on-plug"]
+sources = [
+  "Wikipedia, 'Ignition coil' (read 2026-10-16)",
+  "NGK Spark Plugs, 'Spark Plug Basics' (read 2026-10-16)",
+  "Bosch Mobility, 'Gasoline direct injection' (ignition coil and spark plug section) (read 2026-10-16)",
+]
+
+[[topic]]
+id = "air-intake"
+title = "Air intake"
+group = "systems"
+aliases = ["air intake", "intake system", "intake manifold", "air filter", "air cleaner", "resonator"]
+summary = "The air intake cleans the air, measures it, controls how much enters, and spreads it to each cylinder."
+body = [
+  "Air enters through the air filter and flows past the mass air flow sensor. It then goes through the throttle body, which controls the amount. The intake manifold shares it among the cylinders.",
+  "The engine computer calculates fuel from the air it measures. If air gets in after the sensor (a leak), the computer does not count it. The mixture runs lean.",
+  "Resonators and the air box are tuned chambers. They quiet the intake noise and can improve air flow at some speeds. Some manifolds change their runner length with valves to help at low and high speed.",
+]
+how_to_read = [
+  "A leak after the MAF shows as high positive fuel trim at idle (often above +15 percent) that falls as RPM rises. A dirty MAF or low fuel pressure does the opposite: near zero at idle, higher at speed.",
+  "A blocked filter lowers MAF flow at full throttle and lowers power. Idle usually looks normal (general knowledge; unverified).",
+  "Manifold pressure (MAP) at idle is typically about 30 to 45 kPa at sea level on a warm engine. A leak raises it.",
+]
+parts = [
+  "Air filter: removes dust. A dirty one limits flow.",
+  "Mass air flow sensor and intake air temperature sensor: measure what comes in.",
+  "Throttle body: a plate that opens to let in more air.",
+  "Intake manifold: pipes that deliver air to each cylinder.",
+  "Resonator or air box: damps noise and sharpens flow.",
+  "Vacuum lines and PCV hose: small tubes that join the manifold.",
+]
+faults = [
+  "Cracked hose or loose clamp after the MAF: lean codes P0171 and P0174, rough idle, a hiss, and positive fuel trim at idle.",
+  "Torn intake boot: the same signs, and a common cause of P0171 on some cars.",
+  "Dirty throttle body: low or hunting idle. The computer may need to relearn the idle after cleaning.",
+  "Clogged filter: lower air flow and less power at full throttle.",
+]
+more_detail = [
+  "A leak after the throttle lets in extra air at idle, when manifold vacuum is strongest. At higher RPM the leak is small compared with the flow, so the effect fades. That is why the trim picture changes with speed.",
+  "A turbo engine has a second type of leak: a boost leak. Air escapes after the compressor under pressure, so the engine loses power at load rather than at idle (general knowledge; unverified).",
+]
+related = ["maf-sensor", "map-sensor", "electronic-throttle", "iat-sensor", "turbocharger", "pattern-vacuum-leak", "pattern-boost-leak", "fuel-trim", "term:Throttle body", "term:Intake manifold"]
+sources = [
+  "Samarins.com, 'Intake manifold, how it works, problems, replacement cost' (read 2026-10-16)",
+  "Samarins.com, 'Code P0171 - System Too Lean' (read 2026-10-16)",
+  "aa1car.com, 'Mass Airflow MAF Sensors' (read 2026-10-16)",
+  "aa1car.com, 'Manifold Absolute Pressure MAP Sensors' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "electronic-throttle"
+title = "Electronic throttle (drive-by-wire)"
+group = "systems"
+aliases = ["electronic throttle", "drive-by-wire", "drive by wire", "throttle motor", "throttle actuator", "throttle relearn", "throttle learning"]
+summary = "There is no cable. The pedal sends a signal, the engine computer decides, and a motor opens the throttle plate."
+body = [
+  "In a drive-by-wire car, the accelerator pedal has sensors and no cable. The engine computer reads them and works out how much torque you want. It then drives a small motor that opens the throttle plate.",
+  "This lets the computer shape the response, run the idle without a separate valve, and cut power for traction or stability control. Two sensors in the pedal and two on the throttle check each other.",
+  "After the throttle body is cleaned or the battery is disconnected, the computer may need a relearn. It records the closed and open positions and the spring default (limp) position.",
+  "If the sensors disagree, or the motor fails, the computer sets a code. It cuts the motor signal, and springs hold the throttle at a fast idle. It may also light a throttle warning lamp.",
+]
+how_to_read = [
+  "Throttle position and pedal position are in Live data. At idle the throttle should read 0 percent or a couple of degrees. More than 5 percent open at idle suggests a problem. Some cars hold a learned idle opening, so check the maker's figure.",
+  "At wide open throttle the reading should reach close to 100 percent. Less than about 90 percent suggests a problem.",
+  "Pedal percent and throttle percent should rise together. A big difference can mean a sticky throttle or a limited power mode.",
+]
+parts = [
+  "Pedal assembly: two position sensors that track the foot.",
+  "Throttle plate and motor: a DC motor with a return spring.",
+  "Throttle position sensors: two tracks on the throttle shaft.",
+  "Engine computer: compares pedal, target and actual position, and drives the motor.",
+]
+faults = [
+  "Dirty or worn throttle body: low or hunting idle, stalling at stops, P2101 or P0507 type codes.",
+  "Sensor mismatch: P2135 (throttle sensors disagree) and limp mode.",
+  "Pedal sensor fault: P2122 (pedal sensor D circuit low) or P2138 (pedal sensors D and E disagree), with weak or no response to the pedal.",
+  "Motor failure: P2100 (motor circuit open) or P2101, the throttle stuck at a fast idle, and a warning lamp.",
+]
+more_detail = [
+  "The computer drives the motor with a pulsed signal, so it can push the plate open or closed (typical design; unverified). With the power off, a return spring holds the plate at a small default opening, so the car can still be driven slowly.",
+  "The computer keeps two throttle values: the target and the actual. It runs a control loop that reduces the error. If the error stays large for too long, it sets a range or performance code.",
+]
+related = ["position-sensors", "air-intake", "actuators", "throttle-pedal", "engine-management", "term:Electronic throttle", "term:Limp mode", "term:Throttle body", "term:Accelerator pedal sensor"]
+sources = [
+  "Wikipedia, 'Electronic throttle control' (read 2026-10-16)",
+  "aa1car.com, 'Basics of Engine Throttle Position Sensors' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "crank-sensor"
+title = "Crankshaft position sensor"
+group = "systems"
+aliases = ["crankshaft position sensor", "crank sensor", "crank position sensor", "crankshaft sensor", "CKP", "tone wheel", "reluctor wheel", "trigger wheel"]
+summary = "The crank sensor reads a toothed wheel on the crankshaft. It tells the engine computer engine speed and piston position."
+body = [
+  "A toothed wheel (tone wheel) turns with the crankshaft. The sensor sits close to it and makes a pulse as each tooth passes. The wheel has one or two teeth missing. Common patterns are called 36-1 and 60-2 (36 or 60 tooth positions, with 1 or 2 teeth missing).",
+  "The gap makes an unusual long pause. The computer spots it and knows where the crankshaft is. It counts teeth from there to time the spark and injection. It gets RPM from the time between teeth.",
+  "The computer needs this signal first of all. Without it, there is no spark and no injection, so the engine cranks and does not start. It often stops the fuel pump as well.",
+]
+how_to_read = [
+  "RPM in Live data shows 0 while cranking when the crank sensor signal is missing. A good sensor shows a low but steady RPM while cranking.",
+  "A flickering RPM at idle, or a stall that comes and goes when hot, can be a heat-sensitive sensor.",
+  "Codes P0335 to P0339 cover the crank sensor circuit. P0016 to P0019 mean the crank and cam signals do not match.",
+]
+parts = [
+  "Tone wheel: a toothed wheel on the crankshaft or flywheel, with a gap.",
+  "Sensor: a magnetic (reluctance) or Hall effect type, close to the teeth.",
+  "Connector and wiring: often near the engine block, exposed to heat and oil.",
+]
+faults = [
+  "Dead sensor: cranks, does not start, no RPM shown. The computer can also stop the fuel pump.",
+  "Heat-soaked sensor: starts cold, stalls or won't restart when hot, then works after cooling.",
+  "Metal debris or a wrong air gap on a magnetic sensor: erratic RPM and misfire codes.",
+  "Damaged wheel teeth or a slipped timing belt: P0016 correlation codes.",
+]
+more_detail = [
+  "A reluctance (magnetic) sensor has a coil around a magnet and makes its own AC voltage, stronger at higher speed. A reading of at least 20 mV on an AC meter while cranking shows a good sensor. A Hall sensor needs a supply, ground and signal wire and gives an on and off signal.",
+  "The computer measures the time between teeth and finds the gap as an unusually long interval. The computer is built for one wheel pattern, so a replacement must match it.",
+]
+related = ["cam-sensor", "sensor-signals", "ignition-system", "rpm-idle", "term:Crankshaft position sensor", "term:Reluctance sensor", "term:Hall effect sensor", "term:Tone ring", "term:Tone wheel"]
+sources = [
+  "aa1car.com, 'Basics of Crankshaft & Camshaft Position Sensors' (read 2026-10-16)",
+  "Wikipedia, 'Crankshaft position sensor' (read 2026-10-16)",
+  "Wikipedia, 'Hall-effect sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "cam-sensor"
+title = "Camshaft position sensor"
+group = "systems"
+aliases = ["camshaft position sensor", "cam sensor", "cam position sensor", "camshaft sensor", "CMP", "sequential injection", "cam and crank correlation"]
+summary = "The cam sensor tells the engine computer which stroke each cylinder is on, so it can time fuel and spark per cylinder."
+body = [
+  "The crank sensor shows where the crankshaft is, but not the stroke. One crank turn looks like the next. The camshaft turns once per cycle, so its sensor tells the computer which turn it is.",
+  "The cam sensor reads a notch or a few teeth on the camshaft. The computer compares its pulse with the crank teeth. This gives the position of every piston in the full four-stroke cycle.",
+  "With that, the computer can use sequential injection: each injector fires in its own cylinder's intake stroke. It can also fire coil-on-plug spark for each cylinder, and run variable valve timing.",
+]
+how_to_read = [
+  "There is no cam PID in Live data on most cars. The camshaft angle appears in the data explorer on some, as a VVT angle.",
+  "P0340 to P0349 cover the cam sensor circuit. P0016 to P0019 mean the cam and crank signals disagree.",
+  "Some engines still start without a cam signal, but run roughly or crank for longer (unverified).",
+]
+parts = [
+  "Cam sensor: a Hall effect or magnetic sensor at the camshaft.",
+  "Target wheel: notches or teeth on the cam, or on the cam phaser.",
+  "Engine computer: matches the crank and cam patterns.",
+]
+faults = [
+  "Dead sensor: long cranking, rough or limp running, and P0340 stored.",
+  "Stretched timing chain or slipped belt: P0016 to P0019, rough running and loss of power.",
+  "Failed cam phaser: the pattern is out of position, and codes P0011 or P0012 may appear with it.",
+  "Oil leak onto the sensor: unstable signal and misfire.",
+]
+more_detail = [
+  "In a variable timing engine the cam moves relative to the crank on purpose. The computer expects a certain angle and watches for the difference. It sets a correlation code when the angle stays too far from the expected one.",
+  "Hall cam sensors give an on and off signal and use a supply, signal and ground. Magnetic ones make their own AC signal. Most faults trace to the wiring, so check the supply and ground before replacing a sensor.",
+]
+related = ["crank-sensor", "vvt", "four-stroke", "fuel-injectors", "sensor-signals", "term:Camshaft position sensor", "term:Sequential injection", "term:Timing chain"]
+sources = [
+  "aa1car.com, 'Basics of Crankshaft & Camshaft Position Sensors' (read 2026-10-16)",
+  "Bosch Mobility, 'Gasoline direct injection' (camshaft position sensor) (read 2026-10-16)",
+  "Wikipedia, 'Four-stroke engine' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "vvt"
+title = "Variable valve timing"
+group = "systems"
+aliases = ["variable valve timing", "VVT", "VVT-i", "VANOS", "cam phaser", "cam phasers", "oil control valve", "VCT"]
+summary = "VVT turns the camshaft a few degrees against the crankshaft, using oil pressure, to improve power, economy and emissions."
+body = [
+  "Valves open and close at fixed points on a plain camshaft. Variable valve timing shifts those points. A cam phaser, on the end of the camshaft, turns it forward or back by a set number of degrees (a few tens of crankshaft degrees on typical systems). It changes when the valves open and close, but not how far or how long.",
+  "The phaser is an oil-driven vane in a housing. The engine computer sends current to an oil control valve (a solenoid). The valve sends oil to one side of the vanes or the other, and the cam moves.",
+  "Late intake valve closing cuts pumping losses at light load, which helps economy and emissions. Some engines also vary the exhaust cam, and some change valve lift too.",
+  "Because oil moves the phaser, the oil must be clean and the right grade. Old or thin oil, sludge, or a low level makes the phaser slow, noisy or stuck.",
+]
+how_to_read = [
+  "Some cars show target and actual cam angle in the data explorer or Live data. The actual angle should follow the target.",
+  "A rattle on a cold start that fades in a few seconds can be a worn phaser lock pin, which lets the phaser drain its oil overnight.",
+  "Codes P0010 to P0025 cover the valve circuit and timing. P0011 means over-advanced, P0012 over-retarded, on Bank 1 intake. Others follow the same pattern.",
+]
+parts = [
+  "Oil control valve: an electric solenoid that directs oil to the phaser.",
+  "Cam phaser: a vane unit that turns the cam against the drive gear.",
+  "Cam and crank sensors: show the actual angle.",
+  "Oil and filter screen: supply clean oil at pressure.",
+]
+faults = [
+  "Dirty oil or a blocked screen on the oil control valve: P0011 or P0012, rough idle, low power, or a check engine lamp.",
+  "Worn phaser or lock pin: rattle at start-up and a timing code.",
+  "Stuck valve: the cam stays at the default and the engine runs but with a lower output.",
+  "Low oil level: timing codes together with an oil pressure warning.",
+]
+more_detail = [
+  "The computer drives the oil control valve with a pulsed signal and checks the result with the cam sensor, then adjusts (typical design; unverified).",
+  "The default (parked) position is locked by a pin at rest, so the engine starts at a fixed timing. Once oil pressure is up, the pin releases and the computer takes control.",
+]
+related = ["cam-sensor", "crank-sensor", "actuators", "four-stroke", "term:Variable valve timing", "term:Cam phaser", "term:Oil control valve", "term:Timing chain"]
+sources = [
+  "Wikipedia, 'Variable valve timing' (read 2026-10-16)",
+  "Carista, 'P0011 Code: OBD-II code P0011 means the intake camshaft on bank 1 is more advanced than the PCM commanded' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "knock-sensor"
+title = "Knock sensor"
+group = "systems"
+aliases = ["knock sensor", "knock sensors", "detonation sensor", "engine knock", "detonation", "pinging"]
+summary = "A knock sensor listens for the ping of knock. The engine computer pulls the spark back when it hears it."
+body = [
+  "Knock is when part of the mixture burns by itself too early, instead of in a smooth flame. It makes a sharp ping and a pressure spike that can damage pistons and bearings.",
+  "A knock sensor is a piezo sensor bolted to the block. It makes a small voltage when the metal vibrates. The computer filters the signal for the knock frequency and looks for the sharp peaks that knock makes. Sources give about 5 to 15 kHz for a typical sensor, and some give 6 to 8 kHz or up to 30 kHz, so it varies by engine.",
+  "When it hears knock, the computer pulls back the spark timing by a few degrees, then puts it back in small steps. That keeps the engine near its best timing without damage.",
+]
+how_to_read = [
+  "Some cars show knock retard or learned timing in the data explorer. Timing advance in Live data dips for a moment under hard load if the engine retards.",
+  "Low-octane fuel can cause knock. Most late-model engines then retard timing to protect themselves, at some cost in power and economy.",
+  "P0325 to P0334 cover the knock sensor circuit. If the sensor stops working, the spark may not retard when it should, so pinging can follow under load.",
+]
+parts = [
+  "Piezo element: a crystal that makes a voltage when squeezed or shaken.",
+  "Mounting bolt: the torque on it matters, because the sensor must sit tight against the block.",
+  "Engine computer: filters the signal and retards the spark.",
+]
+faults = [
+  "Dead or open sensor: code P0325, and pinging under load because the timing no longer retards. Some computers may pull timing back as a safe default (unverified).",
+  "Loose bolt or the wrong torque: false knock or no knock heard.",
+  "Real knock: low-octane fuel, carbon build-up, overheating, excessive boost or a lean mixture. The sensor is working correctly.",
+  "Engine noise (a loose pulley, a rod knock) can mimic knock.",
+]
+more_detail = [
+  "A piezo knock sensor needs no supply. It makes its own voltage, up to a few hundred millivolts depending on how hard the knock is. The computer can detect a missing or steady signal and set a circuit code.",
+  "Some engines have two sensors. Other engine noises, such as a loose rod bearing or a noisy bearing in an accessory, can fool the sensor into retarding the timing. A wrench tap near the sensor (never on it) is a common test.",
+]
+related = ["ignition-system", "timing-advance", "sensor-signals", "four-stroke", "term:Knock sensor", "term:Knock", "term:Ignition timing", "term:Piezoelectric sensor"]
+sources = [
+  "Wikipedia, 'Engine knocking' (read 2026-10-16)",
+  "aa1car.com, 'What Is Spark Knock (Detonation)?' (read 2026-10-16)",
+  "AZoSensors, 'What is a Knock Sensor?' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "coolant-temp-sensor"
+title = "Coolant temperature sensor"
+group = "systems"
+aliases = ["coolant temperature sensor", "coolant temp sensor", "ECT sensor", "engine coolant temperature sensor", "ECT"]
+summary = "The coolant temperature sensor is a thermistor in the engine. The computer uses it for fuel, spark, fans and warm-up."
+body = [
+  "The sensor is a thermistor of the NTC type: its resistance falls as it gets hot. The computer sends 5 V through a fixed resistor to the sensor, and reads the voltage at the middle. Cold gives a high voltage, hot a low one.",
+  "The computer uses the value for many jobs. It adds fuel when cold, sets the idle speed, decides when to enter closed loop, switches the cooling fans, and enables some monitors. Some cars have a second sensor for the dash gauge.",
+  "One Bosch NTC sensor reads 2,500 ohms at 20 C and 187 ohms at 100 C. Other sensors differ, so use the workshop manual for the car.",
+]
+how_to_read = [
+  "On a cold start the value should match the intake air temperature within a few degrees. Then it should rise steadily and level off when the thermostat opens. The level depends on the car.",
+  "A reading of -40 C often means the computer sees an open circuit. A reading far above any real temperature, such as 215 C, often means a short to ground. The exact values depend on the car (unverified).",
+  "A value that stays low after a long drive points to a stuck-open thermostat. A slow or odd rise points to the sensor.",
+]
+parts = [
+  "Thermistor: a ceramic bead in a brass or plastic tip that sits in the coolant.",
+  "Two wires: one to the 5 V reference signal, one to sensor ground.",
+  "Engine computer: reads the divided voltage and converts to temperature.",
+]
+faults = [
+  "Open circuit (a broken wire or connector): reads very cold, and the engine may run rich. Code P0118 (circuit high). A sensor that never reads warm can keep the car out of closed loop.",
+  "Short to ground: reads very hot, so the computer may run lean when cold. Code P0117 (circuit low).",
+  "A sensor that drifts: P0116 (range) and poor cold running. Fuel use may rise.",
+  "Poor connector contact: the reading jumps while you wiggle the plug.",
+]
+more_detail = [
+  "The curve of an NTC is not a straight line over a wide range, so the computer uses a table. A sensor that reads a few degrees wrong can still make a valid voltage, so it may set only a range code, or none.",
+  "In the Bosch table the resistance falls from 5,896 ohms at 0 C to 187 ohms at 100 C, about 30 times. At the hot end the voltage is small, so a little extra resistance from corrosion makes the reading too cold.",
+]
+related = ["sensor-signals", "iat-sensor", "coolant-temp-reading", "pattern-ect-sensor", "pattern-thermostat", "term:Coolant temperature sensor", "term:Thermistor", "term:Thermostat"]
+sources = [
+  "Bosch Motorsport, 'Temperature Sensor NTC M12' (read 2026-10-16)",
+  "Wikipedia, 'Thermistor' (read 2026-10-16)",
+  "aa1car.com, 'Engine Air Temperature Sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "iat-sensor"
+title = "Intake air temperature sensor"
+group = "systems"
+aliases = ["intake air temperature sensor", "IAT sensor", "air temperature sensor", "intake temperature sensor", "IAT"]
+summary = "The intake air temperature sensor measures how warm the incoming air is. Cold air is denser, so the computer adds fuel."
+body = [
+  "Colder air is denser and holds more oxygen. The computer needs the air temperature to work out how much air mass is in each cylinder, and so how much fuel to add.",
+  "The sensor is a thermistor of the NTC type, like the coolant sensor. It sits in the intake air path: usually in the intake manifold, or built into the MAF or MAP sensor. Some engines have two.",
+  "The computer also uses it to trim spark timing, since hot air raises the risk of knock. Some turbo cars have a second one after the intercooler.",
+]
+how_to_read = [
+  "At a cold start, intake air temperature should match coolant and outside air within a few degrees.",
+  "After a drive, the value runs above outside air because of engine heat. A hot reading in traffic is normal.",
+  "A very cold reading, such as -40 C, often means an open circuit. A very hot one often means a short to ground. The exact values depend on the car (unverified).",
+]
+parts = [
+  "Thermistor: a tiny bead that reacts quickly to air.",
+  "Housing: part of the MAF, or a plastic sensor in the pipe.",
+  "Two wires: signal and ground.",
+]
+faults = [
+  "Open circuit: P0113 (circuit high) and a very cold reading. The engine may run rich.",
+  "Short to ground: P0112 (circuit low) and a very hot reading. The engine may run lean.",
+  "Heat soak: a reading that stays high after a stop. It is normal for a short time.",
+  "A reading well off the coolant temperature on a cold engine points to a bad sensor.",
+]
+more_detail = [
+  "A sensor in the air stream can read engine bay heat after a hot stop. This is normal and fades once air flows again (general knowledge; unverified).",
+  "In a speed-density system, the IAT matters more. The air mass is calculated from manifold pressure, temperature and engine speed, so an error in temperature maps straight to an error in fuel.",
+]
+related = ["intake-air-temp", "maf-sensor", "coolant-temp-sensor", "sensor-signals", "air-intake", "term:Thermistor"]
+sources = [
+  "aa1car.com, 'Engine Air Temperature Sensor' (read 2026-10-16)",
+  "Wikipedia, 'Thermistor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "maf-sensor"
+title = "Mass air flow sensor"
+group = "systems"
+aliases = ["mass air flow sensor", "MAF sensor", "air flow meter", "airflow sensor", "hot film", "hot wire"]
+summary = "The MAF sensor measures how much air enters the engine, by the cooling of a heated element."
+body = [
+  "A thin heated wire or film sits in the air stream. Air flowing past cools it. The sensor's circuit adds current to keep the element hot (about 75 C for hot film and 100 C for hot wire, in one source). The current it needs shows the air mass.",
+  "Output is a voltage that rises with flow, or a frequency in some designs. The engine computer reads it and turns it into grams per second. It is the main input for fuel metering.",
+  "Dirt, oil film from an oiled air filter, and spiders' webs coat the element. A coated element reacts slowly and can under-report the air, so the computer adds too little fuel and the engine runs lean.",
+]
+how_to_read = [
+  "At idle, a scan tool typically shows about 2 to 7 g/s, rising to about 15 to 25 g/s at 2,500 RPM, depending on engine size (ALLDATA). One rule of thumb is about 1 g/s per litre of engine at idle (aa1car).",
+  "At wide open throttle and 5,000 RPM, one source gives about 100 to 240 g/s for a hot-film MAF.",
+  "A dirty MAF often gives fuel trim near normal at idle that turns positive as RPM rises to about 2,500. A trim that is highest at idle points to a leak after the sensor.",
+]
+parts = [
+  "Sensing element: a hot wire or hot film that the air cools.",
+  "Control circuit: holds the element at a set temperature.",
+  "IAT sensor: often in the same housing.",
+  "Flow straightener: a grid or mesh that smooths the air.",
+]
+faults = [
+  "Contaminated element: lean at load, positive fuel trim, hesitation and poor power. Code P0171 or P0101 (range).",
+  "Failed sensor: P0102 (low) or P0103 (high), and the computer falls back to a table, so the engine runs poorly.",
+  "Air filter leak before the MAF: dirt coats the element.",
+  "Low MAF readings do not always mean a bad sensor: a clogged filter or a leak can also cause them.",
+]
+more_detail = [
+  "Clean a MAF only with aerosol electronics cleaner (not carburettor or brake cleaner), and never touch the element. aa1car suggests a soak of about 10 minutes, then a second spray. Cleaning will not fix a failed sensor.",
+  "Air in an intake pulses with each valve opening, and can even flow backwards for an instant at low RPM. Some sensors detect this, and the computer averages the signal.",
+]
+related = ["maf-reading", "pattern-maf-fault", "air-intake", "iat-sensor", "fuel-trim", "pattern-vacuum-leak", "term:MAF"]
+sources = [
+  "aa1car.com, 'Mass Airflow MAF Sensors' (read 2026-10-16)",
+  "Samarins.com, 'Mass Air flow Sensor (MAF): how it works, symptoms, problems, testing' (read 2026-10-16)",
+  "ALLDATA, 'MAF Sensor Testing' (Tech-Assist Team) (read 2026-10-16)",
+]
+
+[[topic]]
+id = "map-sensor"
+title = "Manifold absolute pressure sensor"
+group = "systems"
+aliases = ["manifold absolute pressure sensor", "MAP sensor", "manifold pressure sensor", "speed-density", "speed density", "boost sensor"]
+summary = "The MAP sensor measures the air pressure in the intake manifold. The computer uses it to estimate engine load and air mass."
+body = [
+  "A MAP sensor has a thin silicon diaphragm with a vacuum on one side and manifold pressure on the other. The pressure flexes it, and a circuit gives a voltage in proportion. On a typical analog sensor the output is about 1 to 2 V at idle and 4.5 to 5 V at wide open throttle. Some Ford sensors send a frequency instead.",
+  "The reading is absolute: it is measured from zero pressure, not from the air outside. At key on with the engine off, it reads outside air pressure, about 100 kPa at sea level. That doubles as a barometer.",
+  "A speed-density engine has no MAF. It estimates air mass from manifold pressure, engine speed, air temperature and a table. Turbo engines use a MAP sensor, often with a second one in the boost path.",
+]
+how_to_read = [
+  "Key on, engine off: about 100 kPa at sea level, and less at altitude (about 85 kPa at 1,500 m).",
+  "Warm idle: about 30 to 45 kPa at sea level (idle vacuum is typically 16 to 20 inches of mercury). A high idle value can point to a vacuum leak.",
+  "Wide open throttle on a naturally aspirated engine: close to outside air pressure. On a turbo engine, values over 100 kPa show boost.",
+  "Output should rise smoothly as the throttle opens and vacuum falls.",
+]
+parts = [
+  "Silicon diaphragm: bends with the pressure.",
+  "Sensor circuit: turns the bend into a voltage.",
+  "Vacuum hose or direct port: connects the sensor to the manifold.",
+]
+faults = [
+  "Leaking hose or cracked port: the sensor reads a higher load than there is, which can mean rich running and late timing. Code P0106 (range).",
+  "Open or short wire: P0107 (low) or P0108 (high), and limp-type running on a speed-density engine.",
+  "Blocked port (carbon): a slow response and a flat signal.",
+  "Wrong reading at key on that differs from the barometric pressure points to a bad sensor.",
+]
+more_detail = [
+  "The computer uses manifold pressure as a measure of load for its fuel and spark maps. A MAP sensor reads about 100 kPa more than a boost gauge, because the gauge zero is outside air pressure.",
+  "A turbo engine needs a sensor that reads above outside air pressure. A boost control system can compare the value to the target and move the wastegate.",
+]
+related = ["map-reading", "turbocharger", "air-intake", "engine-load", "pattern-boost-leak", "term:MAP", "term:Barometric pressure", "term:Boost"]
+sources = [
+  "aa1car.com, 'Manifold Absolute Pressure MAP Sensors' (read 2026-10-16)",
+  "Wikipedia, 'MAP sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "o2-sensor"
+title = "Oxygen sensors (narrow band)"
+group = "systems"
+aliases = ["narrow band oxygen sensor", "narrowband sensor", "zirconia sensor", "O2 sensor heater", "lambda sensor", "upstream oxygen sensor", "downstream oxygen sensor", "oxygen sensor heater"]
+summary = "A narrow-band oxygen sensor swings between a low voltage (lean) and a high one (rich, up to about 0.9 V) around the ideal mixture."
+body = [
+  "The sensor tip is a zirconia ceramic cup. Outside air is on one side and exhaust on the other. When the exhaust has little oxygen (rich), the sensor makes up to about 0.9 V. When it has a lot (lean), it drops to about 0.1 to 0.2 V. The balance point is about 0.45 V.",
+  "It switches sharply near the ideal mixture, 14.7:1 for petrol. A narrow-band sensor tells the computer only 'richer' or 'leaner', not by how much. The computer swings the mixture back and forth around the ideal.",
+  "The ceramic works well only above about 300 C (600 F), so a heater inside warms it in tens of seconds. The computer switches the heater and starts closed loop when the sensor is hot.",
+  "Sensors are named by bank and position. Bank 1 is the side with cylinder 1. Sensor 1 is before the converter, and sensor 2 is after it. Sensor 2 checks how well the converter works.",
+]
+how_to_read = [
+  "Sensor 1 on a warm engine in closed loop should switch between a low and a high voltage, between about 0.1 V and 0.9 V, with an average near 0.45 V.",
+  "Sensor 2 should be steadier, with an average of about 0.45 V or higher. A sensor 2 that copies sensor 1 means the converter is weak.",
+  "A lazy sensor switches slowly. A sensor stuck near one voltage is not working or has a wiring fault.",
+  "A sensor stuck high means a rich mixture, or a short to voltage. Stuck low means lean, or an air leak at the sensor.",
+]
+parts = [
+  "Zirconia element: a ceramic that makes a voltage from the oxygen difference.",
+  "Platinum electrodes: speed up the reaction and make the voltage.",
+  "Heater: a small resistance wire. Sources give anything from a few ohms to about 20 ohms cold, so use the workshop manual.",
+  "Wires: signal, signal ground (sometimes), heater power and heater control.",
+]
+faults = [
+  "Worn sensor: slow, lazy switching. The computer sets P0133 (slow response). Fuel use rises.",
+  "Failed heater: codes in the P0030 to P0038 and P0050 to P0057 group (heater control circuit, by bank and sensor). The sensor takes longer to work, so closed loop starts late.",
+  "Contaminated tip (lead, silicone, sulphur, oil ash, water): flat signal and poor fuel trim.",
+  "Exhaust leak before the sensor: reads lean and the computer makes the engine rich.",
+  "Unheated sensors last about 30,000 to 50,000 miles (50,000 to 80,000 km). Heated ones last about 100,000 miles (160,000 km). Leaded fuel can cut that sharply.",
+]
+more_detail = [
+  "The voltage comes from the Nernst effect: oxygen ions move through the hot ceramic from the side with more oxygen to the side with less. The difference in oxygen between exhaust and air sets the voltage, and the curve is steep near the ideal ratio.",
+]
+related = ["af-sensor", "o2-sensor-reading", "closed-loop", "fuel-trim", "lambda", "pattern-o2-lazy", "pattern-catalyst", "term:Oxygen sensor", "term:Bank", "term:Sensor 1, sensor 2"]
+sources = [
+  "aa1car.com, 'Oxygen Sensors: How to Diagnose and Replace' (read 2026-10-16)",
+  "Wikipedia, 'Oxygen sensor' (read 2026-10-16)",
+  "Wikipedia, 'Air-fuel ratio' (lambda and narrow-band background) (read 2026-10-16)",
+]
+
+[[topic]]
+id = "af-sensor"
+title = "Air-fuel ratio sensors (wide band)"
+group = "systems"
+aliases = ["wide band sensor", "wideband sensor", "wide-band oxygen sensor", "air-fuel ratio sensor", "A/F sensor", "AFR sensor", "pump cell", "LSU sensor"]
+summary = "A wide-band sensor measures the air-fuel ratio directly over a wide range, not just rich or lean."
+body = [
+  "A wide-band sensor has two cells in one. One is a zirconia sensing cell, like the narrow type. The other is a pump cell. The sensor's circuit runs current through the pump cell to hold the sensing cell at a steady 0.45 V.",
+  "The current needed shows how far from ideal the mixture is. Lean needs current one way, rich needs the opposite. The computer reads this current as a smooth signal.",
+  "Bosch says its LSU sensor gives a smooth output from lambda 0.65 (rich) up to fresh air. Many modern cars use one in front of the converter. Toyota and some others call it an A/F sensor (unverified).",
+  "Scana shows it as lambda or as an equivalent ratio, when the car sends it that way.",
+]
+how_to_read = [
+  "At idle on a warm engine, lambda should sit close to 1.00 and move a little as the computer trims it. 14.7:1 is lambda 1.",
+  "Lambda below 1 is rich. Above 1 is lean. Under hard throttle on a petrol engine, a rich reading of about 0.85 to 0.9 is normal (one source).",
+  "A reading that never moves, such as exactly 1.00, can mean the sensor is not working (general knowledge; unverified).",
+  "Compare with fuel trim. A lean lambda with high positive trim agrees. A lean lambda with a trim near zero points to a bad sensor.",
+]
+parts = [
+  "Sensing cell: a zirconia cell that compares exhaust with a reference.",
+  "Pump cell: moves oxygen in or out to keep balance.",
+  "Heater: warms the sensor to about 780 C (set by watching the sensing cell's resistance), much hotter than a narrow band.",
+  "Sensor circuit: a chip in the computer (or in the plug) that drives the pump current.",
+]
+faults = [
+  "Aged sensor: slow response or a lambda that is off by a few percent. Codes such as P2195 (stuck lean) and P2196 (stuck rich) cover a sensor signal that stays at one end.",
+  "Heater fault: P0030 and similar (heater control circuit). The sensor takes longer to work and closed loop starts late.",
+  "Open or shorted wire: a circuit code such as P0130 (bank 1 sensor 1) and a stuck lambda.",
+  "Exhaust leak before the sensor: reads lean.",
+]
+more_detail = [
+  "A planar wide-band sensor has about six wires: pump current, the sensing cell, a trimming resistor and the heater (Bosch LSU datasheet). It only works with a special control circuit, such as a Bosch CJ125 chip.",
+  "The trimming resistor sits in the connector and defines the sensor's characteristics. A sensor of the wrong type can therefore give a wrong lambda, even if it fits.",
+]
+related = ["o2-sensor", "af-sensor-reading", "lambda", "fuel-trim", "closed-loop", "term:Air-fuel ratio sensor", "term:Lambda", "term:Stoichiometric"]
+sources = [
+  "Bosch, 'Technical Product Information Y 258 E00 015e: Planar Wide Band Lambda Sensor LSU4.9' (read 2026-10-16)",
+  "Bosch Motorsport, 'Lambda Sensor Mini-LSU 4.9' data table (read 2026-10-16)",
+  "Wikipedia, 'Oxygen sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "position-sensors"
+title = "Throttle and pedal position sensors"
+group = "systems"
+aliases = ["position sensors", "throttle position sensor", "pedal position sensor", "accelerator pedal position sensor", "APP sensor", "potentiometer", "throttle sensor tracks"]
+summary = "These sensors report how far the throttle or pedal has moved, using two tracks that check each other."
+body = [
+  "A potentiometer has a track of resistance and a wiper that slides along it. The computer feeds the track 5 V and reads the voltage on the wiper. It rises as the pedal or throttle moves.",
+  "A Hall effect sensor does the same without touching. A magnet turns past a chip, and the chip's output changes with the angle. It does not wear.",
+  "Drive-by-wire cars use two sensors or tracks for the pedal and for the throttle. The computer compares them, so a single fault is spotted.",
+]
+how_to_read = [
+  "Throttle position at idle should read 0 percent or a couple of degrees. More than 5 percent open at idle suggests a problem.",
+  "At wide open throttle the reading should reach 100 percent. Less than about 90 percent suggests a problem.",
+  "If Scana shows two pedal values (D and E, or A and B), they should rise together as you move the pedal, smoothly and with no jumps.",
+]
+parts = [
+  "Track A and track B: two signals that must agree by a known rule.",
+  "5 V reference, ground and signal wires: three per track, so six wires in all.",
+  "Return spring and stops: set the rest position.",
+]
+faults = [
+  "Worn track: a jump or a dead spot, often in the first 0 to 20 percent of travel, giving a hesitation or stumble. Codes P0121 (range), P0122 (low) and P0123 (high).",
+  "Tracks disagree: P2135 for the throttle or P2138 for the pedal, and limp mode.",
+  "Open reference or ground wire: both tracks go wrong at once, often with codes in other sensors on the same 5 V line.",
+  "Loose mount on a throttle sensor: an erratic signal, an unstable idle and hesitation.",
+]
+more_detail = [
+  "Some makers set the two tracks to different voltages on purpose, so that a short between them is spotted. The exact pattern depends on the car (general knowledge; unverified).",
+  "A potentiometer wears where the wiper spends most of its time, near idle. A worn spot there gives a stumble just off idle (aa1car).",
+]
+related = ["electronic-throttle", "throttle-pedal", "sensor-signals", "term:TPS", "term:Accelerator pedal sensor", "term:Potentiometer", "term:Hall effect sensor"]
+sources = [
+  "aa1car.com, 'Basics of Engine Throttle Position Sensors' (read 2026-10-16)",
+  "Wikipedia, 'Electronic throttle control' (read 2026-10-16)",
+  "Wikipedia, 'Hall-effect sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "turbocharger"
+title = "Turbochargers"
+group = "systems"
+aliases = ["turbocharger", "turbo", "turbos", "boost control", "variable geometry turbo", "VGT", "variable vane turbo", "turbo lag", "turbine wheel", "compressor wheel"]
+summary = "A turbocharger uses exhaust gas to spin a compressor that forces more air into the engine."
+body = [
+  "Exhaust gas spins a turbine wheel. A shaft joins it to a compressor wheel in the intake. The compressor pushes air into the engine at above outside pressure (boost). More air allows more fuel, so more power from a small engine.",
+  "Compression heats the air, so many turbo cars cool it in an intercooler before it enters the engine. Cooler air is denser and also less likely to knock.",
+  "Boost is limited by a wastegate, a spring-loaded valve that lets exhaust bypass the turbine once boost reaches the spring rating. Some engines use variable vanes on the turbine instead. Pressure, vacuum or an electronic actuator linked to the engine computer moves them.",
+  "A turbine can reach speeds of up to about 250,000 RPM. The centre bearings are lubricated by engine oil, and some units are also water-cooled.",
+]
+how_to_read = [
+  "Compare MAP, or boost pressure, with the target if the car shows it. A MAP sensor reads about 100 kPa more than a boost gauge, because the gauge zero is outside air pressure.",
+  "Boost that is low under load, with the engine otherwise healthy, points to a boost leak or a stuck wastegate.",
+  "Boost that is too high may cut fuel and power (overboost protection).",
+]
+parts = [
+  "Turbine and compressor wheels: joined by a shaft.",
+  "Wastegate or variable vanes: control the boost.",
+  "Boost control solenoid or electric actuator: the computer moves the wastegate with this.",
+  "Intercooler and pipes: cool and carry the air.",
+  "Blow-off or diverter valve: vents boost when the throttle closes, to keep the compressor out of surge.",
+  "Oil and coolant lines: lubricate and cool the bearings.",
+]
+faults = [
+  "Boost leak (cracked hose, loose clamp, split intercooler): P0299 (underboost), lack of power and a whistle or hiss.",
+  "Stuck wastegate or vanes: low or too much boost. P0234 is overboost, and P2563 is a boost control position sensor reading out of range.",
+  "Worn bearings or seals: blue-grey smoke from oil leaking into the exhaust, and oil in the intercooler pipes.",
+  "Solenoid or hose fault: P0243 and similar, with a stuck boost level.",
+]
+more_detail = [
+  "Many cars let the computer change the pressure that reaches the wastegate actuator, using a solenoid driven by a pulsed signal. That lets boost follow a target. If the control fails, the wastegate spring sets the boost (general knowledge; unverified).",
+  "Turbo lag is the delay while exhaust energy builds. Small turbos, twin scroll designs and variable vanes help. Electric assist turbos are used on some newer cars.",
+]
+related = ["map-sensor", "air-intake", "pattern-boost-leak", "actuators", "diesel-live-data", "term:Turbocharger", "term:Wastegate", "term:Intercooler", "term:Boost", "term:Variable vanes"]
+sources = [
+  "Wikipedia, 'Turbocharger' (read 2026-10-16)",
+  "Garrett Motion, 'How a Turbocharger Works - Turbo Basic Knowledge Guide' (read 2026-10-16)",
+  "Garrett Motion, 'How Turbocharger Wastegates Work - Internal vs External' (read 2026-10-16)",
+  "Wikipedia, 'MAP sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "sensor-signals"
+title = "How sensors talk to the engine computer"
+group = "systems"
+aliases = ["sensor signals", "5 V reference", "5V reference", "sensor reference", "sensor ground", "sensor wiring", "open circuit reading", "short circuit reading"]
+summary = "A sensor sends a voltage or pulses to the computer on a signal wire. The computer also supplies 5 V and a clean ground."
+body = [
+  "Most engine sensors have three wires: a 5 V reference from the engine computer, a signal back, and a sensor ground. Some have two, like a thermistor, which uses the reference through a resistor inside the computer.",
+  "Thermistors change resistance with temperature. Potentiometers change it with position. Hall effect sensors turn a magnetic field into an on and off or analog signal, and need a supply. Reluctance (magnetic) sensors make their own AC voltage. Piezo sensors make a small voltage from shock or pressure.",
+  "The computer knows what range a good signal falls in. A signal outside it is called circuit low or circuit high, and the computer sets a code for it.",
+]
+how_to_read = [
+  "Several sensors can share one 5 V reference. If their codes appear together, check the shared reference and ground first.",
+  "An open signal wire often reads at one extreme: 5 V for a pull-up, 0 V for a pull-down. A thermistor with an open circuit reads cold (-40 C).",
+  "A short to ground drives the signal to 0 V. A thermistor reads very hot (about 215 C).",
+  "A short to voltage drives the signal up toward the supply voltage.",
+]
+parts = [
+  "5 V reference: a regulated supply, often shared by a few sensors.",
+  "Signal wire: carries the voltage, pulse or frequency to the computer.",
+  "Sensor ground: a quiet ground that returns to the computer, not to the body.",
+  "Pull-up resistor: inside the computer, makes an open wire read high.",
+]
+faults = [
+  "Open circuit: a signal stuck at one end, and a circuit code (circuit high or low, depending on the sensor).",
+  "Short to ground: signal 0 V, circuit low code.",
+  "Short to voltage: signal near 5 V (or more), circuit high code.",
+  "High resistance (corrosion, a loose pin): a drifting reading, a range code, or a reading that jumps when you wiggle the plug.",
+  "Shared reference fault: several unrelated sensor codes at the same time.",
+  "On a throttle sensor, an open wire reads like a closed throttle (low-voltage code) and a short reads like a wide-open throttle (high-voltage code), per aa1car.",
+]
+more_detail = [
+  "A sensor ground goes to the computer's sensor ground pin and not to the engine block. This keeps heavy current from the starter or alternator from adding error to a 0.5 V signal. A bad engine ground can still shift the readings.",
+  "A voltage drop test finds high resistance in a ground or reference wire. A drop above about 0.1 V on a sensor ground is worth chasing (typical, not a maker figure). The 5 V reference should read close to 5 V.",
+]
+related = ["actuators", "engine-management", "position-sensors", "coolant-temp-sensor", "crank-sensor", "knock-sensor", "voltage-reading", "term:Reference voltage", "term:Open circuit", "term:Short circuit", "term:Circuit low", "term:Circuit high", "term:Thermistor", "term:Hall effect sensor", "term:Reluctance sensor"]
+sources = [
+  "aa1car.com, 'Basics of Engine Throttle Position Sensors' (read 2026-10-16)",
+  "aa1car.com, 'Making Sense of Engine Sensors' (read 2026-10-16)",
+  "Wikipedia, 'Thermistor' (read 2026-10-16)",
+  "Wikipedia, 'Hall-effect sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "actuators"
+title = "How the engine computer drives actuators"
+group = "systems"
+aliases = ["actuators", "actuator circuit", "driver circuit", "low-side driver", "switching to ground", "PWM control", "actuator control"]
+summary = "The computer switches actuators on and off, or drives them with pulses, and checks the circuit for faults."
+body = [
+  "An actuator is a part the computer moves or switches: an injector, a coil, a valve, a relay or a motor. Most have power on one wire all the time. The computer completes the circuit by switching the other wire to ground. This is a low-side driver.",
+  "For fine control, the computer pulses the output very fast: PWM. The share of time on is the duty cycle. A solenoid valve at 30 percent duty opens a little. At 70 percent it opens more. Motors use the same idea, through an H-bridge to reverse.",
+  "Each driver can sense its own pin. If the pin does not go low when it should, or the current is too high or low, the computer sets a circuit code. Because of this, actuator circuit codes are common and usually point to wiring, the part, or the driver.",
+]
+how_to_read = [
+  "Some cars let Scana show a commanded value, such as commanded purge, EGR or throttle. Compare it with the actual value from the matching sensor.",
+  "A duty cycle that is high and unchanging at idle (for example 90 percent for a valve) shows the computer working hard against a fault.",
+  "Circuit codes are specific. 'Circuit low' usually means a short to ground. 'Circuit high' usually means an open circuit or a short to power. 'Open' means the load is missing.",
+]
+parts = [
+  "Driver: a transistor in the computer that switches the load to ground.",
+  "Load: a coil, motor or heater: the injector, valve or relay.",
+  "Power feed: fused power, often through a relay switched by the computer.",
+  "Feedback: the computer reads the pin voltage or the current to check the circuit.",
+  "Flyback diode or clamp: absorbs the voltage spike when a coil switches off.",
+]
+faults = [
+  "Open coil or wire: no action, and an open circuit code. Check resistance of the part and the wiring.",
+  "Short to ground on a wire: the part is always on, or the driver is damaged, with a circuit low code.",
+  "Mechanical fault with a good circuit: stuck valve, worn motor. The circuit code is absent but a range or performance code appears.",
+  "Blown fuse or relay: several actuators fail at once.",
+]
+more_detail = [
+  "For low-impedance injectors, the driver uses a peak-and-hold method: a high current to open, then a lower hold current. This also cuts heat in the coil.",
+  "A coil makes a voltage spike when it is switched off, so drivers include a clamp to limit it. A shorted coil can overload the driver, so measure the part before replacing the computer.",
+]
+related = ["sensor-signals", "fuel-injectors", "ignition-system", "electronic-throttle", "vvt", "engine-management", "term:Actuator", "term:Solenoid", "term:PWM", "term:Duty cycle", "term:Relay", "term:Open circuit"]
+sources = [
+  "Wikipedia, 'Pulse-width modulation' (read 2026-10-16)",
+  "Fluke, 'How to Measure Fuel Injector Pulse Width and Resistance with a Multimeter' (read 2026-10-16)",
+  "aa1car.com, 'How Electronic Fuel Injection Works' (read 2026-10-16)",
+  "aa1car.com, 'Diagnosing Returnless Fuel Injection Systems' (read 2026-10-16)",
+]
+
+[[term]]
+name = "Piezoelectric sensor"
+text = "A sensor with a crystal that makes a small voltage when it is squeezed or shaken, like a knock sensor."
+
+[[term]]
+name = "Tone wheel"
+text = "A wheel with teeth, and often a gap, that turns with a shaft so a sensor can count the teeth and find the shaft position."
+
+[[term]]
+name = "Pulse width"
+text = "How long, in milliseconds, the computer holds an injector open for one squirt of fuel."
+
+[[term]]
+name = "Potentiometer"
+text = "A track of resistance with a sliding contact. Its output voltage shows how far the pedal or throttle has moved."
+
+[[term]]
+name = "Wasted spark"
+text = "A system where one coil fires two plugs together. One spark lands in a cylinder on its exhaust stroke and does nothing."
+
+[[term]]
+name = "Coil-on-plug"
+text = "An ignition design with one coil sitting directly on each spark plug, so no plug leads are needed."
+
+[[term]]
+name = "Sequential injection"
+text = "Each injector fires in its own cylinder's intake stroke, timed by the cam and crank sensors."
+
+[[term]]
+name = "Intake manifold"
+text = "The pipes that share the incoming air among the cylinders, downstream of the throttle."
+
+[[term]]
+name = "Variable vanes"
+text = "Adjustable blades in a turbo's turbine housing. They change the exhaust flow so the turbo makes boost at low and high engine speed."
+
+[[term]]
+name = "Adaptation"
+text = "A small correction the engine computer learns and keeps in memory, such as for wear or dirt, and may lose when the battery is disconnected."
+
+[[term]]
+name = "Dwell"
+text = "The time an ignition coil is switched on to charge before it fires the spark, usually a few milliseconds."
+
+[[term]]
+name = "Speed-density"
+text = "A way to estimate air mass from manifold pressure, air temperature and engine speed, without a MAF sensor."
+
+[[term]]
+name = "Pump cell"
+text = "The part of a wide-band oxygen sensor that moves oxygen in or out. The current needed shows the mixture."
+
+[[term]]
+name = "Pre-ignition"
+text = "Fuel that ignites before the spark, from a hot spot or deposit. It is more damaging than normal knock."
+
+[[term]]
+name = "Diverter valve"
+text = "A valve on a turbo engine that vents or recirculates boost air when the throttle closes, to protect the compressor."

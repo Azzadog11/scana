@@ -86,7 +86,7 @@ impl ScanaApp {
             );
             ui.add_space(6.0);
             let busy = matches!(self.model.state, Some(LinkState::Connecting(_)));
-            if ui.add_enabled(!busy, egui::Button::new(RichText::new("Connect").strong()).fill(pal.accent)).clicked() {
+            if ui.add_enabled(!busy, crate::theme::accent_button(&pal, "Connect")).clicked() {
                 self.connect_choice();
             }
             ui.label(
@@ -146,7 +146,7 @@ impl ScanaApp {
         }
         ui.add_space(10.0);
         ui.horizontal_wrapped(|ui| {
-            if ui.add(egui::Button::new(RichText::new("Health check").strong()).fill(pal.accent)).clicked() {
+            if ui.add(crate::theme::accent_button(&pal, "Health check")).clicked() {
                 self.session.send(Command::HealthCheck);
                 self.go(Page::Health);
             }
@@ -192,10 +192,7 @@ impl ScanaApp {
         }
         ui.horizontal(|ui| {
             let busy = self.model.busy.is_some();
-            if ui
-                .add_enabled(!busy, egui::Button::new(RichText::new("Run the health check").strong()).fill(pal.accent))
-                .clicked()
-            {
+            if ui.add_enabled(!busy, crate::theme::accent_button(&pal, "Run the health check")).clicked() {
                 self.session.send(Command::HealthCheck);
             }
             if let Some(b) = &self.model.busy {

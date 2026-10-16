@@ -18,7 +18,7 @@ impl ScanaApp {
             return;
         }
         ui.horizontal(|ui| {
-            if ui.add(egui::Button::new(RichText::new("Read codes").strong()).fill(pal.accent)).clicked() {
+            if ui.add(crate::theme::accent_button(&pal, "Read codes")).clicked() {
                 self.session.send(Command::ReadCodes);
             }
             if ui.button("Read freeze frames").clicked() {
@@ -84,7 +84,7 @@ impl ScanaApp {
                     |ui| {
                         for r in &ff.readings {
                             if ui.link(r.name).clicked() {
-                                self.topic = Some(Topic::Pid(ff.ecu, r.pid));
+                                self.open_topic(Topic::Pid(ff.ecu, r.pid));
                             }
                             ui.label(r.display());
                             ui.end_row();
@@ -103,7 +103,7 @@ impl ScanaApp {
             ui.label(RichText::new(format!("{label:<9}")).color(color).monospace());
             let text = RichText::new(format!("{code}  {}", info.summary())).size(16.0);
             if ui.selectable_label(selected, text).clicked() {
-                self.topic = Some(Topic::Dtc(code));
+                self.open_topic(Topic::Dtc(code));
             }
             let kind = if info.manufacturer_specific { "maker-specific" } else { "generic" };
             ui.label(RichText::new(kind).small().color(self.pal().dim));

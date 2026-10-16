@@ -23,10 +23,7 @@ impl ScanaApp {
         let running = self.model.discovering;
         ui.horizontal(|ui| {
             if ui
-                .add_enabled(
-                    !running && self.model.busy.is_none(),
-                    egui::Button::new(RichText::new("Find modules").strong()).fill(pal.accent),
-                )
+                .add_enabled(!running && self.model.busy.is_none(), crate::theme::accent_button(&pal, "Find modules"))
                 .on_hover_text("One harmless 'are you there?' request to each likely address, about 500 in all")
                 .clicked()
             {
@@ -155,7 +152,7 @@ impl ScanaApp {
                     ui.horizontal_wrapped(|ui| {
                         let selected = self.topic == Some(Topic::Dtc(d.code));
                         if ui.selectable_label(selected, RichText::new(d.to_string()).monospace().strong()).clicked() {
-                            self.topic = Some(Topic::Dtc(d.code));
+                            self.open_topic(Topic::Dtc(d.code));
                         }
                         ui.label(RichText::new(state.words()).color(color));
                     });

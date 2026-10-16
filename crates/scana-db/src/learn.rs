@@ -73,6 +73,12 @@ static PIDS: LazyLock<Vec<PidLearn>> =
     LazyLock::new(|| toml::from_str::<PidFile>(include_str!("../data/learn/pids.toml")).unwrap_or_default().pid);
 static TERMS: LazyLock<Vec<Term>> = LazyLock::new(|| {
     let mut t = toml::from_str::<TermFile>(include_str!("../data/learn/glossary.toml")).unwrap_or_default().term;
+    // Words that came with the Library's topics; the glossary's own wording wins a clash.
+    for extra in crate::library::extra_terms() {
+        if !t.iter().any(|x| x.name.eq_ignore_ascii_case(&extra.name)) {
+            t.push(extra);
+        }
+    }
     t.sort_by_key(|x| x.name.to_lowercase());
     t
 });
@@ -113,7 +119,7 @@ pub fn lesson() -> &'static [Section] {
 mod tests {
     use super::*;
 
-    const PAGE_IDS: [&str; 15] = [
+    const PAGE_IDS: [&str; 16] = [
         "home",
         "health",
         "codes",
@@ -128,6 +134,7 @@ mod tests {
         "monitor",
         "sessions",
         "learn",
+        "glossary",
         "settings",
     ];
 

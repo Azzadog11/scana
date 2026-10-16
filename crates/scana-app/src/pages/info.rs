@@ -12,7 +12,7 @@ impl ScanaApp {
             return;
         }
         let Some(conn) = self.model.conn.clone() else { return };
-        if ui.add(egui::Button::new(RichText::new("Read vehicle information").strong()).fill(pal.accent)).clicked() {
+        if ui.add(crate::theme::accent_button(&pal, "Read vehicle information")).clicked() {
             self.session.send(Command::ReadInfo);
         }
         ui.add_space(8.0);

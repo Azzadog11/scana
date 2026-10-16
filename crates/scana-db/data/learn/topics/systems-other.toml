@@ -1,0 +1,886 @@
+# Scana Library: Systems, everything beyond engine management. Researched for Scana (2026-10-16). Sources per topic.
+
+[[topic]]
+id = "catalytic-converter"
+title = "Catalytic converter"
+group = "systems"
+aliases = ["catalytic converter", "catalyst", "three-way catalyst", "cat"]
+summary = "A metal canister in the exhaust that turns three harmful gases into water, carbon dioxide and nitrogen."
+body = [
+  "A petrol engine's exhaust holds carbon monoxide (CO), unburnt fuel (HC) and nitrogen oxides (NOx). The three-way converter cleans all three at once. Inside is a ceramic or metal honeycomb coated with platinum, palladium and rhodium.",
+  "It only works well when the mixture stays close to 14.7:1, so the engine computer swings it slightly rich and lean. The coating contains ceria, which holds spare oxygen when the mixture is lean and gives it back when rich. This is called oxygen storage.",
+  "The converter must be hot. It starts to work at about 250 to 300 degrees C (light-off) and works well from about 400 degrees C (typical). The engine computer judges its health by comparing the oxygen sensors before and after it.",
+]
+how_to_read = [
+  "On Live data, the oxygen sensor after the converter (sensor 2) should stay fairly steady. If it swings like the front sensor, the converter has lost its oxygen storage.",
+  "Code P0420 (bank 1) means efficiency is below the limit. Engines with two banks also have a matching code for bank 2. Check for exhaust leaks, misfires and a faulty rear sensor before you blame the converter.",
+  "The Readiness screen shows the catalyst monitor. It needs a warm engine and steady driving to complete.",
+]
+parts = [
+  "Substrate: a honeycomb of ceramic or metal that gives a large surface in a small space.",
+  "Washcoat: a rough coating with ceria that stores oxygen and holds the metals.",
+  "Precious metals: platinum and palladium burn CO and HC; rhodium breaks up NOx.",
+  "Oxygen sensors: one before and one after the converter, used to check its work.",
+]
+faults = [
+  "Misfires: unburnt fuel burns inside the converter and overheats it. A flashing check engine lamp means stop and fix it soon.",
+  "Oil or coolant burnt in the engine, for example from a leaking head gasket: deposits from silicon, phosphorus and zinc coat the honeycomb and stop it working (poisoning).",
+  "A blocked converter: weak power at high revs, a hot floor, or a rotten egg smell.",
+  "A rattle from underneath can mean the honeycomb has broken up.",
+]
+more_detail = [
+  "Too much heat ages the converter fast. One reference says a converter's own temperature sensor warns above about 750 degrees C, and that modern designs survive about 900 degrees C. This is why long misfires kill converters.",
+  "Some cars have a close-coupled converter near the engine for fast light-off, plus a second one under the floor. Temperatures vary by design; the workshop manual decides.",
+]
+related = ["pattern-catalyst", "o2-sensor", "o2-sensor-reading", "pattern-misfire", "pattern-exhaust-leak", "secondary-air", "term:Catalytic converter", "term:Oxygen storage", "term:Light-off", "guide:catalyst", "code:P0420", "page:readiness"]
+sources = [
+  "Wikipedia, 'Catalytic converter' (read 2026-10-16)",
+  "PubMed Central, 'Catalyst State Diagnosis of Three-Way Catalytic Converters Using Different Resonance Parameters: A Microwave Cavity Perturbation Study' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "evap-system"
+title = "EVAP system"
+group = "systems"
+aliases = ["EVAP system", "evaporative emission system", "evaporative emissions", "fuel cap", "loose fuel cap"]
+summary = "A sealed system that traps fuel vapour from the tank in a charcoal canister, then burns it in the engine."
+body = [
+  "Petrol evaporates, especially when warm. The EVAP system stops that vapour from escaping to the air. It leads vapour from the tank to a charcoal canister, which soaks it up like a sponge.",
+  "Later, with the engine warm and running, the engine computer opens the purge valve. Engine vacuum then pulls fresh air through the canister and the vapour goes into the intake to be burnt. The vent valve is normally open to let air in; it closes for leak tests.",
+  "The computer tests the system for leaks. It closes the vent valve and watches the tank pressure. A leak as small as about 0.5 mm (0.020 inch) can set a code on many cars.",
+]
+how_to_read = [
+  "Codes P0440 to P0457 cover the system. P0455 is a large leak, P0456 a very small leak, and P0457 a loose or missing fuel cap.",
+  "On Live data, check purge duty and fuel tank pressure if the car reports them.",
+  "The Readiness screen shows the EVAP monitor. It often needs a cold start and a part-full tank.",
+]
+parts = [
+  "Fuel cap: seals the filler. A worn seal is the most common cause of a leak code.",
+  "Charcoal canister: stores fuel vapour until the engine can burn it.",
+  "Purge valve: a solenoid that lets vapour into the intake.",
+  "Vent valve: a solenoid that opens the canister to fresh air, normally open.",
+  "Tank pressure sensor: tells the computer the pressure or vacuum in the tank.",
+  "Hoses and pipes: join the parts. They crack with age.",
+]
+faults = [
+  "Loose, wrong or worn fuel cap: a check engine lamp soon after refuelling, often a small or large leak code.",
+  "A purge valve stuck open: a leak code, and rough idle or hard starting just after refuelling because vapour floods the intake.",
+  "A vent valve that does not close fully: vacuum bleeds away during the test, so the computer reads a leak.",
+  "A pinhole in a vapour line or a worn valve seat: a small leak code that returns after the cap is replaced.",
+]
+more_detail = [
+  "A workshop finds leaks by feeding low-pressure smoke into the system with the vent valve closed. A very small leak shows as a thin wisp, so UV dye helps.",
+  "Leak detection varies. Some cars use engine vacuum and some use a small pump. The workshop manual decides.",
+]
+related = ["pattern-evap-purge", "fuel-system", "fuel-trim", "pattern-vacuum-leak", "term:EVAP", "term:Charcoal canister", "term:Purge valve", "term:Vent valve", "guide:evap-leak", "guide:evap-purge", "code:P0455", "code:P0457", "page:readiness"]
+sources = [
+  "Apex Tech Nation, 'EVAP System Diagnosis - P0440, P0442, P0456 and Smoke Testing' (read 2026-10-16, via search summary)",
+  "Identifix, 'P0456 Code: EVAP Leak Causes & Fixes' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "egr-system"
+title = "EGR system"
+group = "systems"
+aliases = ["EGR system", "EGR valve", "exhaust gas recirculation", "EGR cooler"]
+summary = "Sends a measured amount of exhaust back into the intake to cool combustion and cut nitrogen oxide (NOx)."
+body = [
+  "NOx forms when combustion gets very hot. Exhaust gas holds little oxygen and does not burn. Mixed back into the intake, it dilutes the fresh air and cools the burn, so less NOx forms.",
+  "A valve controlled by the engine computer meters the flow. It is shut at idle and at full load on petrol engines, and opens at part load. Petrol engines recirculate about 5 to 15 percent of the exhaust; diesels can take much more at light load.",
+  "On petrol engines EGR also cuts pumping losses at part load, which helps economy. On diesels it is used a lot, so the intake gets sooty and oily. Most modern diesels cool the gas first in a small heat exchanger.",
+]
+how_to_read = [
+  "Live data may show commanded EGR (PID 2C) and EGR error (PID 2D). A large error means the valve is not moving the amount asked for.",
+  "P0401 means EGR flow is too low, often a blocked passage or a valve stuck closed. It is the more common fault because carbon only builds up.",
+  "A valve that sticks open can show as a rough idle, stalling and poor throttle response.",
+]
+parts = [
+  "EGR valve: a vacuum or electric valve that opens a passage from exhaust to intake.",
+  "EGR passages: pipes or drilled ports in the head and manifold that clog with carbon.",
+  "EGR cooler (most diesels): a small heat exchanger using engine coolant.",
+  "Position or flow sensor: tells the computer how far the valve is open or how much flows.",
+]
+faults = [
+  "Carbon on the valve seat or in the passages: flow is too low. Signs are pinging under load and a low-flow code.",
+  "A valve stuck open: rough idle, stalling and sluggish response.",
+  "A leaking EGR cooler on a diesel: coolant loss with no outside leak, and white smoke with a sweet smell.",
+  "Short-trip diesels: soot and oil coat the valve and passages sooner. A cleaning often helps before replacing parts.",
+]
+more_detail = [
+  "Cooled EGR parts suffer repeated sharp temperature swings, which is why coolers can crack and leak coolant. Some designs bypass the cooler when the engine is cold, so it warms faster.",
+]
+related = ["diesel-live-data", "dpf", "air-intake", "pcv-system", "actuators", "term:EGR", "term:NOx", "guide:egr", "code:P0401"]
+sources = [
+  "Wikipedia, 'Exhaust gas recirculation' (read 2026-10-16)",
+  "Apex Tech Nation, 'EGR System Diagnosis - Stuck Open, Stuck Closed, and Carbon Buildup' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "pcv-system"
+title = "PCV (crankcase ventilation)"
+group = "systems"
+aliases = ["PCV system", "crankcase ventilation", "blow-by", "oil separator"]
+summary = "Draws gas that leaks past the pistons out of the engine and burns it, so pressure never builds."
+body = [
+  "Some burnt gas always leaks past the piston rings into the crankcase. This is blow-by. If it stayed there, it would form sludge with the oil, and pressure would push oil out of seals and gaskets.",
+  "The PCV system pulls those gases from the crankcase into the intake, so the engine burns them. Fresh air enters through a breather hose. A PCV valve controls the flow: it closes down at idle, when vacuum is high, and opens more under load. It also blocks boost pressure or backfires from entering the crankcase.",
+  "Many engines also have an oil separator that drops oil droplets out of the gas first.",
+]
+how_to_read = [
+  "A leak in this system acts like a vacuum leak. Look for high positive fuel trims at idle that fall at higher revs, and a high idle speed.",
+  "A stuck-open valve or cracked hose often shows up as lean codes such as P0171 or P0174 rather than a PCV code.",
+]
+parts = [
+  "PCV valve: a spring valve or diaphragm that meters crankcase flow.",
+  "Hoses: join the crankcase, valve cover and intake. Rubber cracks with heat and age.",
+  "Oil separator: removes oil mist from the gas before it enters the intake.",
+  "Diaphragm (on some engines): a thin membrane in the cover that can tear and leak.",
+]
+faults = [
+  "A cracked hose or torn diaphragm: a hissing sound, rough idle, lean codes and high fuel trims.",
+  "A valve stuck closed or blocked: oil leaks from seals, oil in the air filter box, and sludge.",
+  "A valve stuck open: rough or high idle and lean running, as with any vacuum leak.",
+  "Oil in the intake pipe: a stuck or torn valve pulls oil vapour in. Oil use alone does not prove the PCV system is at fault.",
+]
+more_detail = [
+  "A simple check on some engines: pinch the PCV hose with the engine idling. A healthy valve changes the idle. If nothing changes, the valve may be blocked, or the leak is elsewhere.",
+]
+related = ["pattern-vacuum-leak", "fuel-trim", "air-intake", "turbocharger", "egr-system", "term:PCV valve", "term:Blow-by", "term:Oil separator", "code:P0171"]
+sources = [
+  "Wikipedia, 'Positive crankcase ventilation' (read 2026-10-16)",
+  "Auto Training Centre, 'Bad PCV Valve Symptoms: Rough Idle, and Vacuum Leaks' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "secondary-air"
+title = "Secondary air injection"
+group = "systems"
+aliases = ["secondary air", "secondary air injection", "air pump", "smog pump"]
+summary = "A small pump blows fresh air into the exhaust after a cold start to burn pollution and heat the converter."
+body = [
+  "A cold engine runs rich and makes a lot of unburnt fuel and carbon monoxide. The catalytic converter is also too cold to clean it. The secondary air system pumps fresh air into the exhaust just after the engine starts.",
+  "The extra oxygen lets the unburnt gas burn in the exhaust. This heats the converter so the engine computer can start closed-loop control sooner. Run time varies by car: reports range from about 30 to 120 seconds, and one maker reference says 90 to 120 seconds.",
+  "You may hear a whirr or hum from the engine bay for a short time after a cold start. That is normal on cars with this system.",
+]
+how_to_read = [
+  "Codes P0410 to P0419 cover the system. P0411 means incorrect flow, often a blocked or stuck valve.",
+  "The Readiness screen shows a secondary air monitor on cars that have one. It runs soon after a cold start.",
+]
+parts = [
+  "Air pump: an electric pump driven by a relay. It is not built for continuous use.",
+  "Combination valve: a check valve that stops hot exhaust going back to the pump.",
+  "Switching solenoid (some designs): opens vacuum to the valve.",
+  "Hoses and pipes: lead air to the exhaust ports or manifold.",
+]
+faults = [
+  "A seized or worn pump: scraping, whistling or no sound at cold start, and a flow code.",
+  "A jammed relay: the pump runs too long, overheats, and gives off a charred smell.",
+  "A stuck or burnt valve: a flow code.",
+  "A blown fuse: the pump is silent and a circuit code is stored.",
+]
+more_detail = [
+  "A failed system seldom hurts driveability, but it keeps the lamp on and fails an emissions test. Some older systems also had aspirated designs, where exhaust pulses draw air through a reed valve with no pump.",
+]
+related = ["catalytic-converter", "o2-sensor", "closed-loop", "term:Secondary air injection", "guide:secondary-air", "code:P0411", "page:readiness"]
+sources = [
+  "Wikipedia, 'Secondary air injection' (read 2026-10-16)",
+  "MS Motorservice, 'Failure of secondary air pump' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "dpf"
+title = "Diesel particulate filter (DPF)"
+group = "systems"
+aliases = ["DPF", "diesel particulate filter", "particulate filter", "regeneration", "regen", "soot filter"]
+summary = "A filter in a diesel's exhaust that traps soot, then burns it off at high temperature."
+body = [
+  "Diesel exhaust contains tiny soot particles. The DPF is a ceramic honeycomb with channels blocked at alternate ends. The gas is forced through the walls and the soot stays behind.",
+  "Soot builds up, so the filter must clean itself. This is regeneration. In passive regeneration, on a long fast run, the exhaust is hot enough (reports say about 350 to 500 degrees C with a catalyst) to burn soot slowly.",
+  "If that is not enough, the engine computer starts an active regeneration. It injects extra fuel late so the exhaust reaches about 600 degrees C or more. This takes 10 to 20 minutes (typical) and is best left to finish.",
+]
+how_to_read = [
+  "A differential pressure sensor compares pressure before and after the filter. On Live data, a high value at a given engine load means the filter is clogging.",
+  "Some cars also show soot load, distance since the last regeneration and exhaust temperatures. These need enhanced data and vary by make.",
+  "P2002 means the filter's efficiency is below the limit.",
+]
+parts = [
+  "Filter body: ceramic honeycomb, usually cordierite or silicon carbide.",
+  "Oxidation catalyst: before or inside the filter, it helps create the heat for burning soot.",
+  "Differential pressure sensor: connected by two small pipes before and after the filter.",
+  "Exhaust temperature sensors: guard against overheating and show regeneration progress.",
+]
+faults = [
+  "Short trips: the exhaust never gets hot enough, so regeneration is cut short again and again. The filter clogs and a dash lamp comes on.",
+  "Ash from burnt oil cannot burn off. It slowly fills the filter and needs a cleaning or a new filter.",
+  "A blocked, cracked or leaking sensor pipe gives false pressure readings and can start needless regenerations.",
+  "Cordierite melts at about 1200 degrees C, so a badly overloaded filter can melt during regeneration.",
+]
+more_detail = [
+  "If the lamp comes on, a sustained drive at higher speed often lets the regeneration finish. Follow the owner's manual. If it is ignored the car can go into limp mode, and then a workshop forced regeneration or a new filter is needed.",
+  "Extra fuel from late injection can run down the cylinder walls and dilute the oil. Check the dipstick if the car often regenerates (unverified for all makes).",
+]
+related = ["diesel-live-data", "egr-system", "scr-adblue", "warning-lights", "turbocharger", "term:Diesel particulate filter", "term:Regeneration", "term:Soot", "term:Differential pressure sensor", "guide:dpf", "code:P2002"]
+sources = [
+  "Wikipedia, 'Diesel particulate filter' (read 2026-10-16)",
+  "Snap-on, 'DPF Regeneration: A Comprehensive Guide' (read 2026-10-16, via search summary)",
+  "Sydney Diesel Centre, 'DPF Regeneration Explained: Diesel Soot, Sensors & Diagnostics' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "scr-adblue"
+title = "SCR and AdBlue"
+group = "systems"
+aliases = ["SCR", "AdBlue", "DEF", "diesel exhaust fluid", "urea injection", "NOx sensor"]
+summary = "Selective catalytic reduction sprays a urea liquid (AdBlue) into a diesel's exhaust to turn NOx into nitrogen and water."
+body = [
+  "SCR cleans NOx from diesel exhaust. A small pump sprays AdBlue, a solution of 32.5 percent urea in water, into the exhaust. Heat turns the urea into ammonia, which reacts with NOx on a catalyst to make nitrogen and water.",
+  "The engine computer adjusts the dose from the NOx level measured in the exhaust. NOx sensors before and after the catalyst show how well it works. The tank has its own filler, usually marked in blue.",
+  "The computer watches the fluid level. If the tank runs low, the dash shows a warning, then a range countdown, then reduced performance. When the tank is empty the engine will not restart.",
+]
+how_to_read = [
+  "Live data on diesels with SCR may show the AdBlue level, tank temperature and NOx sensor readings. Compare the sensor after the catalyst with the one before it. It should read much lower.",
+  "SCR codes are mostly in the P20xx range and are often maker-specific. Check the Fault codes screen for the text Scana has.",
+]
+parts = [
+  "AdBlue tank: holds the fluid. It has a heater and a level sensor.",
+  "Pump and injector: send a measured spray into the exhaust.",
+  "SCR catalyst: where ammonia and NOx react.",
+  "NOx sensors: measure NOx before and after the catalyst.",
+  "Control module: sets the dose from engine data.",
+]
+faults = [
+  "Empty tank: warning lamp, then a countdown in kilometres. Top up with real AdBlue; water or a substitute will not work.",
+  "Frozen fluid: AdBlue freezes at about minus 11 degrees C. Heaters or engine heat thaw it.",
+  "A worn NOx sensor: wrong efficiency codes, even with a good catalyst.",
+  "Crystals blocking the injector or pipe: low flow codes and white deposits.",
+]
+more_detail = [
+  "In Australia the fluid is sold as AdBlue, in containers of about 1.5 to 10 litres, at most service stations and auto shops, and at the pump at some truck sites. Never put it in the diesel tank.",
+  "The fluid starts to break down at about 60 degrees C, so store it cool and out of the sun. The standard for its quality is ISO 22241 (also called AUS 32).",
+]
+related = ["diesel-live-data", "dpf", "egr-system", "warning-lights", "term:AdBlue", "term:SCR", "term:NOx", "term:Limp mode", "term:Urea"]
+sources = [
+  "Wikipedia, 'Diesel exhaust fluid' (read 2026-10-16)",
+  "Wikipedia, 'Selective catalytic reduction' (read 2026-10-16)",
+  "Ampol, 'AdBlue' (read 2026-10-16, via search summary)",
+  "Volkswagen Australia, 'AdBlue' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "cooling-system"
+title = "Cooling system"
+group = "systems"
+aliases = ["cooling system", "radiator", "cooling fan", "overheating", "coolant leak", "pressure cap"]
+summary = "Circulates coolant to carry waste heat from the engine to the radiator, and keeps the engine at working temperature."
+body = [
+  "An engine turns only part of its fuel energy into power. The cooling system carries the rest away as heat. A water pump pushes coolant through passages in the block and head, then to the radiator, where air removes the heat.",
+  "A thermostat keeps the engine warm. It stays shut when cold, so the engine warms fast, then opens at a set temperature (195 degrees F, about 90 degrees C, is a common rating) to let coolant flow to the radiator. A fan pulls air through when the car is slow or stopped.",
+  "The system is sealed and under pressure from the radiator cap. Typical caps are rated about 0.9 to 1.1 bar (13 to 16 psi). Pressure raises the boiling point: a 50/50 coolant mix under a typical cap boils at about 125 to 130 degrees C (typical). Coolant also feeds the heater core for cabin heat.",
+]
+how_to_read = [
+  "Watch coolant temperature in Live data. A warm engine normally settles near its thermostat rating (about 90 to 105 degrees C is common) and stays steady in traffic.",
+  "P0128 means the engine takes too long to warm up: often a thermostat stuck open, but also a coolant sensor fault or a fan running too much.",
+  "A reading that climbs while the fan stays off points to the fan, relay or sensor. A reading that disagrees with the gauge and the hoses may mean a faulty sensor.",
+]
+parts = [
+  "Water pump: driven by a belt or chain, circulates coolant.",
+  "Thermostat: a wax valve that opens at a set temperature.",
+  "Radiator: a core of thin tubes and fins that gives up heat to the air.",
+  "Fan: electric or belt-driven, switched by the engine computer.",
+  "Pressure cap and expansion tank: hold pressure and take up coolant growth.",
+  "Coolant: glycol antifreeze and water with additives. Types (IAT, OAT, HOAT) are not always compatible.",
+]
+faults = [
+  "Low coolant from a leak: temperature climbs, the heater blows cold, a sweet smell. Check hoses, the radiator, the water pump and the head gasket.",
+  "Thermostat stuck shut: fast overheating. Low coolant or a blocked radiator can look the same.",
+  "Thermostat stuck open: slow warm-up, weak cabin heat, higher fuel use.",
+  "Fan not running: fine on the road, overheating in traffic.",
+  "Steam bubbles from boiling coolant insulate the metal, so cooling drops suddenly and hot spots can damage the engine.",
+]
+more_detail = [
+  "Never open a hot radiator cap. The coolant is above boiling point and sprays out. Do not mix coolant types, because the additives differ. Use the type the maker lists.",
+  "Some engines shut down or cut power when they overheat, to protect themselves.",
+]
+related = ["pattern-thermostat", "coolant-temp-reading", "coolant-temp-sensor", "pattern-ect-sensor", "term:Thermostat", "term:Coolant", "term:Water pump", "term:Radiator cap", "term:Heater core", "term:Head gasket", "guide:overheat", "guide:thermostat", "guide:fan", "code:P0128"]
+sources = [
+  "Wikipedia, 'Internal combustion engine cooling' (read 2026-10-16)",
+  "Wikipedia, 'Thermostat' (read 2026-10-16)",
+  "Garage.co.uk, 'What Are Pressure Ratings for Radiator Caps?' (read 2026-10-16, via search summary)",
+  "OBD-Codes.com, 'P0128 Coolant Thermostat' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "charging-system"
+title = "Charging system"
+group = "systems"
+aliases = ["charging system", "alternator charging", "smart charging", "battery sensor"]
+summary = "The alternator makes electricity while the engine runs, to power the car and keep the 12 V battery charged."
+body = [
+  "A belt turns the alternator. It makes alternating current and a rectifier (a set of diodes) turns it into direct current. A voltage regulator holds the system voltage steady by changing the small field current in the rotor.",
+  "On many newer cars the engine computer controls the alternator. A battery sensor on the battery measures current, voltage and temperature, and the computer sets a target voltage, often over a LIN line. This is smart charging.",
+  "With smart charging, the voltage changes with driving. It may drop to about 12.5 V when the battery is full and rise to 14.5 V or more when slowing down, to recover energy. This is normal.",
+]
+how_to_read = [
+  "On Live data, control module voltage with the engine running is usually near 13.5 to 14.8 V on a conventional system, and varies on smart charging. At key-on, engine off, it shows battery voltage.",
+  "A reading that stays at battery voltage or falls while running means the battery is not being charged.",
+  "P0562 means system voltage is low.",
+]
+parts = [
+  "Alternator: generates power, with a rectifier and a regulator.",
+  "Drive belt and tensioner: turn the alternator.",
+  "Battery sensor: measures battery current, voltage and temperature on smart systems.",
+  "Charge warning lamp: a red battery shape. It lights with the key on and goes out when the alternator makes power.",
+  "Cables and grounds: carry the current. Corroded ones act as a fault.",
+]
+faults = [
+  "Worn alternator: red battery lamp, dim lights, a whine or a flat battery.",
+  "Loose or slipping belt: squealing and intermittent charging.",
+  "Corroded terminals and grounds: voltage drops and odd faults, with a battery that seems fine.",
+  "Overcharging: a hot, bubbling or swollen battery and burnt bulbs.",
+]
+more_detail = [
+  "On cars with smart charging, a new battery often needs registering with the computer so the charge plan matches its type. A simple second-battery link can also fail to charge. Check the workshop manual.",
+]
+related = ["pattern-charging", "voltage-reading", "battery", "starting-system", "warning-lights", "car-networks", "term:Alternator", "term:Voltage regulator", "term:Smart charging", "term:Parasitic drain", "guide:charging", "code:P0562", "pid:42"]
+sources = [
+  "Wikipedia, 'Alternator (automotive)' (read 2026-10-16)",
+  "Vehicle Service Pros, 'What Makes Today's Charging Systems Smart?' (read 2026-10-16, via search summary)",
+  "12voltplanet.co.uk, 'Auxiliary Battery Charging In Vehicles With Smart Alternators' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "starting-system"
+title = "Starting system"
+group = "systems"
+aliases = ["starting system", "starter motor", "starter", "no-crank", "starter relay", "cranking"]
+summary = "A battery-powered electric motor that spins the engine fast enough to start. Several switches must agree first."
+body = [
+  "The starter motor is a strong electric motor that turns the flywheel through a small gear. A solenoid on it pushes the gear into mesh and closes a heavy switch. A one-way clutch stops the engine from driving the starter once it fires.",
+  "A small current from the ignition switch or push button feeds the solenoid, sometimes through a relay. Safety inputs must agree first: park or neutral on an automatic, or the clutch pedal on a manual. On many cars the immobiliser must also accept the key.",
+  "Starters are built for short use, typically under 30 seconds before they overheat. Long cranking or holding the key in start can burn the contacts and brushes.",
+]
+how_to_read = [
+  "On Live data, engine speed while cranking is typically around 200 rpm or more. Denso tests starters at about 200 to 250 rpm. Lower means a weak battery or starter.",
+  "Battery voltage while cranking should stay above about 9.6 V at normal temperature (typical for a 12 V system). Lower means a weak battery or poor cables.",
+  "No engine speed signal while cranking points to a crank sensor fault, not a starter fault.",
+]
+parts = [
+  "Starter motor and solenoid: turn the engine.",
+  "Starter relay: lets a small signal switch a larger current.",
+  "Ignition switch or start button: starts the sequence.",
+  "Neutral safety switch or clutch switch: prevents starting in gear.",
+  "Immobiliser: checks the key and can block starting or fuel.",
+  "Battery and cables: carry the current.",
+]
+faults = [
+  "Click but no crank: the solenoid gets too little voltage (weak battery, poor connection), or its contacts are burnt.",
+  "No sound at all: a poor ignition switch connection, a blown fuse, a faulty relay, or a clutch or neutral switch that is not closing.",
+  "Slow crank: a weak battery, corroded connections, or high resistance in the circuit.",
+  "Starter spins but the engine does not turn: worn flywheel teeth or a worn starter drive.",
+  "Cranks fast but will not start: a different problem. Check fuel, spark and the immobiliser lamp.",
+]
+more_detail = [
+  "A voltage drop test finds high resistance. Denso gives 0.5 V or less from battery positive to the starter, and 0.2 V or less on the earth side, while cranking.",
+  "Some immobilisers let the starter spin but stop fuel or spark. Others stop the starter too.",
+]
+related = ["battery", "charging-system", "body-control", "crank-sensor", "manual-and-4wd", "term:Immobiliser", "term:Relay", "term:Voltage drop", "guide:no-start", "guide:flat-battery", "pid:0C"]
+sources = [
+  "Wikipedia, 'Starter (engine)' (read 2026-10-16)",
+  "Denso Aftermarket Europe, 'Starter troubleshooting' (read 2026-10-16)",
+  "TPUB, 'Clutch Start Switch' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "battery"
+title = "12 V battery"
+group = "systems"
+aliases = ["battery", "12 V battery", "car battery", "AGM", "EFB", "cold cranking amps", "CCA", "flat battery"]
+summary = "The lead-acid battery that starts the engine and powers the electronics when the engine is off."
+body = [
+  "A car battery has six lead-acid cells of about 2.1 V each, giving about 12.6 V when full and rested. It supplies the huge starting current, then the alternator refills it.",
+  "Cars with stop-start use stronger types. EFB (enhanced flooded) has liquid acid and copes with many cycles. AGM (absorbed glass mat) holds the acid in glass mats and suits deeper cycling and energy recovery. Most makers advise replacing like with like.",
+  "Cold cranking amps (CCA) rate how much current a battery gives for a cold start. Heat shortens battery life more than cold. In hot parts of Australia, pick a battery built for heat and expect a shorter life.",
+]
+how_to_read = [
+  "Rested battery, engine off, typical flooded battery: 12.6 V or more is full, 12.4 V about 75 percent, 12.2 V about 50 percent, 12.0 V about 25 percent. Charts differ a little. AGM reads slightly higher when full, about 12.7 to 12.9 V.",
+  "Cranking should not pull the voltage below about 9.6 V (typical). Engine running should show about 13.5 to 14.8 V on a conventional system.",
+  "Resting voltage shows charge, not health. A tired battery can read 12.6 V and still fail under load.",
+]
+parts = [
+  "Plates and cells: lead plates in dilute sulphuric acid.",
+  "Terminals: where cables clamp. Corrosion here causes bad starts.",
+  "Battery sensor (some cars): reports current, voltage and temperature to the computer.",
+]
+faults = [
+  "Sulphation: a battery left discharged grows lead sulphate crystals and loses capacity.",
+  "Heat damage: long hot spells speed up wear. Sources say the same battery type can last noticeably fewer months in a hot region.",
+  "Corroded or loose terminals: slow cranking and odd electrical faults.",
+  "A parasitic drain: a flat battery after a few days, because a module does not go to sleep.",
+]
+more_detail = [
+  "A proper test uses a load tester or a conductance tester. A full recharge of a typical car battery takes about 6 to 12 hours. Fit the same technology as the original: a plain flooded battery in a stop-start car wears out fast. Batteries make explosive hydrogen when overcharged, so keep sparks away.",
+]
+related = ["charging-system", "starting-system", "voltage-reading", "pattern-charging", "hybrid-system", "term:Parasitic drain", "term:Cold cranking amps", "term:AGM", "term:Stop-start", "term:Resting voltage", "guide:flat-battery", "pid:42"]
+sources = [
+  "Wikipedia, 'Lead-acid battery' (read 2026-10-16)",
+  "Voltage Basics, 'Resting Voltage of Car Battery Chart' (read 2026-10-16, via search summary)",
+  "Continental Battery, 'What Are EFB Batteries? (And When to Use Them)' (read 2026-10-16, via search summary)",
+  "Stryten, 'EFB vs. AGM for Start-Stop and Hybrid Vehicles' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "automatic-transmission"
+title = "Automatic transmission"
+group = "systems"
+aliases = ["automatic transmission", "automatic gearbox", "auto gearbox", "transmission fluid", "shift solenoids", "gearbox computer"]
+summary = "A gearbox that changes gears by itself, using fluid pressure and a computer that reads speed and load."
+body = [
+  "A torque converter takes the place of a clutch. It is a fluid coupling between engine and gearbox. Many have a lock-up clutch that joins the two at cruise, to stop slip and save fuel.",
+  "The gears are planetary sets. Clutches and bands hold or free parts of the set to make each ratio. A valve body sends fluid pressure to them, and solenoids controlled by the computer set the pressure.",
+  "The gearbox computer reads vehicle speed, engine load and shaft speeds. It picks the gear and changes the pressure for smooth shifts. It also learns: it adapts clutch pressure as parts wear, to keep shifts the same.",
+]
+how_to_read = [
+  "Compare engine speed with road speed and the commanded gear. If the revs rise and the car does not accelerate, a clutch is slipping.",
+  "Normal fluid temperature is about 80 to 93 degrees C. Sources say above roughly 105 to 115 degrees C the fluid wears fast (typical; the maker decides).",
+  "P0730 means incorrect gear ratio and P0741 a lock-up clutch performance fault. Codes from the gearbox computer may only show in its own module on the Modules screen.",
+]
+parts = [
+  "Torque converter: fluid coupling with a lock-up clutch.",
+  "Planetary gear sets, clutches and bands: make the gear ratios.",
+  "Valve body and solenoids: direct and set the pressure.",
+  "Speed sensors: read input and output shaft speeds.",
+  "Fluid (ATF) and filter: work as hydraulic fluid, lubricant and coolant.",
+  "Gearbox computer: decides the shifts. It may be inside the gearbox.",
+]
+faults = [
+  "Slipping: revs rise between gears, often from worn clutches or low fluid.",
+  "Harsh or delayed shifts: a worn solenoid, dirty fluid or a clogged filter.",
+  "Shudder at cruise: the lock-up clutch grabbing, sometimes helped by a fluid change.",
+  "Dark, burnt-smelling fluid: overheating. Many cars have a sealed gearbox with no dipstick.",
+  "Limp mode: stuck in one gear, often after a speed sensor or solenoid fault.",
+]
+more_detail = [
+  "After a valve body, solenoid or clutch repair, or a new gearbox computer, the learned values may need a reset and a relearn drive. Makers publish different procedures, so follow the one for the car. Check the fluid level and condition first.",
+  "Use the fluid the maker specifies, as friction properties differ.",
+]
+related = ["cvt", "manual-and-4wd", "car-networks", "uds", "term:Torque converter", "term:TCC", "term:Shift solenoid", "term:Valve body", "term:ATF", "term:Gearbox computer", "term:Limp mode", "guide:transmission", "code:P0730", "code:P0741", "page:modules"]
+sources = [
+  "Wikipedia, 'Automatic transmission' (read 2026-10-16)",
+  "NHTSA, 'Information on Transmission Adaptive Functions' service bulletin MC-10112288-9999 (read 2026-10-16, via search summary)",
+  "Mechanic Base, 'What Transmission Temperature Is Considered Normal?' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "cvt"
+title = "CVT (continuously variable transmission)"
+group = "systems"
+aliases = ["CVT", "continuously variable transmission", "CVT fluid", "variator"]
+summary = "A gearbox with no fixed gears: a belt or chain runs between two pulleys that change size."
+body = [
+  "A CVT has two pulleys made of cone halves, joined by a steel belt or chain. When the halves of one pulley move together, the belt rides higher. The other pulley opens so the belt rides lower. The ratio changes smoothly, with no steps.",
+  "Hydraulic pressure moves the pulleys and also grips the belt. The computer picks the ratio so the engine runs at a good speed for the load. That is why revs can stay steady while the car speeds up.",
+  "A start-off device takes the place of the clutch: a torque converter or a clutch pack. Many CVTs add fake steps in software so they feel like a normal automatic.",
+]
+how_to_read = [
+  "Compare engine speed with road speed. The ratio on an enhanced scan should change smoothly. Revs that surge without more speed point to belt slip.",
+  "P0730 means incorrect ratio and P0841 a fluid pressure sensor range fault. Many CVT codes are maker-specific, and some show only in the gearbox module on the Modules screen.",
+]
+parts = [
+  "Primary and secondary pulleys: the two pairs of cones that set the ratio.",
+  "Belt or chain: transmits torque.",
+  "Hydraulic pump and valves: set pulley and belt pressure.",
+  "Start-off device: torque converter or clutch.",
+  "Gearbox computer: picks the ratio and pressure.",
+]
+faults = [
+  "Judder or shudder when pulling away: the most common cause is old fluid that has lost its friction properties. Worn pulleys and a faulty pressure control are others.",
+  "Whine that changes with speed: bearing wear or belt and pulley wear.",
+  "Overheating: sustained high torque such as towing or long hills can overheat the fluid, trigger a warning or limp mode, and wear the belt.",
+  "Slip under load: revs rise but speed does not. A damaged belt or pulley is expensive to fix.",
+]
+more_detail = [
+  "CVTs need the fluid the maker names. Normal automatic fluid has the wrong friction, and the belt may slip. Change intervals are often shorter than owners expect: follow the workshop manual.",
+]
+related = ["automatic-transmission", "manual-and-4wd", "term:CVT", "term:Gearbox computer", "term:Torque converter", "guide:transmission", "code:P0730", "code:P0841", "page:modules"]
+sources = [
+  "Wikipedia, 'Continuously variable transmission' (read 2026-10-16)",
+  "Gearbox Insider, 'CVT Transmission Jerking and Shuddering: Symptoms, Causes and Fix' (read 2026-10-16, via search summary)",
+  "MyCarFault, 'CVT Transmission Problems: Belt Wear, Shudder, Overheating & Repair Costs' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "manual-and-4wd"
+title = "Manual gearbox and 4WD"
+group = "systems"
+aliases = ["manual gearbox", "manual transmission", "clutch switch", "neutral switch", "4WD", "4x4", "transfer case", "free-wheeling hubs", "four-wheel drive"]
+summary = "Manual gearboxes and part-time four-wheel drive, with the switches and modules a scan tool can read."
+body = [
+  "A manual gearbox is a set of gears the driver picks with a lever and a clutch pedal. The computers do not change gears. They read switches: the clutch pedal switch, which lets the engine crank only with the pedal down, and the neutral or gear switch.",
+  "A part-time 4WD truck adds a transfer case behind the gearbox. A lever or switch picks 2H (rear wheels, high range), 4H (all wheels, high range) or 4L (all wheels, low range). Low range gives extra gear reduction and torque for slow, rough going and towing.",
+  "In 4H and 4L the front and rear shafts are locked together, so they cannot turn at different speeds. Use it on loose ground only. On dry sealed roads the driveline winds up and can be damaged.",
+]
+how_to_read = [
+  "Live data may show the clutch switch and neutral switch as on or off. Press the pedal and watch the value change. If nothing changes, the switch or its wiring is at fault.",
+  "P0704 points to the clutch switch circuit and P0850 to the park or neutral switch circuit.",
+  "4WD faults are often held in the 4WD module, so read the Modules screen. Many codes are maker-specific.",
+]
+parts = [
+  "Clutch pedal switch: tells the computer the clutch is pressed.",
+  "Neutral or reverse switch: shows the gear position, for starting, stop-start and lights.",
+  "Transfer case: splits drive between front and rear and gives low range.",
+  "Free-wheeling hubs: connect or disconnect the front axle from the front wheels. In 2H they let the front driveline stand still. Some lock by hand, some automatically.",
+  "4WD switch or module: drives an electric motor or vacuum actuator and watches position.",
+]
+faults = [
+  "Engine will not crank: a failed clutch switch is a common cause. A jumper across the switch shows whether it is the problem.",
+  "Hubs not locked: the 4WD lever is in 4H but the front wheels are still free, so the truck is really 2WD.",
+  "Driveline bind and hopping in tight turns on dry road: 4H used on sealed ground.",
+  "Grinding when engaging a gear: a worn clutch or synchromesh.",
+]
+more_detail = [
+  "Range and hubs are two separate steps on many trucks: lock the hubs, then select 4H or 4L. Shifting into 4H on the move is allowed at low speed on some trucks; low range needs the truck stopped and the gearbox in neutral. Check the owner's manual.",
+]
+related = ["starting-system", "automatic-transmission", "abs-system", "body-control", "term:Transfer case", "term:Vehicle speed sensor", "term:Relay", "term:Solenoid", "page:modules", "code:P0704", "code:P0850"]
+sources = [
+  "Wikipedia, 'Transfer case' (read 2026-10-16)",
+  "Wikipedia, 'Locking hubs' (read 2026-10-16, via search summary)",
+  "aa1car.com, '4WD Locking Hubs' (read 2026-10-16, via search summary)",
+  "TPUB, 'Clutch Start Switch' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "abs-system"
+title = "ABS (anti-lock brakes)"
+group = "systems"
+aliases = ["ABS", "ABS system", "ABS light", "anti-lock brakes", "anti-lock braking system", "wheel speed sensors"]
+summary = "ABS stops the wheels locking in a hard stop, so you can still steer while braking."
+body = [
+  "A sensor at each wheel reads a toothed or magnetic ring that turns with it. The ABS module compares the four speeds. If one wheel slows much faster than the others, it is about to lock.",
+  "The module then uses valves in the hydraulic modulator to release and re-apply pressure to that brake, many times a second. A pump restores pressure. You feel a buzzing pedal, which is normal.",
+  "If the ABS fails, a lamp lights and anti-lock turns off. The normal brakes usually still work. The same sensors also feed stability control and the speedometer.",
+]
+how_to_read = [
+  "A standard OBD-II scan reaches the engine and gearbox. ABS codes (start with C) need the ABS module. See Modules.",
+  "In the module's data, compare all four wheel speeds while driving slowly. One that reads zero or jumps points to that sensor, its wiring or its ring.",
+  "Some cars also show brake switch status and pump motor current.",
+]
+parts = [
+  "Wheel speed sensors: Hall-effect or coil sensors at each wheel. Coil types read weakly at very low speed.",
+  "Tone ring (or encoder): a toothed or magnetic ring on the hub that produces the signal.",
+  "ABS module and hydraulic modulator: the computer, valves and pump.",
+  "Brake pedal switch: tells the module the brakes are applied.",
+]
+faults = [
+  "A cracked, rusty or dirty tone ring: ABS lamp, often with a code for one wheel sensor.",
+  "A damaged sensor cable or corroded connector: a lamp that comes and goes.",
+  "A wrong sensor gap or worn bearing: a weak signal, sometimes with ABS acting at low speed just before a stop.",
+  "ABS lamp together with the red brake lamp or a soft pedal: stop and check brake fluid.",
+]
+more_detail = [
+  "Clogged valves are the most common valve problem in the modulator. After some repairs, the module needs a scan-tool bleed procedure.",
+]
+related = ["stability-control", "car-networks", "warning-lights", "term:ABS", "term:Wheel speed sensor", "term:Tone ring", "term:Module", "guide:abs-wheel-speed", "page:modules"]
+sources = [
+  "Wikipedia, 'Anti-lock braking system' (read 2026-10-16)",
+  "AUTODOC Club, 'ABS sensor in car: functions and failure symptoms of a wheel speed sensor' (read 2026-10-16, via search summary)",
+  "PartCatalog, 'Bad ABS Tone Ring Symptoms: Warning Signs Guide' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "stability-control"
+title = "Stability and traction control"
+group = "systems"
+aliases = ["stability control", "ESC", "ESP", "traction control", "TCS", "yaw sensor", "steering angle sensor"]
+summary = "Compares where the driver steers with where the car goes, and brakes single wheels to correct a skid."
+body = [
+  "Stability control (ESC) reads the steering angle, the car's yaw rate (how fast it turns about an upright axis), sideways acceleration and wheel speeds. It works out where the driver wants to go and where the car is going.",
+  "If they differ, the car is sliding. The system brakes one wheel to turn the car back, and may cut engine power. Braking the outer front wheel corrects oversteer; braking the inner rear wheel corrects understeer.",
+  "Traction control is the simpler part. If a driven wheel spins faster than the others, it brakes that wheel or cuts power. It uses the ABS sensors and hydraulic unit.",
+]
+how_to_read = [
+  "Most cars flash the stability lamp when the system works. A steady lamp means a fault or that the system was switched off.",
+  "In the ABS or ESC module's data, steering angle should read near zero when driving straight, and rise smoothly as you steer. Yaw rate should be near zero when stopped.",
+  "Codes begin with C and are read from the ABS module. See Modules.",
+]
+parts = [
+  "Steering angle sensor: measures wheel position.",
+  "Yaw rate and lateral acceleration sensors: measure turning and sideways force.",
+  "Wheel speed sensors: shared with ABS.",
+  "Hydraulic unit with a pump: builds pressure to brake a single wheel.",
+  "Engine and gearbox computers: take torque requests over the network.",
+]
+faults = [
+  "Lost steering angle calibration after an alignment, a steering repair or a battery disconnect: the system switches itself off and a lamp comes on. This is usually calibration, not a failed part.",
+  "A failed wheel speed signal: stability and traction control stay disabled until it is repaired.",
+  "Mismatched tyre sizes or a spare wheel: wheel speeds disagree.",
+  "Low battery voltage: stability lamp with a collection of odd lamps.",
+]
+more_detail = [
+  "After an alignment or steering repair, calibrate the steering angle sensor once the alignment is within specification. Calibrating first means doing it twice. The procedure varies by make: some cars need a scan tool and some relearn after a lock-to-lock turn. Follow the workshop manual.",
+]
+related = ["abs-system", "car-networks", "warning-lights", "term:Stability control", "term:Traction control", "term:Steering angle sensor", "term:Yaw rate", "page:modules"]
+sources = [
+  "Wikipedia, 'Electronic stability control' (read 2026-10-16)",
+  "Apex Tech Nation, 'Steering Angle Sensor Calibration: When and How to Do It' (read 2026-10-16, via search summary)",
+  "I-CAR RTS, 'Typical Calibration Requirements For Steering Angle/Position Sensors' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "airbag-srs"
+title = "Airbags (SRS)"
+group = "systems"
+aliases = ["airbag", "airbags", "SRS", "SRS light", "airbag light", "clock spring", "seat belt pretensioner", "supplemental restraint system"]
+summary = "Crash sensors and a computer fire airbags and belt pretensioners within milliseconds of a hard impact."
+body = [
+  "The airbag computer reads accelerometers in itself and in the front and sides of the car, plus other inputs such as seat sensors. When the pattern matches a crash, it sends current to the igniter in each bag or belt it chooses. The bag inflates in about 20 to 30 milliseconds and is full within about 60 to 80 milliseconds of first contact.",
+  "Pretensioners pull the seat belt tight in a crash. A clock spring (a coiled ribbon cable behind the steering wheel) carries the driver airbag wires while the wheel turns. Occupant sensing in the passenger seat decides whether that airbag may fire.",
+  "At key-on the SRS lamp lights for a few seconds and goes out. If it stays on or flashes, the system has a fault and may not fire. The computer also stores crash data.",
+]
+how_to_read = [
+  "Generic OBD-II does not read airbag codes. A scan tool needs the SRS module, see Modules. Codes usually start with B.",
+  "Typical faults: a clock spring open circuit, a seat belt buckle switch, a seat occupancy sensor, a crash sensor or an unplugged connector.",
+  "After a crash or deployment, the computer usually has to be replaced or reset by a workshop.",
+]
+parts = [
+  "Airbag control module: reads the sensors and decides.",
+  "Crash sensors: accelerometers and pressure sensors in the front and sides.",
+  "Airbags and igniters: driver, passenger, side, curtain and knee bags.",
+  "Clock spring: connects the steering wheel to the car's wiring.",
+  "Pretensioners: pyrotechnic belt tighteners.",
+  "Occupant sensor and buckle switches: tell the module who is seated and belted.",
+]
+faults = [
+  "SRS lamp on after seat removal or wiring work: an unplugged seat connector.",
+  "A faulty clock spring: lamp on, a dead horn or dead steering wheel buttons.",
+  "Passenger airbag off lamp when a person sits there: a seat sensor fault.",
+  "Water under a seat: a corroded connector and a lamp.",
+]
+more_detail = [
+  "Safety: do not probe airbag wires, test igniters with a meter or open an airbag. They can fire. Airbag systems can stay live for a while after the battery is disconnected (one reference says up to 30 minutes). Wait the time the workshop manual gives.",
+]
+related = ["body-control", "warning-lights", "car-networks", "term:SRS", "term:Clock spring", "term:Pretensioner", "term:Occupant sensor", "guide:airbag", "page:modules"]
+sources = [
+  "Wikipedia, 'Airbag' (read 2026-10-16)",
+  "My Airbags knowledge base, 'How Fast Do Airbags Deploy?' (read 2026-10-16, via search summary)",
+  "ScienceABC, 'How Do Airbags Deploy So Fast In A Car Accident?' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "body-control"
+title = "Body control and immobiliser"
+group = "systems"
+aliases = ["body control module", "body computer", "BCM", "central locking", "key fob", "comfort features", "immobiliser key"]
+summary = "A body computer runs the lights, locks, windows, wipers and key checks, and talks to the other modules over the networks."
+body = [
+  "The body control module (BCM) is the computer for the cabin and outside lights. It switches relays for things like central locking, windows, mirrors and turn signals. Some cars have several smaller body modules instead of one.",
+  "It also handles the key in many cars. A transponder chip in the key replies to a coil around the ignition. The engine computer compares the code with its stored one and only then allows fuel and spark. Newer keys use rolling codes or encryption.",
+  "The BCM talks to other computers over the CAN bus. Pressing a window switch can send a message, not run a wire to the motor. That saves wiring but means one module can affect another.",
+]
+how_to_read = [
+  "Body faults use codes beginning with B and are read from the BCM, not the engine computer. See Modules.",
+  "Adding or replacing a key usually needs a scan tool or dealer tool and a security code.",
+  "U codes mean one module lost contact with another. Check the battery and the network first.",
+]
+parts = [
+  "Body control module: reads inputs and drives outputs.",
+  "Immobiliser coil and key transponder: check the key.",
+  "Key fob receiver: takes remote lock and unlock signals.",
+  "Door, window and lamp modules: smaller computers, often on LIN lines.",
+  "Fuse and relay box: carries the load currents.",
+]
+faults = [
+  "Low battery: random messages and lamps, locks acting by themselves.",
+  "A module that does not sleep: a flat battery overnight.",
+  "A worn key fob battery: poor remote range.",
+  "A flashing key lamp and no start: the immobiliser did not accept the key. Some cars then lock out starting for a time.",
+  "Water in the module or a corroded connector: wipers or lights working at random.",
+]
+more_detail = [
+  "Immobilisers deter theft but are not unbeatable. Scana only reads. Key and security functions are best left to the maker's process.",
+]
+related = ["car-networks", "starting-system", "airbag-srs", "warning-lights", "uds-security-routines", "term:BCM", "term:Immobiliser", "term:Module", "term:Gateway", "term:Parasitic drain", "page:modules"]
+sources = [
+  "Wikipedia, 'Body control module' (read 2026-10-16)",
+  "Wikipedia, 'Immobiliser' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "warning-lights"
+title = "Dash warning lights"
+group = "systems"
+aliases = ["warning lights", "warning light", "dash lights", "dashboard lights", "check engine light", "oil light", "battery light", "temperature light"]
+summary = "Lamps on the dash that show a fault or a state. Red usually means stop, amber means get it checked."
+body = [
+  "Colour tells urgency. Red means a serious fault or a safety risk: stop when safe. Amber or yellow means a fault to check soon. Green, white and blue mean a system is working or in use, such as headlights or cruise control.",
+  "Lamps light briefly at key-on to show the bulbs work. They should go out when the engine starts. A lamp that stays on has its own source: the engine computer or another module.",
+  "A scan tool can explain only some. The check engine lamp (MIL) is a generic OBD-II lamp. Others, like ABS, SRS and DPF lamps, belong to other modules. Clearing codes turns the MIL off but does not fix the cause.",
+]
+how_to_read = [
+  "Check engine (amber engine shape): read codes on the Fault codes screen. Flashing usually means a serious misfire that can damage the converter: stop soon.",
+  "ABS (amber): the anti-lock is off, normal brakes usually work. SRS or airbag (red): the airbags may not fire. Both need that module in Modules.",
+  "Battery (red): the charge system is not charging. Oil pressure (red oil can): pressure is too low, so stop the engine, then check the level. The lamp is usually driven by a pressure switch, but some cars use a pressure sensor, and some have a separate oil level sensor.",
+  "Temperature (red thermometer): the engine is too hot. Stop safely and let it cool.",
+  "DPF (amber filter): soot is high, so take a longer drive. Glow plug (amber coil): on while heating, flashing for a fault.",
+]
+parts = [
+  "Instrument cluster: the module that shows the lamps. It listens on the network.",
+  "Switches and sensors: oil pressure switch, brake fluid level switch.",
+  "Other modules: send a lamp message when they find a fault.",
+]
+faults = [
+  "A lamp that does not light at key-on: a blown bulb or LED, so it cannot warn you.",
+  "Many lamps at once with no real fault: low voltage or a network fault.",
+  "A lamp that stays on after a repair: the code needs clearing, or a drive cycle must complete.",
+  "An oil lamp with a good oil level: a faulty switch or sensor is one cause, but check pressure with a gauge before you assume it.",
+]
+more_detail = [
+  "Symbols are mostly standard across makes, but colours and rules vary. The owner's manual lists the lamps for that car.",
+]
+related = ["abs-system", "airbag-srs", "dpf", "charging-system", "cooling-system", "body-control", "scr-adblue", "term:MIL", "term:Instrument cluster", "term:Glow plug", "page:codes"]
+sources = [
+  "RAC, 'Dashboard warning lights: all symbols explained' (read 2026-10-16, via search summary)",
+  "The AA, 'Engine management light' (read 2026-10-16, via search summary)",
+  "aa1car.com, 'What To Do If Your Engine Oil Pressure Warning Light Is On' (read 2026-10-16)",
+  "Wikipedia, 'On-board diagnostics' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "hybrid-system"
+title = "Hybrid system"
+group = "systems"
+aliases = ["hybrid", "hybrid system", "high-voltage battery", "HV battery", "inverter", "regenerative braking", "motor-generator"]
+summary = "A petrol engine plus electric motors and a high-voltage battery. Orange cables carry dangerous voltage: never touch them."
+body = [
+  "A hybrid pairs an engine with one or more motor-generators and a high-voltage battery. Pack voltages vary by car: typically 200 to 400 V, with older small hybrids lower (36 V and 144 V examples exist). An inverter changes battery direct current to alternating current for the motors, and back to charge.",
+  "The computer picks the best mix of engine and motor for each moment. When you brake or coast, the motor works as a generator and sends energy to the battery. This is regenerative braking. It saves fuel, and the car turns the engine off at rest.",
+  "The ordinary 12 V battery still runs the computers and starts the high-voltage system. A DC-DC converter keeps it charged from the main pack. Zero engine speed while the car is on is normal.",
+]
+how_to_read = [
+  "Generic OBD-II shows the engine and some data. The hybrid computer, with battery voltage, current, temperature and state of charge, usually needs enhanced data. See Modules.",
+  "Engine speed of 0 with the car in READY mode is not a fault.",
+]
+parts = [
+  "High-voltage battery: nickel-metal hydride or lithium-ion cells, with cooling and a monitor.",
+  "Inverter: converts between battery and motor currents.",
+  "Motor-generators: drive the wheels, start the engine and recover energy.",
+  "DC-DC converter: charges the 12 V battery.",
+  "Orange cables and service disconnect: carry high voltage. The disconnect splits the pack for repairs.",
+  "Hybrid control computer: manages the mix and the safety relays.",
+]
+faults = [
+  "A weak 12 V battery: the car will not go READY, with many odd warnings.",
+  "Battery cooling air blocked by dust or items: the pack overheats and power drops.",
+  "A weak battery cell: less range of charge, the engine runs more, a hybrid system lamp.",
+  "An insulation fault: the computer shuts down the high voltage and shows a warning.",
+]
+more_detail = [
+  "Safety: high-voltage cables are usually orange. Do not cut, probe or open them, or the battery. DC becomes dangerous at about 55 to 60 V. Makers give wait times of 5 to 15 minutes after shutdown for capacitors to discharge. A hybrid can restart its engine on its own, even when it looks off. Only trained people with insulated gloves and the service disconnect removed should work on the high-voltage system.",
+]
+related = ["hybrid-live-data", "battery", "charging-system", "starting-system", "car-networks", "term:Inverter", "term:Regenerative braking", "term:Stop-start", "page:modules"]
+sources = [
+  "US Department of Energy Alternative Fuels Data Center, 'Hybrid Electric Vehicles' (read 2026-10-16)",
+  "FuelEconomy.gov, 'How Hybrids Work' (read 2026-10-16, via search summary)",
+  "aa1car.com, 'Hybrid Vehicle Safety Hazards' (read 2026-10-16)",
+  "Ford, '2015-2018 C-Max Emergency Response Guide' (read 2026-10-16, via search summary)",
+]
+
+[[topic]]
+id = "car-networks"
+title = "How the car's computers talk"
+group = "systems"
+aliases = ["car networks", "vehicle networks", "CAN buses", "powertrain CAN", "body CAN", "gateway module"]
+summary = "A modern car has several networks linking its modules. The OBD port may only reach some of them."
+body = [
+  "A car has dozens of computers (modules). They share data on networks, so the engine, gearbox and ABS agree on speed without separate wires. The main type is CAN: two wires, many modules.",
+  "The car can have several CAN buses. A fast one (often 500 kbit/s) links engine, gearbox and ABS, and a slower one links body parts. Small devices such as window motors and rain sensors use LIN, a cheap single-wire line up to 20 kbit/s with one master module.",
+  "Cars may also use FlexRay, MOST or Ethernet for faster jobs. A gateway module can join buses and pass only selected messages across.",
+]
+how_to_read = [
+  "OBD-II requires access to powertrain data. On a car with a gateway, the OBD port may connect to only some buses, or the gateway may filter requests. The first bus you find may not carry the data you want.",
+  "The Modules screen lists the modules that answer. If one is missing, it may sit behind the gateway, or be asleep.",
+  "The Bus monitor shows raw frames on the bus Scana is plugged into. See the protocol topics for how to read them.",
+]
+parts = [
+  "CAN bus: two twisted wires, CAN high and CAN low, with a 120 ohm resistor at each end.",
+  "LIN bus: single wire for small devices, run by a master module.",
+  "Gateway: joins buses and filters traffic.",
+  "OBD connector: pin 6 is CAN high and pin 14 is CAN low.",
+  "Modules: engine, gearbox, ABS, airbag, body and others.",
+]
+faults = [
+  "Several modules vanish at once with U codes: a bus wire fault, a module pulling the bus down or a low battery.",
+  "A module that never sleeps: a flat battery overnight.",
+  "A bus short: dash lamps all on, the car may not start.",
+  "After fitting an accessory: a bad splice into CAN wires can disturb the whole bus.",
+]
+more_detail = [
+  "Some makers fit a secure gateway on newer cars. It may block some requests until the tool proves who it is. Read-only monitoring on the powertrain bus is usually still possible, but this varies by make (unverified).",
+]
+related = ["can-bus", "can-physical", "termination", "gateways-addressing", "obd-connector", "other-networks", "obd-on-can", "body-control", "abs-system", "page:modules", "page:monitor", "term:Gateway", "term:Module", "term:LIN bus"]
+sources = [
+  "Wikipedia, 'Local Interconnect Network' (read 2026-10-16)",
+  "Wikipedia, 'Vehicle bus' (read 2026-10-16)",
+  "Wikipedia, 'On-board diagnostics' (read 2026-10-16)",
+  "CSS Electronics, 'CAN Bus Explained - A Simple Intro' (read 2026-10-16)",
+]
+
+# Terms not yet in glossary.toml.
+[[term]]
+name = "Blow-by"
+text = "Burnt gas that leaks past the piston rings into the crankcase. The PCV system removes it."
+
+[[term]]
+name = "Soot"
+text = "Fine black carbon particles from diesel combustion. The particulate filter traps them."
+
+[[term]]
+name = "Urea"
+text = "A chemical dissolved in AdBlue. Heat turns it into ammonia, which reacts with NOx in the SCR catalyst."
+
+[[term]]
+name = "Differential pressure sensor"
+text = "A sensor that compares pressure before and after a part, such as a particulate filter, to show how blocked it is."
+
+[[term]]
+name = "Smart charging"
+text = "A charging plan where the computer sets the alternator voltage from battery data, and may lower it while cruising to save fuel."
+
+[[term]]
+name = "Cold cranking amps"
+text = "A rating of how much current a battery can give for a cold start. More means better cold starts."
+
+[[term]]
+name = "AGM"
+text = "Absorbed glass mat: a sealed lead-acid battery with the acid held in glass mats. Common in stop-start cars."
+
+[[term]]
+name = "Stop-start"
+text = "A system that stops the engine at rest and restarts it when you move off, to save fuel."
+
+[[term]]
+name = "Resting voltage"
+text = "Battery voltage after the battery has sat unused for an hour or more. It gives a rough charge level."
+
+[[term]]
+name = "Yaw rate"
+text = "How fast the car turns about an upright axis. Stability control uses it to detect a skid."
+
+[[term]]
+name = "Inverter"
+text = "Electronics that change direct current from a battery into alternating current for a motor, and back."
+
+[[term]]
+name = "Regenerative braking"
+text = "Braking where an electric motor acts as a generator and sends energy back to the battery."
+
+[[term]]
+name = "LIN bus"
+text = "A slow, cheap single-wire network for small devices such as window motors and sensors, run by one master module."
+
+[[term]]
+name = "Transfer case"
+text = "A gearbox behind the main gearbox on a 4WD vehicle. It splits drive between front and rear and may give low range."
+
+[[term]]
+name = "Oil separator"
+text = "A part in the crankcase ventilation path that removes oil mist from the gas before it reaches the intake."

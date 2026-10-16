@@ -1,0 +1,602 @@
+# Scana Library: live data, patterns and other engines. Researched for Scana (2026-10-16). Every source below was opened and read on that date.
+
+[[topic]]
+id = "pattern-vacuum-leak"
+title = "Vacuum leak in live data"
+group = "live-data"
+aliases = ["vacuum leak", "intake leak", "unmetered air", "false air"]
+summary = "Air that enters the engine after the air flow sensor makes it run lean, mostly at idle."
+body = [
+  "A vacuum leak lets extra air into the intake after the air flow sensor. The engine computer cannot see that air, so it does not add fuel for it. The mixture goes lean.",
+  "The computer then adds fuel to correct it. The result is high positive fuel trims. The leak matters most at idle, where little air flows and a small hole is a big share of it.",
+  "At 2500 rpm much more air flows through the proper path, so the same hole is a small share. The trims fall.",
+]
+how_to_read = [
+  "Warm the engine until it is in closed loop. Note the fuel trims at idle, then hold 2500 rpm with no load and note them again.",
+  "A leak shows trims that are high at idle and much lower at 2500 rpm. One workshop guide treats a fall of at least 15 percentage points as a vacuum leak. Another example shows +25 % at idle falling to +4 % at 1500 and 2500 rpm.",
+  "A lean code usually sets only when total trim (short term plus long term) passes about +20 % on one bank.",
+  "Do not trust the air flow (MAF) reading to find a leak. It often just reacts to the leak.",
+  "Compare banks. One bank high and the other normal points to a leak on that bank. Both banks high points to a shared cause.",
+  "To confirm: a smoke test pushes smoke into the intake and shows the leak. The older method sprays carburettor cleaner or propane near joints: the idle changes when the engine draws it in. Sprays are a fire risk near a hot exhaust, so keep them short.",
+]
+faults = [
+  "Common leak points: cracked vacuum hoses, intake manifold gaskets, throttle body gaskets, the boot between the MAF sensor and the throttle, PCV hoses and the brake booster hose.",
+  "Look-alike: a dirty MAF sensor. Trims stay high at 2500 rpm and under load.",
+  "Look-alike: low fuel pressure. Trims get worse as load rises.",
+  "Look-alike: an exhaust leak before the front oxygen sensor.",
+]
+related = ["fuel-trim", "pattern-maf-fault", "pattern-exhaust-leak", "pattern-fuel-delivery", "test-conditions", "guide:lean", "code:P0171"]
+sources = [
+  "MOTOR Information Systems, 'Lean On Me' (read 2026-10-16)",
+  "AVI OnDemand, 'Fuel Trim Diagnosis And O2 Sensor Performance' (read 2026-10-16)",
+  "2CarPros, 'How to Repair Lean Exhaust Codes' (read 2026-10-16)",
+  "APEX Tech Nation, 'Fuel Trim Diagnostics Explained' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-maf-fault"
+title = "Dirty or failing MAF in live data"
+group = "live-data"
+aliases = ["dirty MAF", "faulty MAF", "MAF fault", "MAF cleaning"]
+summary = "A MAF sensor that reads low makes the engine computer under-fuel, so trims run high at every speed."
+body = [
+  "The mass air flow (MAF) sensor measures the air the engine takes in. Dirt or oil on its sensing element makes it read too low. The computer adds too little fuel and the mixture goes lean.",
+  "The computer corrects with positive fuel trims. Unlike a vacuum leak, the trims stay high at 2500 rpm and under load.",
+]
+how_to_read = [
+  "Trims lean at idle, still lean at 2500 rpm and lean under load, often on both banks.",
+  "Air flow in g/s looks low for the engine size. One guide gives about 2 to 7 g/s at warm idle for small four-cylinders and 4 to 10 g/s for V6 and V8 engines. Another says the idle reading in g/s should roughly match the engine size in litres. Both are rough rules: check the workshop manual.",
+  "The reading should rise smoothly with rpm and load. It should not freeze or spike.",
+  "In a throttle test the MAF signal should follow the throttle position signal closely.",
+  "Cleaning check: record the idle values, clean the sensing element with MAF cleaner spray, let it dry, then record again. A large change confirms the sensor was dirty.",
+  "Rule out leaks first. A vacuum leak, a misfire or a cracked intake boot can make the MAF reading look wrong.",
+]
+faults = [
+  "Dirty element: low g/s, lean trims, hesitation.",
+  "Air filter or intake boot problems, or a corroded connector, can disturb the reading.",
+  "A MAF that reads too high does the opposite: negative trims and a rich mixture.",
+  "Codes P0100 to P0104 point to the MAF circuit or range.",
+]
+related = ["maf-reading", "maf-sensor", "pattern-vacuum-leak", "pattern-fuel-delivery", "using-graphs", "guide:maf", "pid:10"]
+sources = [
+  "ThinkCar, 'How to Test a MAF Sensor with an OBD2 Scanner' (read 2026-10-16)",
+  "MOTOR Information Systems, 'Lean On Me' (read 2026-10-16)",
+  "APEX Tech Nation, 'Fuel Trim Diagnostics Explained' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-fuel-delivery"
+title = "Weak fuel supply in live data"
+group = "live-data"
+aliases = ["weak fuel pump", "low fuel pressure", "fuel starvation", "clogged fuel filter"]
+summary = "If the fuel pump or filter cannot keep up, the engine runs lean and gets worse as the load rises."
+body = [
+  "A weak fuel pump, a blocked filter or a failing pressure regulator cannot deliver enough fuel when the engine asks for most. The mixture goes lean when demand is highest.",
+  "In live data this looks like fuel trims that rise with load and rpm. The engine may feel fine at idle and hesitate or lose power when you accelerate hard.",
+]
+how_to_read = [
+  "Trims lean at idle and worse at 2500 rpm and under load. A vacuum leak does the opposite.",
+  "One workshop guide calls short term trim above +8 % or long term trim above +10 % a lean sign that can come from low fuel pressure or a weak pump. Trims within about 5 % are normal.",
+  "Lean codes (P0171, P0174) that set under acceleration point to supply, not to a leak.",
+  "Test with a fuel pressure gauge. Compare idle pressure with the maker's figure. A pump can pass at idle but fail when demand is high.",
+  "A dead-head test (return line pinched, for pumps where that is safe) should give about double the idle pressure. A volume test should give about three quarters of a quart to one quart (about 0.7 to 0.95 litre) in 30 seconds.",
+  "Check the voltage at the pump. Low voltage cuts flow even with a good pump.",
+]
+faults = [
+  "Look-alike: a dirty MAF sensor. Trims are high at idle too.",
+  "Look-alike: a restricted injector, with misfire on one cylinder.",
+  "Look-alike: an exhaust leak before the front oxygen sensor.",
+  "Pressure that is too high points the other way: a bad regulator or a blocked return line, and a rich mixture.",
+]
+related = ["fuel-system", "fuel-trim", "pattern-maf-fault", "pattern-vacuum-leak", "pattern-exhaust-leak", "guide:fuel-pressure", "guide:lean"]
+sources = [
+  "AA1Car.com, 'Diagnose Fuel Pump' (read 2026-10-16)",
+  "AVI OnDemand, 'Fuel Trim Diagnosis And O2 Sensor Performance' (read 2026-10-16)",
+  "APEX Tech Nation, 'Fuel Trim Diagnostics Explained' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-rich"
+title = "Running rich in live data"
+group = "live-data"
+aliases = ["running rich", "rich condition", "rich running", "rich mixture"]
+summary = "Too much fuel shows as negative trims and a front oxygen sensor reading high."
+body = [
+  "A rich engine gets more fuel than the air needs. The oxygen sensor sees little oxygen in the exhaust, so it reads high. The computer cuts fuel to correct it, which gives negative fuel trims.",
+  "A rich engine wastes fuel and can overheat the catalytic converter.",
+]
+how_to_read = [
+  "Short and long term fuel trims below zero. Long term trim beyond about -10 % points to a real fault.",
+  "If both short term and long term trims are negative, the rich condition is steady, not a one-off.",
+  "Front oxygen sensor reads high (above about 0.45 V) most of the time.",
+  "Check the coolant temperature reading. A sensor that reads colder than the engine really is makes the computer add fuel.",
+  "Check fuel pressure. High pressure points to a regulator fault or a blocked return line. Normal pressure with a pressure that drops fast after shut-off points to a leaking injector.",
+  "Check the purge valve: remove the hoses with the engine off and blow through it. Air should not pass.",
+]
+faults = [
+  "Leaking injector: rich at idle, fuel smell, fuel in the oil. A single fouled plug points to that cylinder.",
+  "High fuel pressure from a faulty regulator or a restricted return line.",
+  "Purge valve stuck open. See pattern-evap-purge.",
+  "Coolant temperature sensor reading cold. See pattern-ect-sensor.",
+  "A contaminated MAF sensor that reads high, or a badly blocked air filter.",
+  "Do not replace parts from trims alone. Trims show the effect, not the cause.",
+]
+related = ["fuel-trim", "pattern-evap-purge", "pattern-ect-sensor", "pattern-thermostat", "o2-sensor-reading", "guide:rich", "code:P0172"]
+sources = [
+  "Ricks Free Auto Repair Advice, 'What Does Negative Fuel Trim Mean? Expert Diagnosis Guide' (read 2026-10-16)",
+  "APEX Tech Nation, 'Fuel Trim Diagnostics Explained' (read 2026-10-16)",
+  "AA1Car.com, 'How to Check & Replace an Engine Coolant Sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-thermostat"
+title = "Thermostat stuck open in live data"
+group = "live-data"
+aliases = ["thermostat stuck open", "slow warm-up", "engine not reaching temperature"]
+summary = "A thermostat stuck open keeps the engine cool: slow warm-up, a low temperature reading and code P0128."
+body = [
+  "The thermostat holds coolant in the engine until it reaches working temperature, then opens. If it sticks open, coolant flows to the radiator all the time and the engine warms slowly or never fully warms.",
+  "The engine computer expects the coolant to reach working temperature within a set time. If it does not, it sets code P0128.",
+]
+how_to_read = [
+  "Record a cold start in Graphs and watch the coolant temperature curve. A healthy engine reaches its working range (the thermostat opens at about 82 to 90 degrees C) in about 10 to 15 minutes of driving.",
+  "One guide says to suspect the thermostat if coolant stays below about 71 degrees C after more than 15 minutes of driving.",
+  "Other signs: the dash gauge stays low, the cabin heater blows weak or cold, and fuel use rises because a cold engine runs richer.",
+  "A faulty coolant sensor can give the same code. Compare the scan tool value with an infrared thermometer on the upper radiator hose. A big mismatch points to the sensor.",
+]
+faults = [
+  "Look-alike: a coolant temperature sensor or intake air temperature sensor that reads wrong. See pattern-ect-sensor.",
+  "Look-alike: low coolant, a cooling fan that stays on, or a failing water pump.",
+  "A thermostat stuck closed does the opposite: fast heating and overheating.",
+]
+related = ["coolant-temp-reading", "pattern-ect-sensor", "cooling-system", "using-graphs", "guide:thermostat", "code:P0128"]
+sources = [
+  "The Motor Guy, 'P0128 Code: Coolant Thermostat Fault' (read 2026-10-16)",
+  "Carista, 'P0128 Code Explained: Causes and Fixes' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-misfire"
+title = "Misfire in live data"
+group = "live-data"
+aliases = ["misfire pattern", "cylinder misfire", "random misfire"]
+summary = "A misfire shows as per-cylinder counts, an rpm stumble, and a front oxygen sensor that can read lean."
+body = [
+  "A misfire is a cylinder that does not burn its fuel properly. The engine computer sees it as a brief slowdown of the crankshaft and counts it for that cylinder.",
+  "A misfire sends unburned air and fuel into the exhaust. A steady misfire can overheat and damage the catalytic converter.",
+]
+how_to_read = [
+  "Test results (mode 06): misfire counts per cylinder. Counts rising on one cylinder point to that cylinder: ignition, injector or compression.",
+  "Counts spread across all cylinders (random misfire) point to something shared: air measurement, fuel delivery or a vacuum leak.",
+  "Graph engine speed while the fault happens. A misfire shows as a stumble or dip in rpm.",
+  "A misfire sends unburned oxygen into the exhaust, so the oxygen sensor can read lean even when fuel supply is fine. Trims then show short, unstable spikes instead of a steady shift.",
+  "A flashing warning light means a severe misfire that can damage the catalytic converter. Cut speed and load and get it fixed soon. Stop if there is heavy shaking or a strong fuel smell.",
+  "Codes: P0300 is random or multiple cylinders. P0301 and up name one cylinder.",
+]
+faults = [
+  "Worn spark plug or weak coil: counts on one cylinder, often worse under load. Swapping the coil with another cylinder shows if the misfire follows it.",
+  "Blocked or stuck injector: counts on one cylinder.",
+  "Low compression: counts on one cylinder at idle.",
+  "Look-alike: a lean mixture from a leak or weak fuel supply gives random counts.",
+]
+related = ["mode06-reading", "ignition-system", "fuel-injectors", "pattern-catalyst", "term:Misfire", "guide:misfire", "page:tests"]
+sources = [
+  "Review Friendly, 'How to Diagnose a Misfire With Live Data: 2026 complete Guide' (read 2026-10-16)",
+  "Identifix, 'P0300 Code: The Guide to Diagnostics and Repair' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-catalyst"
+title = "Worn catalytic converter in live data"
+group = "live-data"
+aliases = ["worn catalytic converter", "catalyst efficiency", "failing catalytic converter", "P0420 pattern"]
+summary = "A worn converter shows as a rear oxygen sensor that copies the front one, and code P0420."
+body = [
+  "A healthy converter stores oxygen. The front oxygen sensor switches quickly between rich and lean, but the rear sensor stays fairly steady because the converter smooths the exhaust.",
+  "As the converter wears, it stores less oxygen. The rear sensor starts to follow the front one. The engine computer sees this and sets P0420 (bank 1) or P0430 (bank 2).",
+]
+how_to_read = [
+  "Graph both sensors warm, at a steady 2500 rpm. The front sensor should cross 0.45 V several times per second. The rear sensor should hold fairly flat, around 0.5 to 0.7 V, with slow movement.",
+  "If the rear sensor switches like the front one, the converter has lost its oxygen storage.",
+  "Test results (mode 06): the catalyst monitor shows the measured value and the pass limit. A result near the limit means a marginal converter. A clear fail confirms it.",
+  "Rule out other causes before replacing it: a lazy or faulty rear sensor, an exhaust leak, fuel trim faults, misfire, oil use or coolant leaking in.",
+]
+faults = [
+  "Look-alike: an exhaust leak between the converter and the rear sensor. It lets air dilute the sample so the rear sensor copies the front one.",
+  "Look-alike: a failed or lazy rear oxygen sensor.",
+  "Causes of wear: misfire, burning oil, coolant leaking in, long periods of rich or lean running.",
+]
+related = ["catalytic-converter", "o2-sensor-reading", "pattern-o2-lazy", "pattern-exhaust-leak", "pattern-misfire", "guide:catalyst", "code:P0420"]
+sources = [
+  "APEX Tech Nation, 'P0420: Never Condemn the Cat First. Check These 3 Things' (read 2026-10-16)",
+  "Identifix, 'P0300 Code: The Guide to Diagnostics and Repair' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-exhaust-leak"
+title = "Exhaust leak before the front sensor in live data"
+group = "live-data"
+aliases = ["exhaust leak", "manifold leak", "exhaust manifold crack"]
+summary = "A leak before the front oxygen sensor lets air in and can make the sensor read falsely lean."
+body = [
+  "Exhaust leaves the engine in pulses, and between the pulses the pressure in the pipe drops. A crack or bad gasket before the front oxygen sensor can draw outside air in at those moments.",
+  "The sensor sees extra oxygen and reads lean, even if the mixture is right. The computer may add fuel, and the engine can then run rich.",
+]
+how_to_read = [
+  "Positive fuel trims and a lean front sensor, with no vacuum leak found.",
+  "A ticking or puffing sound from the exhaust, loudest on a cold start. It fades as the metal warms and expands and seals the gap.",
+  "The effect on trims is not certain. Technicians report that big leaks sometimes change nothing, while small pinhole leaks sometimes cause lean codes. It depends on the exhaust layout and the size of the leak.",
+  "To find a leak: with a helper holding about 1500 rpm, listen along the manifold and head pipe. Black soot around a joint or a broken stud also marks a leak. Never touch the manifold: it burns within a minute or two.",
+  "A leak near the rear sensor can also set a false P0420.",
+]
+faults = [
+  "Look-alike: a vacuum leak. It gives high trims at idle that fall at 2500 rpm.",
+  "Look-alike: weak fuel supply. Trims rise with load.",
+  "Look-alike: a misfire, which also pushes oxygen into the exhaust.",
+]
+related = ["pattern-vacuum-leak", "o2-sensor-reading", "pattern-catalyst", "fuel-trim", "guide:lean"]
+sources = [
+  "2CarPros, 'How to Repair Lean Exhaust Codes' (read 2026-10-16)",
+  "ScannerDanner forum, 'Exhaust Leak Cause Lean or Rich?' (read 2026-10-16)",
+  "Mobile Mechanic Auto Repair, 'Ticking on Cold Start: Exhaust Leak or Something Worse?' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-o2-lazy"
+title = "Slow oxygen sensor in live data"
+group = "live-data"
+aliases = ["lazy oxygen sensor", "slow oxygen sensor", "slow O2 sensor", "sensor response"]
+summary = "An ageing oxygen sensor switches slowly or rarely, so the engine computer holds the mixture less well."
+body = [
+  "A healthy narrow-band sensor swings quickly between about 0.1 and 0.9 V while the engine runs in closed loop. An ageing sensor slows down. Oil ash, silicone from sealant or heat cycling coat or wear its element.",
+  "A slow sensor makes the computer correct late. A code for slow response, P0133 on the front sensor of bank 1, may set.",
+]
+how_to_read = [
+  "Count the crossings of 0.45 V. At a steady 2500 rpm, a healthy sensor crosses about 6 to 10 times in 10 seconds, and a lazy one about 1 to 3. At closed-loop idle one guide gives 8 to 20 crossings in 10 seconds as healthy and under 5 or 6 as lazy. Record 30 to 60 seconds and count on playback.",
+  "A lazy trace looks like a soft, rounded wave, not sharp steps. Its peaks may not reach the usual high and low.",
+  "Snap-throttle test: open and release the throttle quickly. A healthy sensor follows within about 100 to 300 ms. A lazy one takes 600 ms or longer.",
+  "Test results (mode 06) may list sensor switch times and limits for the maker. The limits vary by car (unverified).",
+  "Figures differ by car and by how the computer controls fuel: the workshop manual decides.",
+]
+faults = [
+  "Look-alike: a real lean condition, such as a vacuum leak or low fuel pressure, that keeps the sensor lean longer.",
+  "Look-alike: a small exhaust leak before the sensor.",
+  "Look-alike: a misfire or vacuum leak that makes the idle unstable, so the trace looks messy.",
+  "A slow update rate in the scan tool can also make a good sensor look lazy.",
+]
+related = ["o2-sensor-reading", "o2-sensor", "pattern-catalyst", "using-graphs", "mode06-reading", "guide:o2-sensor", "code:P0133"]
+sources = [
+  "APEX Tech Nation, 'Oxygen Sensor Testing: How to Use a Scan Tool and Scope to Verify Sensor Health' (read 2026-10-16)",
+  "APEX Tech Nation, 'P0133 & P0134: O2 Sensor Slow Response / No Activity (Bank 1 Sensor 1)' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-charging"
+title = "Charging faults in live data"
+group = "live-data"
+aliases = ["charging fault", "low charging voltage", "alternator fault", "battery voltage pattern"]
+summary = "Running voltage that stays under about 13 V or over about 15 V points to a fault, but smart charging varies on purpose."
+body = [
+  "With the engine running, the alternator charges the battery. A typical reading is 13.5 to 14.5 V. A fully charged battery at rest, engine off, reads about 12.6 V.",
+  "Many newer cars use smart charging. The engine computer lowers alternator output when you accelerate and raises it when you brake or coast. The voltage moves up and down on purpose.",
+]
+how_to_read = [
+  "Voltage that swings between about 12.5 V and 15 V during a drive is normal for smart charging. A drop to about 12.5 V under hard acceleration and a rise to about 15 V on overrun are not faults. Cold weather also raises it.",
+  "A full, warm battery may get low voltage for long stretches on purpose.",
+  "A fault looks like this: never above about 13 V, so the battery never charges. Or staying above about 15 V. Or no change under any condition, or voltage that collapses under load.",
+  "A single reading at idle cannot tell normal from faulty. Record voltage through a whole drive in Graphs, with acceleration and overrun.",
+  "Low voltage can set odd codes in other modules. Fix the charging first.",
+]
+faults = [
+  "Worn alternator or faulty regulator: low, high or erratic voltage.",
+  "Loose belt, poor earth or a loose battery terminal: voltage jumps and drops.",
+  "A flat battery after charging: the battery may be at the end of its life even if the alternator is fine.",
+]
+related = ["voltage-reading", "charging-system", "battery", "guide:charging", "guide:flat-battery", "pid:42"]
+sources = [
+  "OBD LLM, 'Smart alternator variable voltage' (read 2026-10-16)",
+  "Jiffy Lube, 'What Is Car Battery Voltage?' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-evap-purge"
+title = "Purge valve stuck open in live data"
+group = "live-data"
+aliases = ["purge valve stuck open", "stuck purge valve", "purge valve leak"]
+summary = "A purge valve stuck open feeds fuel vapour in when it should not, giving a rough idle, mainly after refuelling."
+body = [
+  "The purge valve lets fuel vapour from the charcoal canister into the intake. It should stay closed at idle and for the first minutes after start.",
+  "If it sticks open, vapour and air flow in all the time. The idle becomes rough or hunts, and the engine may stall when you stop.",
+]
+how_to_read = [
+  "Classic pattern: the car runs badly for the first minute after refuelling, then improves. Refuelling pushes vapour into the canister, and an open valve dumps it into the intake. Hard starting after a fill-up fits too.",
+  "Fuel trims: sources disagree. Extra vapour should make the mixture rich and pull trims negative. One source also reports trims of about +10 % at idle, because the open valve adds air the computer never measured. Trims that improve at higher rpm fit either case.",
+  "Line block test: pinch or block the canister line at idle. If the idle smooths, the vapour path is the cause.",
+  "Bench test: with no power on the valve, you should not be able to blow air through it. Any flow means it is stuck open.",
+  "Scan tool test: command the purge valve on at idle. A stumble is normal. No change means the valve is not opening, or was already open.",
+]
+faults = [
+  "Codes for purge flow or valve circuit may set, for example P0496 for high purge flow.",
+  "Look-alike: a leaking injector or high fuel pressure give rich trims too, but not only after refuelling.",
+]
+related = ["evap-system", "pattern-rich", "fuel-trim", "guide:evap-purge", "term:Purge valve", "code:P0496"]
+sources = [
+  "APEX Tech Nation, 'EVAP Purge Valve: Testing, Replacement, and the Hose Everyone Fights' (read 2026-10-16)",
+  "Foxwell, 'Purge Valve: Symptoms, Testing, Live Data Analysis and Common Trouble Codes' (read 2026-10-16)",
+  "Ricks Free Auto Repair Advice, 'What Does Negative Fuel Trim Mean? Expert Diagnosis Guide' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-ect-sensor"
+title = "Coolant temperature sensor reading wrong"
+group = "live-data"
+aliases = ["wrong coolant temperature", "ECT sensor fault", "coolant sensor reads wrong", "coolant temperature sensor fault"]
+summary = "A wrong coolant temperature changes fuelling and fan control. Compare it with intake air temperature on a cold engine."
+body = [
+  "On an engine that has stood for hours, every part is at air temperature. The coolant temperature and the intake air temperature should then agree.",
+  "The engine computer uses coolant temperature for cold-start fuelling, fan control and its warm-up checks. A wrong value upsets all of these.",
+]
+how_to_read = [
+  "Cold check: read both temperatures with the engine cold, key on. They should match within a degree or two. A big gap means one sensor is bad. Sun on the intake or a recent drive can skew it, so wait for a true cold soak.",
+  "Warm-up check: start the engine. Coolant should rise steadily while intake air stays about the same. A coolant reading that does not move points to a bad sensor.",
+  "A reading near 5 V at the sensor suggests an open circuit. A reading near 0 V suggests a short or lost reference voltage.",
+  "Reads too cold: the computer runs the engine rich, wasting fuel. Reads too hot: cold-driveability trouble such as stalling, hesitation and rough idle.",
+  "The fan: the computer switches the fan from the coolant reading. A faulty sensor may not start the fan when the engine is hot, and the engine can overheat.",
+]
+faults = [
+  "Look-alike: a thermostat stuck open gives a true low temperature. See pattern-thermostat.",
+  "Compare the scan tool value with an infrared thermometer on the upper radiator hose to find a sensor that reads in range but wrong.",
+  "Codes P0115 to P0119 cover the coolant sensor circuit.",
+]
+related = ["coolant-temp-reading", "coolant-temp-sensor", "intake-air-temp", "pattern-thermostat", "key-on-engine-off", "guide:coolant-sensor", "pid:05"]
+sources = [
+  "AA1Car.com, 'How to Check & Replace an Engine Coolant Sensor' (read 2026-10-16)",
+  "The Motor Guy, 'P0128 Code: Coolant Thermostat Fault' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "pattern-boost-leak"
+title = "Boost leak in live data"
+group = "live-data"
+aliases = ["boost leak", "turbo leak", "intercooler leak", "underboost"]
+summary = "A boost leak lets turbo pressure escape, so boost stays below the desired value under load."
+body = [
+  "On a turbo engine, pipes carry compressed air from the turbo through the intercooler to the intake. A split hose, a loose clamp or a bad intercooler seam lets that air escape.",
+  "The engine feels slow and may hiss or whistle under load. A code for low boost, such as P0299, may set.",
+]
+how_to_read = [
+  "Compare desired and actual boost (manifold pressure) in Graphs on a loaded road test. If actual falls behind the request as load rises, a leak is likely.",
+  "A turbo that is not making boost shows lower air flow (MAF) than expected for the throttle position. Check that the manifold pressure sensor agrees with the barometric reading key on, engine off, so a biased sensor does not mimic a leak.",
+  "Fuel trims above about +10 % under boost point to unmetered air entering the system.",
+  "A smoke test at idle can miss leaks that open only under boost pressure. Use a regulated pressure test at the maker's figure, with soapy water or smoke, engine off.",
+  "Black smoke on acceleration and poor fuel economy can go with it.",
+]
+faults = [
+  "Look-alike: a stuck wastegate, a faulty boost control solenoid or a failing turbo. These make the same low boost without a leak.",
+  "Look-alike: a blocked air filter, a restricted exhaust or a fuel fault.",
+  "A leak does not prove itself from a low-boost code alone.",
+]
+related = ["turbocharger", "map-reading", "maf-reading", "diesel-live-data", "key-on-engine-off", "term:Boost"]
+sources = [
+  "APEX Tech Nation, 'Turbocharger Diagnosis: Underboost, Oil Leaks, and Shaft Play' (read 2026-10-16)",
+  "WC Turbos, 'How to Identify Boost Leaks in Diesel Engines' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "diesel-live-data"
+title = "Reading diesel live data"
+group = "live-data"
+aliases = ["diesel live data", "diesel data", "rail pressure", "fuel rail pressure", "injector correction", "DPF differential pressure", "soot load"]
+summary = "Diesel data adds rail pressure, boost, EGR, soot load and injector corrections, most with a desired and an actual value."
+body = [
+  "A diesel controls power by how much fuel it injects, not by a throttle. Its computer watches fuel pressure, boost, EGR and the exhaust filter instead of oxygen-sensor trims.",
+  "Many values come as pairs: desired (what the computer asks for) and actual (what the sensor reads). The gap between them is the clue.",
+]
+how_to_read = [
+  "Rail pressure: actual should track desired closely, and should hold steady at idle. One guide gives roughly 5000 psi (about 350 bar) at idle and 35,000 psi (about 2400 bar) or more at full throttle, depending on the engine. Another says there is no universal idle figure. A gap that widens under load points to a weak pump, a supply restriction or leaking injectors. With the key on, engine off, rail pressure should read near zero.",
+  "Boost: compare desired with actual under load. Slow build, failure to hold or no build each point to different causes. See pattern-boost-leak.",
+  "EGR: commanded and actual position should agree. If the computer commands it closed at idle but it shows partly open, the valve may be stuck open, which can give rough idle, stalling and hard hot starts. Commanding it open at idle should make a healthy engine stumble.",
+  "DPF differential pressure: one guide gives about 2 to 10 mbar at warm idle and about 30 to 40 mbar at 3000 rpm with no load. Higher means a blocked filter. Near zero may mean a damaged filter. Compare with the maker's figure at the same rpm.",
+  "DPF soot load: the computer's estimate of how full the filter is. One guide says above 100 % forces a regeneration or sets a code.",
+  "Injector corrections: per-cylinder fuel trims. A positive value means the computer adds fuel to that cylinder. One cylinder far from the others points to that injector. Compare only under matching conditions.",
+]
+faults = [
+  "Not every diesel reports every value through standard OBD. Many need maker-specific access.",
+  "Look-alike: a clogged air filter or intake restriction lowers boost and air flow together.",
+]
+related = ["dpf", "egr-system", "turbocharger", "pattern-boost-leak", "scr-adblue", "term:Common rail", "guide:dpf", "guide:egr"]
+sources = [
+  "APEX Tech Nation, 'Diesel Engine Diagnosis: Starting Points and Common Failures' (read 2026-10-16)",
+  "Snap-on, 'Technical Focus: Understanding and Diagnosing Diesel Particulate Filter Systems' (read 2026-10-16)",
+  "Remanufactured Injector, 'Reading Injector Live Data with an OBD Scanner: What the Numbers Mean' (read 2026-10-16)",
+  "VehicleRuns, 'How to Diagnose a Faulty EGR Valve: Signs and Tests' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "hybrid-live-data"
+title = "Hybrids in live data"
+group = "live-data"
+aliases = ["hybrid live data", "hybrid scan tool", "engine stops at idle", "state of charge", "SoC"]
+summary = "A hybrid's petrol engine often stops, so zero rpm in live data can be normal."
+body = [
+  "Many hybrids shut the petrol engine off when the car is stopped or can run on the battery. So engine rpm of 0 with the car on and ready is normal. It is not a fault.",
+  "The engine restarts on its own when the battery needs charge or the car needs power. Keep hands and tools away from belts and fans even when the engine looks off.",
+  "A standard scan tool reads engine data. Battery and motor data usually sit in separate computers and often need maker-specific access.",
+]
+how_to_read = [
+  "Engine-only values such as rpm, air flow and fuel trims read 0 or drop out while the engine is off. They return when it restarts. Fuel trim and oxygen sensor checks need the engine running and warm.",
+  "State of charge shows how full the high-voltage battery is. On one Prius test the engine started near 40 % and stopped near 50 %. The range differs by make and model.",
+  "Useful battery data on cars that report it: state of charge, battery current, and the highest and lowest cell block voltages. A large gap between blocks suggests a weak battery.",
+  "A weak 12 V battery can cause odd faults. Check it first.",
+]
+faults = [
+  "Look-alike: rpm of 0 or no data in electric mode. It is not a sensor fault.",
+  "High voltage can injure or kill. Pack voltages run from about 100 V to several hundred volts, and the cables are usually orange. A scan tool reading is safe. Do not touch orange cables or open the battery without training.",
+]
+related = ["hybrid-system", "rpm-idle", "readiness-monitors", "test-conditions", "reading-live-data", "page:live"]
+sources = [
+  "Wikipedia, 'Hybrid electric vehicle' (read 2026-10-16)",
+  "AA1Car.com, 'Hybrid Vehicle Safety Hazards' (read 2026-10-16)",
+  "Art's Automotive, 'Hybrid Battery Testing & Health Checks' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "fuel-types"
+title = "Fuel types and live data"
+group = "live-data"
+aliases = ["fuel type", "E10", "ethanol", "ethanol percentage", "LPG", "flex fuel", "petrol and ethanol"]
+summary = "Different fuels change the ideal air-fuel ratio and how trims and lambda read; PID 51 reports the fuel type."
+body = [
+  "Each fuel has its own ideal air-fuel ratio by weight. Petrol is 14.7:1. E10 (petrol with 10 % ethanol) is about 14.1:1, which is about 4 % more fuel for the same air. Pure ethanol is 9:1, and E85 is about 9.8:1.",
+  "Lambda removes the difference. Lambda 1.00 is the ideal mixture on any fuel. A tool that shows air-fuel ratio in numbers usually assumes petrol, so it can look wrong on other fuels.",
+]
+how_to_read = [
+  "Fuel type (PID 51): a number. 1 petrol, 2 methanol, 3 ethanol, 4 diesel, 5 LPG, 6 CNG, 7 propane. 9 to 14 are bi-fuel cars running on petrol, methanol, ethanol, LPG, CNG or propane. 17 to 22 are hybrid types. Many cars do not report it.",
+  "Ethanol percent (PID 52): 0 to 100 %. Flex-fuel cars report it. Most petrol cars do not.",
+  "On a car built for it, E10 is a small change that the engine computer absorbs through its trims. On flex-fuel cars the computer relearns after a refuel with a different blend.",
+  "LPG: a gas kit has its own computer. It takes the petrol injector signal, adjusts it, and drives the gas injectors. The car starts on petrol and switches to gas when the coolant is warm. It also feeds the petrol computer a signal in place of the injectors so no fault codes set. Note which fuel the car used during a test.",
+  "Diesel: the ideal ratio is about 14.5:1, but a diesel runs far leaner, from about 18:1 to 70:1. So its lambda reads well above 1. See diesel-live-data.",
+]
+faults = [
+  "Look-alike: stale or bad fuel causes rough running that has nothing to do with fuel type.",
+  "Gas kits can disturb the petrol trims if they are poorly set up. Large short term trims on gas mean the gas tune needs adjusting.",
+]
+related = ["lambda", "fuel-trim", "diesel-live-data", "closed-loop", "pid:51", "pid:52", "term:Lambda"]
+sources = [
+  "Wikipedia, 'OBD-II PIDs' (read 2026-10-16)",
+  "AA1Car.com, 'Engine Air/Fuel Ratios' (read 2026-10-16)",
+  "LPG Auto Power, 'Tell me about LPG Injection' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "using-graphs"
+title = "Using graphs to find faults"
+group = "live-data"
+aliases = ["graphs", "recording a drive", "record and replay", "data logging", "datalog"]
+summary = "Graphs show how values move together over time, which finds faults a single reading hides."
+body = [
+  "A number on the screen shows one moment. A graph shows what rose, what fell and what came first.",
+  "Pick a few values that should be related and plot them together. Record a drive with the fault happening, then study it.",
+]
+how_to_read = [
+  "Keep the list short. About 6 to 12 values are easier to read than everything the car offers. Fewer values often update faster, but it is not guaranteed, so check the real update rate.",
+  "Correlation: values that move together suggest a link worth testing. It does not prove the cause. Air flow and manifold pressure, or throttle and rpm, should move together.",
+  "Look for pattern shifts, not just one big reading: swinging trims, a sensor that flattens out, a counter that starts to climb, brief voltage dips.",
+  "Record when the symptom is present and when it is not. The value that differs between the two is your lead.",
+  "Read the scale and units before you judge a trace. Automatic scaling can make small changes look big.",
+  "Before and after: keep the first recording. After the repair, record again with the same values and similar conditions. For example, trims of +17 % before an intake gasket repair and +2 % after show the repair worked.",
+  "In Scana, use Graphs to plot and Record to save a drive.",
+]
+faults = [
+  "A slow update rate can hide a short glitch or make a good sensor look flat. A graph of scan data is not an oscilloscope trace of the wire.",
+  "Two recordings made in different conditions cannot be compared fairly.",
+]
+related = ["update-rates", "test-conditions", "reading-live-data", "page:graphs", "pattern-o2-lazy", "pattern-thermostat"]
+sources = [
+  "iCarsoft, 'How to Read Live Data on a Scan Tool: PIDs, Graphs and Baselines' (read 2026-10-16)",
+  "ThinkCar, 'Using Live Data to Diagnose Intermittent Issues' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "key-on-engine-off"
+title = "Key on, engine off checks"
+group = "live-data"
+aliases = ["KOEO", "key on engine off", "key-on engine-off"]
+summary = "With the key on and the engine off, several sensors should agree with each other, which finds faults before the engine runs."
+body = [
+  "With the ignition on and the engine stopped, the computer and sensors have power but nothing is changing. It is a simple test of the sensors.",
+  "Each reading should match a known truth. A reading that does not match points to that sensor or its wiring.",
+]
+how_to_read = [
+  "Manifold pressure (MAP) should match barometric pressure, because the manifold is at air pressure when the engine is off. Sea level is about 29.9 inHg (about 101 kPa). It falls about 1 inHg for each 1000 ft of height (about 3.4 kPa for every 300 m). Compare with the barometric (BARO) value if the car reports one.",
+  "A MAP value far from BARO points to the sensor, its wiring or its reference or ground. Do not condemn the sensor from this test alone. Cycle the key a few times: the readings should repeat.",
+  "Coolant and intake air temperature on a cold engine should match within a degree or two. If not, see pattern-ect-sensor.",
+  "Battery voltage at rest: a fully charged battery reads about 12.6 V.",
+  "Diesel rail pressure and DPF differential pressure should read near zero.",
+  "Air flow, engine speed and engine load should read near zero. A readable throttle and pedal should move smoothly when you press them slowly, with no jumps.",
+]
+faults = [
+  "Look-alike: a warm engine or sun on the intake makes the temperatures differ. Wait for a cold soak.",
+  "Look-alike: a flat battery can give odd sensor readings.",
+]
+related = ["map-reading", "coolant-temp-reading", "intake-air-temp", "throttle-pedal", "voltage-reading", "test-conditions", "pattern-ect-sensor"]
+sources = [
+  "MOTOR Information Systems, 'Driveability Corner | Idle MAP' (read 2026-10-16)",
+  "The Car Buzz, 'MAP Sensor Testing Guide: How to Test a MAP Sensor' (read 2026-10-16)",
+  "AA1Car.com, 'How to Check & Replace an Engine Coolant Sensor' (read 2026-10-16)",
+  "Jiffy Lube, 'What Is Car Battery Voltage?' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "test-conditions"
+title = "Test conditions"
+group = "live-data"
+aliases = ["test conditions", "idle test", "2500 rpm test", "steady cruise", "warm engine test", "cold engine test"]
+summary = "Each check names its conditions because the same value means different things at idle, at 2500 rpm, under load, cold or warm."
+body = [
+  "A fuel trim of +12 % means one thing at idle and another at 2500 rpm. A coolant reading of 60 degrees C is fine in the first minutes and wrong after twenty. The condition is part of the reading.",
+  "Scana's tests state their conditions so you compare like with like. Keep them the same before and after a repair.",
+]
+how_to_read = [
+  "Key on, engine off, engine cold: sensor agreement. See key-on-engine-off.",
+  "Warm idle in closed loop: the baseline for trims. Check that the coolant reading matches the real engine temperature first.",
+  "2000 to 2500 rpm, no load: the second point. A vacuum leak shrinks here, while a dirty MAF sensor or weak fuel supply does not.",
+  "Under load, on the road or with the air conditioner on: the third point. Weak fuel supply shows here. Trims past about 10 % deserve a full diagnosis, and about 5 % or less is normal.",
+  "Warm versus cold: a cold engine runs richer. Do not judge trims or oxygen sensor switching until the engine is warm and in closed loop.",
+  "Steady cruise and full-throttle runs show converter behaviour, boost and fuel supply. Full throttle usually puts the engine in open loop, where trims do not apply (general knowledge, unverified).",
+]
+faults = [
+  "Comparing a hot summer drive with a cold winter drive can mislead.",
+  "A short trip may never reach closed loop.",
+]
+related = ["closed-loop", "fuel-trim", "rpm-idle", "key-on-engine-off", "pattern-vacuum-leak", "pattern-maf-fault", "using-graphs"]
+sources = [
+  "APEX Tech Nation, 'Fuel Trim Diagnostics Explained' (read 2026-10-16)",
+  "MOTOR Information Systems, 'Lean On Me' (read 2026-10-16)",
+  "AVI OnDemand, 'Fuel Trim Diagnosis And O2 Sensor Performance' (read 2026-10-16)",
+  "Carista, 'P0128 Code Explained: Causes and Fixes' (read 2026-10-16)",
+]
+
+[[term]]
+name = "Unmetered air"
+text = "Air that enters the engine without passing the air flow sensor, so the engine computer does not add fuel for it."
+
+[[term]]
+name = "Smoke test"
+text = "A leak test that pushes harmless smoke into the intake or exhaust so the escaping smoke shows the leak."
+
+[[term]]
+name = "Underboost"
+text = "A turbo engine that makes less boost pressure than the engine computer asks for."
+
+[[term]]
+name = "Bi-fuel"
+text = "A car that can run on petrol and a second fuel such as LPG, and switches between them."
+
+[[term]]
+name = "E10"
+text = "Petrol with up to 10 percent ethanol."
+
+[[term]]
+name = "Rail pressure"
+text = "The fuel pressure in a common rail diesel's shared fuel line, measured in bar."
+
+[[term]]
+name = "Soot load"
+text = "The amount of soot the diesel particulate filter has collected, shown in grams or percent."
+
+[[term]]
+name = "Differential pressure"
+text = "The pressure difference between the two sides of a part, such as a diesel particulate filter. A high value means a blockage."
+
+[[term]]
+name = "State of charge"
+text = "How full a battery is, shown as a percentage."
+
+[[term]]
+name = "Cold soak"
+text = "An engine that has stood long enough to reach air temperature, so all its temperature sensors should agree."
+
+[[term]]
+name = "Snap throttle"
+text = "Opening and closing the throttle quickly to check how fast a sensor responds."

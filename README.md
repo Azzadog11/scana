@@ -4,6 +4,7 @@ Scan software from down under: an open laptop scan tool for cars with OBD-II on 
 
 - **scana-bridge**: firmware for the Uno R3 and the shield. It passes CAN frames between the car and the laptop over USB, and nothing else.
 - **scana-app**: a Rust desktop app for Linux. It reads and clears fault codes, shows live data and graphs, records drives, writes health reports, finds every module in the car (brakes, airbags, body) and reads their codes, and explains every value and code as you go.
+- **The Library**: about 120 topics in plain English on reading live data (fuel trims, oxygen sensors, what common faults look like in the numbers), how the car's systems and parts work, and how CAN and diagnostics work, each with its sources, plus a 240-word glossary. Every word Scana can explain is underlined wherever it appears: rest the pointer on it for a one-line meaning, click it to read more.
 - **Diagnosis guides**: for common fault codes, the likely causes and tests that tell them apart, in plain English. Scana measures some tests itself on a connected car; the rest you answer from what you see, a meter, or another scan tool, so they work on any car.
 - **scana**: the same engine on the command line, for scripts and testing.
 
@@ -11,7 +12,7 @@ It is tuned first for the 2024 Daihatsu Hijet Jumbo (S510P), and works with any 
 
 ## Status
 
-Version 0.2.1 (bridge firmware 0.1.1). The firmware runs on an Uno R3 with the shield; the app and the command line work end to end on built-in demo cars and talk to the real bridge. Live data has been recorded on three drives in a 2024 Hijet. Module discovery, module codes and the data explorer (stage 3) work on the simulated modules. There are 42 diagnosis guides and about 2,000 code descriptions. Most of it is not yet proven on a car: expect rough edges.
+Version 0.3.0 (bridge firmware 0.1.1). The firmware runs on an Uno R3 with the shield; the app and the command line work end to end on built-in demo cars and talk to the real bridge. Live data has been recorded on three drives in a 2024 Hijet. Module discovery, module codes and the data explorer (stage 3) work on the simulated modules. There are 42 diagnosis guides and about 2,000 code descriptions. Most of it is not yet proven on a car: expect rough edges.
 
 ## Hardware
 

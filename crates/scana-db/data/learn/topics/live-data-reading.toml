@@ -1,0 +1,574 @@
+# Scana Library: Live data, reading the numbers. Researched for Scana (2026-10-16). Sources per topic.
+
+[[topic]]
+id = "reading-live-data"
+title = "How to read live data"
+group = "live-data"
+aliases = ["live data", "reading live data", "snapshot", "scan data"]
+summary = "Live data is what the engine computer sees right now; one number alone says little, so compare related values on a warm engine."
+body = [
+  "Live data is the stream of sensor readings and calculated values the engine computer shares. Scana shows it on the Live data and Graphs screens. A number only makes sense next to its neighbours and the conditions it was taken in.",
+  "Warm the engine to its normal running temperature first. A cold engine runs rich on purpose and ignores some sensors (open loop), so many values look wrong when they are not.",
+  "Read each value at several steady points: warm idle, about 2500 rpm with no load, and under light load such as a steady drive. A fault often shows at one point and hides at another.",
+]
+how_to_read = [
+  "Compare related values: fuel trim with air flow, air flow with load, coolant temperature with intake air temperature on a cold start.",
+  "A snapshot is one moment; a trend (a graph) shows how a value moves. Use a snapshot for steady values and a graph for anything that should switch, rise or fall.",
+  "Hold each speed (idle, about 2500 rpm, about 3500 rpm) for at least 30 seconds before you trust a reading, so fast changes settle.",
+  "With the key on and the engine off, many values should match the outside world: coolant and intake air within a few degrees of each other on a cold engine, manifold pressure near air pressure, throttle closed. The key-on engine-off topic covers this in depth.",
+  "Typical warm values to expect (petrol): idle about 600 to 900 rpm, closed loop, trims near zero. Cars differ, so note your own car's normal.",
+  "Note the conditions with each reading: temperature, speed, load, A/C on or off. Another reading later is only useful if the conditions match.",
+  "After codes are cleared, trims and some values can read oddly for a while. The computer needs several drive cycles to relearn.",
+]
+related = ["key-on-engine-off", "test-conditions", "using-graphs", "fuel-trim", "update-rates", "page:live", "page:graphs"]
+sources = [
+  "Foxwell, 'Understanding Fuel Trims: A Comprehensive Guide' (read 2026-10-16)",
+  "Skanyx, 'OBD2 Live Data: Parameters, Normal Ranges, Reading Guide' (read 2026-10-16)",
+  "AA1Car, 'Engine Air Temperature Sensor' (read 2026-10-16)",
+  "AA1Car, 'Manifold Absolute Pressure MAP Sensors' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "fuel-trim"
+title = "Fuel trim"
+group = "live-data"
+aliases = ["fuel trims", "short term fuel trim", "long term fuel trim", "short-term fuel trim", "long-term fuel trim", "total fuel trim", "STFT", "LTFT", "trim"]
+summary = "Fuel trim is the engine computer's correction to fuel delivery, in percent: positive adds fuel, negative removes it."
+body = [
+  "The engine computer works out a base amount of fuel from air flow and load. Then it corrects that amount using the oxygen sensor reading. The correction is fuel trim, shown in percent.",
+  "Short term trim reacts in seconds and swings up and down around zero. Long term trim is the learned average: when short term trim keeps pushing the same way, the computer moves that push into long term trim. Short term trim resets when the key goes off; long term trim is kept.",
+  "Positive trim means the computer adds fuel because it sees a lean mixture. Negative trim means it removes fuel because it sees a rich one. Add short and long term trim together to get total trim.",
+]
+how_to_read = [
+  "Short term trim: normally within about plus or minus 10 % at a steady speed. It can jump 25 % or more when the throttle moves quickly.",
+  "Long term trim: as close to zero as possible. About 5 to 8 % either way is not necessarily a problem. At about 10 % or more, look for a cause. Fault codes for lean or rich usually set when it nears 20 to 25 %.",
+  "Compare idle with about 2000 to 2500 rpm, holding each for 30 seconds. High positive at idle that falls at higher rpm points to unmetered air (a vacuum leak), because a leak matters less as air flow rises. Trim that barely changes points to fuel delivery: a weak pump, a clogged filter, dirty injectors or a leaking regulator.",
+  "Negative trim at every speed points to too much fuel: leaking injectors, high fuel pressure, or a MAF reading too high.",
+  "Banks: a V engine has two banks, each with its own trim. A fault on one bank only points to that side. Both banks off points to something shared, such as air flow or fuel pressure.",
+  "Trim only means something in closed loop, with working oxygen sensors and no fuel or ignition codes. After codes are cleared, trim can be off by 20 % or more until the computer relearns.",
+]
+more_detail = [
+  "Short term and long term trim are both percent changes to injector pulse width. Total trim is roughly the sum, so a long term trim of +8 % with a short term trim of +4 % is about +12 %. The computer sets a fault code (such as P0171 or P0172) when total trim stays past its limit for long enough.",
+]
+related = ["closed-loop", "o2-sensor-reading", "lambda", "maf-reading", "pattern-vacuum-leak", "pattern-rich", "pid:06", "pid:07", "pid:08", "pid:09", "term:Fuel trim", "term:STFT", "term:LTFT", "term:Total fuel trim"]
+sources = [
+  "AA1Car, 'What Is Fuel Trim?' (read 2026-10-16)",
+  "Foxwell, 'Understanding Fuel Trims: A Comprehensive Guide' (read 2026-10-16)",
+  "Mechanic.com.au, 'Understanding Short Term and Long Term Fuel Trims' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "closed-loop"
+title = "Open and closed loop"
+group = "live-data"
+aliases = ["open loop", "closed loop", "fuel system status", "loop status", "fuel cut"]
+summary = "Closed loop means the engine computer adjusts fuel using oxygen sensor feedback; open loop means it follows stored values instead."
+body = [
+  "In closed loop the engine computer checks the oxygen sensor and trims the fuel until the exhaust is near the ideal mixture. The loop is: fuel in, exhaust measured, fuel corrected. In open loop it skips the check and uses stored fuel tables.",
+  "Scana shows the state as Fuel system status (PID 03). A V engine can report one state per bank group.",
+  "The computer uses open loop when feedback would be wrong or too slow: a cold engine, a sensor that has not warmed up, full throttle (it adds extra fuel for power and cooling), and deceleration fuel cut (no fuel at all).",
+]
+how_to_read = [
+  "Status 1: open loop, engine too cold. Normal for the first minutes after a cold start.",
+  "Status 2: closed loop using oxygen sensor feedback. Expected when warm at idle and cruise.",
+  "Status 4: open loop from load, or fuel cut on deceleration. Normal during hard acceleration or coasting down.",
+  "Status 8: open loop because of a system fault. Look for fault codes.",
+  "Status 16: closed loop, but a fault exists in the feedback. Look for oxygen sensor codes.",
+  "Status 0: engine off.",
+  "A warm engine that stays in status 1 or 8 at idle usually has a coolant temperature sensor, thermostat or oxygen sensor problem. Fuel trim readings are not meaningful until the status is closed loop.",
+]
+related = ["fuel-trim", "o2-sensor-reading", "pattern-thermostat", "pattern-ect-sensor", "pid:03", "term:Closed loop", "term:Open loop"]
+sources = [
+  "Wikipedia 'OBD-II PIDs', PID 03 status values (read 2026-10-16)",
+  "Wikipedia 'Oxygen sensor', closed-loop operation (read 2026-10-16)",
+]
+
+[[topic]]
+id = "o2-sensor-reading"
+title = "Reading narrow-band oxygen sensors"
+group = "live-data"
+aliases = ["narrow-band", "narrowband", "oxygen sensor voltage", "o2 voltage", "sensor switching", "lazy sensor", "stuck sensor"]
+summary = "A narrow-band oxygen sensor swings between about 0.1 V (lean) and 0.9 V (rich) around a 0.45 V midpoint."
+body = [
+  "A narrow-band oxygen sensor is a switch more than a gauge. It reads about 0.1 V when the exhaust is lean and about 0.9 V when rich, and flips quickly near the ideal mixture. The midpoint is about 0.45 V.",
+  "In closed loop the engine computer pushes the mixture a little rich, then a little lean, again and again. A front sensor therefore swings steadily. The number of swings per second is the cross count.",
+  "The sensor has a heater. It works well only above about 315 degrees C, and a heated sensor usually gets there within 20 to 60 seconds. Until then it sits near a fixed value.",
+]
+how_to_read = [
+  "Healthy front sensor, warm, at 2500 rpm: swings across 0.45 V about 5 to 7 times a second on a multiport injected engine, with peaks near 0.1 V and 0.9 V. At warm idle one guide counts 8 to 20 crossings in 10 seconds; fewer than about 5 in 10 seconds suggests a lazy sensor.",
+  "Lazy sensor: swings slowly, peaks are rounded or short of 0.1 and 0.9 V, and it responds late when you snap the throttle. It makes the computer slow to correct.",
+  "Stuck low (about 0.1 to 0.2 V) or stuck high (about 0.8 to 0.9 V): either a real lean or rich condition, or a dead sensor. If the trim pushes hard the other way and the sensor does not follow, suspect the sensor.",
+  "Fixed near 0.45 V and not moving: often no heater power or an open circuit, or the engine is still in open loop.",
+  "Rear sensor (after the converter): on a healthy converter it stays steadier than the front one, with few crossings of 0.45 V and an average of about 0.45 V or higher. If it copies the front sensor's fast swings, the converter is not storing oxygen well.",
+  "Test: snap the throttle open and shut. A good sensor goes rich on the spike and lean on the closed throttle, quickly.",
+]
+more_detail = [
+  "The sensor is a zirconia ceramic cell that makes a small voltage when oxygen levels differ between exhaust and outside air. The voltage jumps steeply near the ideal mixture, which makes the sensor sensitive there and nearly blind elsewhere. That is why it cannot tell how rich or lean you are, only which side of ideal.",
+]
+related = ["o2-sensor", "af-sensor-reading", "pattern-o2-lazy", "pattern-catalyst", "closed-loop", "fuel-trim", "term:Oxygen sensor", "term:Sensor 1, sensor 2", "term:Cross counts"]
+sources = [
+  "AA1Car, 'Oxygen Sensors: How to Diagnose & Replace' (read 2026-10-16)",
+  "Apex Tech Nation, 'Oxygen Sensor Testing: Scan Tool Data and Scope Patterns' (read 2026-10-16)",
+  "Wikipedia, 'Oxygen sensor' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "af-sensor-reading"
+title = "Reading air-fuel ratio (wide-band) sensors"
+group = "live-data"
+aliases = ["wide-band", "wideband", "wide band", "air-fuel ratio sensors", "equivalence ratio", "commanded equivalence ratio"]
+summary = "A wide-band sensor reports how lean or rich the exhaust is as lambda or as a current in mA, and does not switch."
+body = [
+  "A wide-band sensor measures the mixture over a wide range, not just which side of ideal. Scana shows it as lambda (or the equivalence ratio, which is the same idea) and as a small current in mA.",
+  "Lambda 1.00 is the ideal mixture: below 1.00 is rich and above 1.00 is lean. The current is 0 mA at lambda 1.00, positive when lean and negative when rich, and typically 20 mA or less.",
+  "It does not switch because the sensor has an electric oxygen pump. The engine computer drives the pump current to keep a cell steady, and the current needed shows the oxygen level. A smooth line is normal.",
+]
+how_to_read = [
+  "PIDs 24 to 2B give lambda plus a voltage for sensors 1 to 8. PIDs 34 to 3B give lambda plus current in mA, from about minus 128 to plus 128 mA.",
+  "PID 44 is the commanded equivalence ratio: the target the computer is asking for. Compare it with the measured lambda. If the measured value follows the command and fuel trim reacts, the sensor is working.",
+  "A reading stuck at 1.000 or 0 mA while you snap the throttle suggests a dead sensor, a heater fault or a wiring fault.",
+  "Warm idle in closed loop: lambda close to 1.00, with small movement. Light acceleration: the target may go a little rich. Deceleration fuel cut: the sensor reads very lean (lambda well above 1.00).",
+  "Do not apply the 0.1 to 0.9 V rule to these PIDs. Where a voltage is shown, its steady value depends on the maker: about 3.3 V at the ideal mixture on some Toyota and Honda sensors, about 2.6 V on some Bosch and GM sensors. Generic tools may show a made-up narrow-band voltage instead.",
+]
+related = ["lambda", "o2-sensor-reading", "af-sensor", "closed-loop", "fuel-trim", "pid:24", "pid:34", "pid:44", "term:Air-fuel ratio sensor", "term:Equivalence ratio"]
+sources = [
+  "AA1Car, 'Wideband O2 Sensors and Air/Fuel (A/F) Sensors' (read 2026-10-16)",
+  "Apex Tech Nation, 'Oxygen Sensor Testing: Scan Tool Data and Scope Patterns' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PIDs 24 to 2B, 34 to 3B, 44 (read 2026-10-16)",
+  "Wikipedia, 'Oxygen sensor', wide-band pump operation (read 2026-10-16)",
+]
+
+[[topic]]
+id = "lambda"
+title = "Lambda and the ideal mixture"
+group = "live-data"
+aliases = ["lambda value", "stoichiometric", "stoichiometry", "ideal mixture", "air-fuel ratio", "14.7:1", "rich", "lean"]
+summary = "Lambda is the real air-fuel ratio divided by the ideal one: 1.00 is ideal, below is rich, above is lean."
+body = [
+  "Petrol burns completely when about 14.7 kg of air meets 1 kg of fuel. That is the stoichiometric ratio, or ideal mixture. Lambda compares the real ratio with the ideal for the fuel in use, so 1.00 is ideal for any fuel.",
+  "Rich (lambda below 1.00) means too much fuel for the air, and lean (above 1.00) means too little. Rich wastes fuel and makes carbon monoxide and unburnt fuel. Lean runs hotter and can misfire or damage parts.",
+  "A three-way catalytic converter only cleans well in a very narrow band around lambda 1.00. That is why the computer works so hard to hold the mixture there.",
+]
+how_to_read = [
+  "Ideal ratios by mass, roughly: petrol 14.7:1, diesel 14.5:1, LPG and propane 15.7:1, E85 about 9.8:1. E10 petrol is a little lower, about 14.1:1, so it needs about 4 % more fuel for the same air.",
+  "A diesel has an ideal ratio of about 14.5:1 but runs lean on purpose, so its lambda is well above 1.00 at most loads even when healthy.",
+  "To turn lambda into a ratio, multiply by the fuel's ideal ratio. Lambda 1.10 on petrol is about 16.2:1.",
+]
+related = ["af-sensor-reading", "o2-sensor-reading", "fuel-trim", "fuel-types", "catalytic-converter", "pattern-rich", "term:Lambda", "term:Stoichiometric", "term:Rich", "term:Lean"]
+sources = [
+  "Wikipedia, 'Air-fuel ratio' (read 2026-10-16)",
+  "UnitConverty, 'Air-Fuel Ratio Calculator' (read 2026-10-16)",
+  "CalculatorPod, 'AFR Calculator (Air-Fuel Ratio)' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "engine-load"
+title = "Calculated load and absolute load"
+group = "live-data"
+aliases = ["calculated load", "engine load", "absolute load", "load value", "calculated engine load"]
+summary = "Engine load is how hard the engine works, as a percent of the most air it could take in."
+body = [
+  "Calculated load (PID 04) compares the air the engine is taking in now with the most it could take in at that speed. It runs from 0 to 100 %. It is worked out from air flow and engine speed.",
+  "Absolute load (PID 43) compares the air per intake stroke with the air that would fill the cylinders at normal pressure. The PID range runs well past 100 %, and a turbo engine under boost can go above it.",
+  "Load is useful because it turns many sensors into one number. It tells you whether the engine is idling, cruising or working hard, whatever its size.",
+]
+how_to_read = [
+  "Typical warm idle, petrol: sources differ, from about 15 to 30 % up to about 30 to 50 %. The nearly closed throttle limits air, and the calculation accounts for it. Judge by your own car's normal.",
+  "Typical steady cruise: about 30 to 50 % at 2500 rpm by one guide, and about 40 to 70 % on the highway by another. Full throttle: about 75 to 100 %.",
+  "A load that is well above your car's usual at idle with no extra load can mean extra air from a leak, or a MAF reading too high.",
+  "Compare load with throttle position and air flow. Load that does not rise when you open the throttle points to an air flow or intake restriction fault.",
+  "Load that stays high at cruise points to a restriction or drag. One guide treats 80 % or more at cruise as a warning (unverified for your car).",
+]
+related = ["maf-reading", "map-reading", "throttle-pedal", "reading-live-data", "pid:04", "pid:43"]
+sources = [
+  "Skanyx, 'OBD2 Live Data: Parameters, Normal Ranges, Reading Guide' (read 2026-10-16)",
+  "ScienceInsights, 'What Is Load PCT on an OBD2 Scanner?' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PIDs 04 and 43 (read 2026-10-16)",
+]
+
+[[topic]]
+id = "maf-reading"
+title = "Reading mass air flow"
+group = "live-data"
+aliases = ["mass air flow", "air flow", "MAF reading", "MAF g/s", "grams per second"]
+summary = "The MAF reading is the weight of air entering the engine in grams per second; at warm idle it is about 1 g/s per litre."
+body = [
+  "The mass air flow sensor tells the engine computer how much air the engine breathes. Scana shows it in grams per second (g/s) as PID 10. The computer uses it to decide how much fuel to add.",
+  "The reading follows engine size and speed. Bigger engines and higher speeds pull in more air.",
+  "Air flow is the main input to fuel, so a wrong reading shows up in fuel trim.",
+]
+how_to_read = [
+  "Rule of thumb at warm idle with no loads: about 1 g/s for each litre of engine size. Some sources give 0.8 to 1.2 g/s per litre, others up to 2 g/s per litre. A 2.0 litre engine is typically 2 to 4 g/s at idle.",
+  "At about 2500 rpm with no load it reads several times the idle figure: one guide gives about 15 to 25 g/s against 2 to 7 g/s at idle.",
+  "Throttle snap: the reading should jump smoothly and fall back. A slow or low rise suggests a dirty or failing sensor.",
+  "Key on, engine off: the reading should be near 0 g/s.",
+  "Check against expected: a reading much lower than expected for the engine size with positive fuel trim points to a dirty MAF or an air leak after the sensor. Reading too high with negative trim points to a MAF over-reading.",
+  "Fuel use estimate: at the ideal mixture, fuel in grams per second is air flow divided by 14.7. For example, 10 g/s of air burns about 0.68 g/s of petrol.",
+  "At altitude the reading is slightly lower because the air is thinner. Some tools show lb/min: 1 lb/min is about 7.56 g/s.",
+]
+related = ["pattern-maf-fault", "maf-sensor", "fuel-trim", "engine-load", "pid:10", "term:MAF"]
+sources = [
+  "Search summary of MAF idle guides (Engineer Fix, AEANET, VehicleFreedom, Bimmerfest) on 1 g/s per litre (read 2026-10-16)",
+  "Wikipedia 'OBD-II PIDs', PID 10 formula (read 2026-10-16)",
+  "Wikipedia 'Air-fuel ratio', 14.7:1 (read 2026-10-16)",
+]
+
+[[topic]]
+id = "map-reading"
+title = "Reading manifold pressure"
+group = "live-data"
+aliases = ["manifold pressure", "intake manifold pressure", "MAP reading", "vacuum", "manifold vacuum"]
+summary = "MAP is the pressure in the intake manifold in kPa absolute: about air pressure with the engine off, lower at idle, higher under boost."
+body = [
+  "The manifold absolute pressure sensor measures the pressure in the intake manifold. Scana shows it in kPa as PID 0B. Absolute means it counts from zero pressure, not from outside air.",
+  "With the engine off, the manifold holds outside air, so the reading equals barometric pressure: about 101 kPa at sea level and lower at altitude. When the engine runs with the throttle nearly closed, the pistons pull the pressure down and make vacuum.",
+  "Opening the throttle lets pressure rise toward barometric. A turbo or supercharger pushes it above barometric: that is boost.",
+]
+how_to_read = [
+  "Key on, engine off: the sensor reads barometric pressure, about 101 kPa at sea level (28 to 31 inches of mercury, about 95 to 105 kPa). It is lower at altitude.",
+  "Warm idle, naturally aspirated petrol: a healthy engine has about 16 to 22 inches of mercury of vacuum. At sea level that is about 25 to 50 kPa absolute. One source quotes 26 to 35 kPa; others go higher, so judge by your own car.",
+  "Snap the throttle open: the signal changes quickly and dramatically, toward barometric pressure, then drops back. No change means a sensor or wiring fault.",
+  "Wide open throttle, no turbo: close to barometric pressure. With a turbo: above it. Boost is the reading minus barometric pressure.",
+  "On deceleration with a closed throttle, vacuum is typically 4 to 5 inches of mercury higher than at idle.",
+  "Low idle vacuum (high kPa) points to a vacuum leak, retarded timing, a restricted exhaust or low compression. A needle that bounces points to one or a few cylinders, such as a misfire or leaking valve.",
+  "Each 1000 feet (about 300 m) of altitude lowers idle vacuum by about 1 inch of mercury.",
+]
+related = ["map-sensor", "pattern-vacuum-leak", "pattern-boost-leak", "engine-load", "turbocharger", "pid:0B", "pid:33", "term:MAP", "term:Barometric pressure"]
+sources = [
+  "AA1Car, 'Manifold Absolute Pressure MAP Sensors' (read 2026-10-16)",
+  "MOTOR, 'Mastering the Basics: Reading A Vacuum Gauge' (read 2026-10-16)",
+  "Wikipedia, 'Manifold vacuum' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PID 0B (read 2026-10-16)",
+]
+
+[[topic]]
+id = "coolant-temp-reading"
+title = "Reading coolant temperature"
+group = "live-data"
+aliases = ["coolant temperature", "engine temperature", "warm-up", "warm up curve", "operating temperature"]
+summary = "Coolant temperature should rise smoothly from near air temperature to a steady value, usually about 90 to 105 degrees C."
+body = [
+  "Coolant temperature (PID 05) is the engine computer's picture of how warm the engine is. It affects fuel, idle speed, timing, the fans and when closed loop starts. A wrong value upsets many other things.",
+  "On a cold start the reading should be near the outside air temperature. It then rises steadily until the thermostat opens, then holds steady.",
+  "One example thermostat opens at 85 degrees C, and normal running is about 90 to 105 degrees C. The scan tool often reads above the thermostat rating because the sensor sits at the hot outlet of the engine.",
+]
+how_to_read = [
+  "Cold start check: coolant and intake air temperature should agree within a few degrees after the car sat overnight. A big gap points to a bad sensor.",
+  "Smooth rise: a jump, a flat spot or a flicker suggests a sensor or wiring fault.",
+  "It never reaches about 80 degrees C after a long drive: likely a thermostat stuck open (also weak cabin heat, slow closed loop).",
+  "It climbs past about 105 degrees C: check the cooling system and fans.",
+  "Fan cut-in: the radiator fan usually starts a few degrees above thermostat opening, a few degrees above thermostat opening. In one example the fan started at about 96 degrees C. The reading then drops a little.",
+  "A reading stuck at about minus 40 or about 215 degrees C is an open or shorted sensor circuit.",
+]
+related = ["coolant-temp-sensor", "pattern-thermostat", "pattern-ect-sensor", "intake-air-temp", "cooling-system", "pid:05", "term:Thermostat", "term:Coolant temperature sensor"]
+sources = [
+  "Samarins, 'Thermostat: how it works, symptoms, problems, testing' (read 2026-10-16)",
+  "Skanyx, 'OBD2 Live Data: Parameters, Normal Ranges, Reading Guide' (read 2026-10-16)",
+  "MOTOR, 'Running Hot & Cold: CTS Diagnosis' (read 2026-10-16)",
+  ]
+
+[[topic]]
+id = "intake-air-temp"
+title = "Reading intake air temperature"
+group = "live-data"
+aliases = ["intake air temperature", "air temperature", "heat soak"]
+summary = "Intake air temperature is near the outside temperature when moving and climbs at idle through heat soak."
+body = [
+  "The intake air temperature sensor measures the air going into the engine (PID 0F). Cooler air is denser, so the engine computer uses it to adjust fuel and timing.",
+  "While driving, fresh air flows through the intake and the reading stays close to the outside temperature, usually a few degrees above it. In traffic or at idle, the hot engine bay warms the intake: this is heat soak, and the reading rises.",
+  "On turbo engines the sensor may sit after the intercooler, so the reading is higher under boost and falls when the intercooler works well.",
+]
+how_to_read = [
+  "Cold engine after sitting overnight: intake air and coolant temperature should closely match, within a few degrees. A bigger gap points to a bad sensor.",
+  "If intake air reads far from coolant on a cold engine, or a fixed odd value that does not respond, suspect the sensor or its wiring. Check the coolant sensor too before you condemn the intake sensor.",
+  "Moving at speed: close to outside temperature. Stopped with a hot engine: higher, because engine heat reaches the intake.",
+  "A reading warmer than the true air temperature can make the mixture lean; colder than true can make it rich.",
+  "A very high intake temperature when cruising points to a hot air intake, a blocked intercooler on a turbo engine, or a bad sensor.",
+]
+related = ["iat-sensor", "coolant-temp-reading", "air-intake", "pid:0F"]
+sources = [
+  "AA1Car, 'Engine Air Temperature Sensor' (read 2026-10-16)",
+  "Fleet Rabbit, 'Coolant & Oil Temperature Sensor Diagnostics: A Fleet Mechanic's Guide' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PID 0F (read 2026-10-16)",
+]
+
+[[topic]]
+id = "timing-advance"
+title = "Reading ignition timing advance"
+group = "live-data"
+aliases = ["timing advance", "ignition advance", "spark advance", "knock retard", "timing retard", "advance"]
+summary = "Timing advance is how many degrees before top dead centre the spark fires; the computer pulls it back when it hears knock."
+body = [
+  "The spark fires before the piston reaches the top of its stroke, so the fuel has time to burn and push down at the best moment. How early it fires is the timing advance, in degrees before top dead centre (PID 0E).",
+  "At idle the advance is smaller, around 8 to 20 degrees. At cruise with light load it climbs, often to 30 to 40 degrees. Under heavy load it falls again to avoid knock.",
+  "The engine computer pulls timing back (knock retard) when the knock sensor hears pinging. Retard protects the engine but costs power.",
+]
+how_to_read = [
+  "One live-data guide gives about 10 to 20 degrees before top dead centre at warm idle and about 30 to 40 degrees at 2500 rpm light load. Values vary a lot by car.",
+  "Timing that rises with rpm and falls as load rises is normal.",
+  "Healthy engines show little or no knock retard. A short dip of a few degrees under hard acceleration is normal; deep or repeated dips are not.",
+  "Steady low advance everywhere may mean the computer is holding timing back: bad fuel, hot intake air, carbon build-up, a hot-running engine, or a failing knock sensor.",
+  "Wild swings in advance can point to a misfire or a crank or cam sensor fault.",
+  "Some tools show advance as a negative number. Check how your tool shows the sign.",
+  "The value is the computer's request, not a measured fact. A slipped timing belt or chain will not show here.",
+]
+related = ["ignition-system", "knock-sensor", "pattern-misfire", "pid:0E", "term:Ignition timing", "term:Knock", "term:TDC", "term:Knock retard"]
+sources = [
+  "Skanyx, 'OBD2 Live Data: Parameters, Normal Ranges, Reading Guide' (read 2026-10-16)",
+  "Street Muscle, 'Uncovering The Secrets Of Ignition Timing' (read 2026-10-16)",
+  "Wikipedia, 'Ignition timing' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PID 0E (read 2026-10-16)",
+]
+
+[[topic]]
+id = "throttle-pedal"
+title = "Reading throttle and pedal positions"
+group = "live-data"
+aliases = ["throttle position", "pedal position", "accelerator pedal position", "relative throttle", "absolute throttle", "commanded throttle", "TPS reading"]
+summary = "Throttle and pedal readings come in pairs from two sensors each; the pairs should agree and follow your foot smoothly."
+body = [
+  "A drive-by-wire car has a pedal and a throttle body, each with two position sensors. The two sensors on one part read different numbers on purpose, so the engine computer can spot a fault. Scana shows them as PIDs 11, 45, and 47 to 4C.",
+  "The computer reads the pedal, decides how open the throttle should be (commanded throttle), and drives the motor. The throttle sensors then report where it actually is.",
+  "Relative throttle (PID 45) is shown from the learned closed position, so it reads 0 % when closed. Absolute throttle (PID 11, 47) is the raw sensor reading on its own scale, so it reads above 0 % when closed.",
+]
+how_to_read = [
+  "Closed throttle at warm idle: older guides say about 0 %. Modern electronic throttles usually do not show 0 %: one guide gives about 3 to 10 %, and another lists 0 to 5 % for relative throttle. The raw sensor value on its own scale is often higher.",
+  "Wide open: about 90 to 100 % on the percent reading.",
+  "The pedal has two sensors that agree in a fixed way. On many designs sensor 2 reads about half of sensor 1 (in volts), but makers differ, so scan tools usually show both as matching percent of pedal travel.",
+  "Commanded throttle and actual throttle should track each other within a few percent. A gap means a sticking or dirty throttle body or a motor fault.",
+  "Move the pedal slowly through its range: readings should rise smoothly with no jumps or dropouts. A jump is a worn track.",
+  "If the two sensors of a pair stop agreeing, the computer sets a code and usually goes into limp mode.",
+]
+related = ["electronic-throttle", "position-sensors", "pid:11", "pid:45", "pid:47", "pid:4C", "term:TPS", "term:Accelerator pedal sensor", "term:Throttle body"]
+sources = [
+  "AA1Car, 'Basics of Engine Throttle Position Sensors' (read 2026-10-16)",
+  "Foxwell, 'What Does TP Mean on an OBD2 Scanner and How to Diagnose It?' (read 2026-10-16)",
+  "Skanyx, 'OBD2 Live Data: Parameters, Normal Ranges, Reading Guide' (read 2026-10-16)",
+  "Wikipedia, 'Throttle position sensor' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PIDs 11, 45, 47 to 4C (read 2026-10-16; no formulas for 48 to 4C)",
+]
+
+[[topic]]
+id = "voltage-reading"
+title = "Reading control module voltage"
+group = "live-data"
+aliases = ["control module voltage", "battery voltage", "system voltage", "charging voltage"]
+summary = "Control module voltage is the supply the engine computer sees: about 12.4 to 12.7 V engine off, about 13.5 to 14.7 V running."
+body = [
+  "PID 42 is the supply voltage at the engine computer. It is a quick way to check the battery and charging system with no extra tools. It reads a little less than the true battery voltage because of wiring losses.",
+  "With the engine off, a fully charged battery reads about 12.6 V (12.4 to 12.7 V counts as healthy). With the engine running, a conventional alternator holds about 13.5 to 14.7 V.",
+  "Many modern cars use smart charging. The charge voltage then moves on purpose to save fuel, so it may sit at 12.5 V one moment and 14.5 V the next.",
+]
+how_to_read = [
+  "Cranking: a dip to about 9.6 to 10.5 V is normal on a good 12 V battery. Below about 9.6 V points to a weak battery or poor connections.",
+  "Running under about 13 V steadily on a car without smart charging confirms undercharging. Above about 15 V points to a regulator fault, which can damage the battery and modules.",
+  "Raise the load (lights, fan, rear window heater) at about 2000 rpm: the voltage should hold. A big sag means a weak alternator or a poor charging circuit.",
+  "On smart charging cars, judge over several minutes, not one reading. One source saw about 12.8 V at steady cruise with a full battery and about 14.8 V on deceleration.",
+  "The module sees slightly less than the battery terminals, because of wiring losses.",
+]
+related = ["charging-system", "pattern-charging", "battery", "starting-system", "pid:42", "guide:charging", "guide:flat-battery"]
+sources = [
+  "Wikipedia, 'Car battery' (read 2026-10-16)",
+  "Apex Tech Nation, 'Charging System Diagnosis: Alternator, Battery, and Voltage Drop' (read 2026-10-16)",
+  "Voltage Basics, 'Battery Voltage While Cranking: What is a Normal Voltage Drop?' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PID 42 (read 2026-10-16)",
+]
+
+[[topic]]
+id = "rpm-idle"
+title = "Engine speed and idle"
+group = "live-data"
+aliases = ["engine speed", "idle speed", "idle rpm", "fast idle", "hunting idle", "revs"]
+summary = "A warm petrol engine idles at a steady speed, typically about 600 to 900 rpm, and holds it as loads come on."
+body = [
+  "Engine speed is shown in revolutions per minute (rpm, PID 0C). At idle, the engine computer holds the speed steady by moving the throttle or an idle air valve and adjusting timing.",
+  "A cold engine runs a higher fast idle, about 1000 to 1500 rpm, which settles to the normal warm idle as the engine warms. A warm petrol idle is typically 600 to 900 rpm, and a little lower in gear.",
+  "Loads such as A/C, headlights, the rear window heater and power steering try to slow the engine. The computer adds a little air and fuel so the speed stays near target. One guide gives about 50 to 150 rpm more with A/C on, and 50 to 100 rpm more with power steering at low speed.",
+]
+how_to_read = [
+  "Warm idle should hold steady. Small, short changes when accessories switch on or off are normal.",
+  "Hunting idle: the speed rises and falls on its own in a slow pattern. Common causes are a vacuum leak, a dirty throttle body or idle valve, or a bad sensor.",
+  "A low idle that dips when A/C starts and stalls means the idle control cannot add enough air.",
+  "Stays high after warm-up (above about 1000 rpm): check for a vacuum leak, a sticking throttle, or a coolant sensor reading cold.",
+  "A rough idle with a steady average rpm and misfire counts in test results points to a misfire.",
+]
+related = ["pattern-misfire", "pattern-vacuum-leak", "guide:idle", "pid:0C", "term:Idle air control valve", "term:Fast idle", "term:Hunting idle"]
+sources = [
+  "Harrison Jack, 'Idle Speed: The Essential Guide to Understanding and Optimising Your Engine's Idle' (read 2026-10-16)",
+  "CarXplorer, 'What Should My Car Idle At? Normal RPM Range Explained' (read 2026-10-16)",
+  "Skanyx, 'OBD2 Live Data: Parameters, Normal Ranges, Reading Guide' (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', PID 0C (read 2026-10-16)",
+]
+
+[[topic]]
+id = "vehicle-speed"
+title = "Vehicle speed"
+group = "live-data"
+aliases = ["vehicle speed sensor", "road speed", "speed reading", "VSS"]
+summary = "Vehicle speed (PID 0D) comes from wheel speed sensors or the gearbox output and is shown in whole km/h."
+body = [
+  "The engine computer gets vehicle speed from the ABS module over the network, which uses the wheel speed sensors. Some cars still use a sensor on the gearbox output shaft. The value is a whole number in km/h (PID 0D).",
+  "The number is calculated from wheel turns and tyre size, so tyre size changes it. Smaller tyres make it read high and larger tyres make it read low. Makers often set the speedometer a little high on purpose.",
+  "The speed is used for gear changes, cruise control, idle control and fuel cut. It also checks that the other sensors make sense.",
+]
+how_to_read = [
+  "Compare the Scana value with a GPS speed on a steady, flat road at about 50 to 60 km/h. The speedometer is often set to read a little high; the OBD value is usually closer to the truth.",
+  "Speed reads zero while the car moves: a wheel speed sensor, ABS module or network fault. Check ABS and gearbox codes.",
+  "Speed jumps while the speedo is steady, or the reading flickers at low speed: dirty or damaged tone ring, or a sensor fault.",
+  "Large tyres, or a final-drive change, shift the reading in proportion.",
+]
+related = ["abs-system", "guide:vss", "guide:abs-wheel-speed", "pid:0D", "term:Vehicle speed sensor", "term:Wheel speed sensor", "term:Tone ring"]
+sources = [
+  "Apex Tech Nation, 'Vehicle Speed Sensor: Function, Faults, and Diagnosis' (read 2026-10-16)",
+  "Haltech, 'Sensing The Speed: How Wheel Speed Sensors Work' (read 2026-10-16, full page)",
+  "Wikipedia, 'OBD-II PIDs', PID 0D (read 2026-10-16)",
+]
+
+[[topic]]
+id = "readiness-monitors"
+title = "Readiness monitors"
+group = "live-data"
+aliases = ["readiness", "readiness status", "monitor status", "not ready", "monitors complete", "inspection ready", "continuous monitors", "non-continuous monitors", "drive cycles", "drive cycle"]
+summary = "Readiness monitors show which of the car's self-tests have finished since codes were last cleared."
+body = [
+  "The car runs self-tests on its emission systems. A monitor is complete when its test has run and finished since the last reset. It is not complete (not ready) when it has not run yet.",
+  "Three monitors run continuously whenever the engine runs: misfire, fuel system, and comprehensive components (sensors and actuators). The others run only when certain conditions are met: catalyst, heated catalyst, EVAP, oxygen sensor, oxygen sensor heater, EGR, and secondary air.",
+  "Clearing codes or disconnecting the battery resets the monitors to not complete, and so can some performance tunes. The car then needs drive cycles, with the right mix of cold start, steady cruise, and idle, to run them again.",
+]
+how_to_read = [
+  "Complete means the test ran and finished. Not complete is not a fault; it means no result yet.",
+  "Each maker sets its own drive cycle. Examples from one guide: a Toyota catalyst test needed about 7 minutes at 40 to 55 mph (about 65 to 90 km/h) then 7 minutes at 35 to 45 mph (about 55 to 70 km/h); a Ford oxygen sensor test needed a warm engine and about 4 minutes at a steady 40 mph (about 65 km/h).",
+  "The EVAP monitor usually needs a cold soak of 8 hours or more, a part-full tank (about one quarter to three quarters) and mild weather. Some cars also need the oxygen sensor monitor to finish before the catalyst monitor can run.",
+  "Many inspections reject a car if any monitor it supports is not ready. The rules vary by place; check the local rule.",
+  "Do not clear codes just before an inspection. Read the codes and freeze frame first, repair, and then let the monitors finish.",
+  "Scana shows these on the Readiness screen.",
+]
+related = ["freeze-frame-reading", "mode06-reading", "test-conditions", "page:readiness", "term:Readiness monitor", "term:Drive cycle", "term:Monitor"]
+sources = [
+  "AA1Car, 'OBD Monitor Not Ready' (read 2026-10-16)",
+  "Innova, 'Understanding OBD2 Monitors' (read 2026-10-16)",
+  "OBDHut, 'I/M Readiness Monitors: Emission Inspection Guide' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "freeze-frame-reading"
+title = "Reading a freeze frame"
+group = "live-data"
+aliases = ["freeze frame", "freeze frame data", "freeze-frame"]
+summary = "A freeze frame is a snapshot of key values taken when a fault code was stored, showing the conditions it happened in."
+body = [
+  "When the car stores a fault code that lights the warning lamp, it also records a snapshot of important values: engine speed, load, coolant temperature, vehicle speed, fuel trim, fuel system status and more. This snapshot is the freeze frame.",
+  "Most cars keep only one frame, tied to the first code that set or the highest-priority one. A later misfire or fuel system code can replace it. Clearing codes erases the frame.",
+  "Read the freeze frame before clearing anything. It tells you how the engine was running at the moment of the fault.",
+]
+how_to_read = [
+  "Check which code the frame belongs to. Scana shows the code next to the snapshot.",
+  "Use the conditions to repeat the fault: cold or warm, idle or cruise, light or heavy load, speed. Drive the car under the same conditions and watch live data.",
+  "Low load at idle: the fault happened at idle, so faults that only show under load are less likely. High load and speed: look at fuel delivery and ignition before vacuum leaks.",
+  "High fuel trims in the frame mean the mixture was already wrong before the code set, so the code may be a symptom. If the frame shows open loop, an oxygen sensor is unlikely to be the cause.",
+  "Coolant temperature in the frame tells you whether the fault happened cold (open loop) or warm.",
+  "The frame is one moment, not a trend. Use live data and graphs to see how the problem develops.",
+]
+related = ["reading-live-data", "readiness-monitors", "test-conditions", "term:Freeze frame", "page:codes"]
+sources = [
+  "Steer, 'OBD2 Freeze Frame Data Explained: How to Interpret It' (read 2026-10-16)",
+  "OBD Auto Doctor, 'OBD2 Freeze Frame explained' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "mode06-reading"
+title = "Reading on-board test results (mode 06)"
+group = "live-data"
+aliases = ["mode 06 results", "mode $06", "test results", "monitor ID", "test ID", "misfire counts", "on-board test results"]
+summary = "Mode 06 shows the raw result and pass limits of each self-test, so you can spot a part nearing failure before a code sets."
+body = [
+  "Mode 06 lists the results of the car's own self-tests. Each test has a monitor ID (the system, such as catalyst or one cylinder's misfire), a test ID (which test), a measured value, and minimum and maximum limits. Scana shows these on the Test results screen.",
+  "On CAN cars the monitor IDs are the same on every make, but the test IDs are not. Maker-specific tests often use numbers from 80 up (for example, 80 and 81 in one maker's oxygen sensor monitor), and their meaning comes from the maker.",
+  "A test passes when its value is inside the limits. A value close to a limit means the part is nearly failing: a useful early warning, before a code or the warning lamp.",
+]
+how_to_read = [
+  "Look at how close each result is to its limit, not just pass or fail. A result that passes by a hair is a part nearly failing.",
+  "After a repair, check the value fell well inside its limit. In one case a catalyst value dropped after new sensors but was still over the limit, so the fault would have come back.",
+  "Raw values often need the maker's scaling before you can compare them with limits. Some tools do this for you.",
+  "Misfire counts: each cylinder has a count. Zero or very low is healthy; under about 100 over a period is usually fine; several hundred to a thousand or more on one cylinder points to its ignition, fuel or compression.",
+  "Compare cylinders with each other. A misfire code usually sets only when the misfire rate reaches about 2 %.",
+  "Check the cylinder count. Some cars report counts for cylinders the engine does not have.",
+]
+more_detail = [
+  "On a Ford CAN example, monitor ID A1 is the misfire monitor for the whole engine and A2 to AB are per-cylinder misfire monitors. Oxygen sensor monitors are 01 to 07 and catalyst monitors 21 and 22. Older cars used test and component IDs, with no common numbering between makers.",
+]
+related = ["readiness-monitors", "pattern-misfire", "pattern-catalyst", "page:tests", "term:Mode 06", "term:Monitor ID"]
+sources = [
+  "AA1Car, 'OBD II Mode $06 Diagnostics' (read 2026-10-16)",
+  "OBD Auto Doctor, 'Using OBD2 Mode $06 for advanced car diagnostics' (read 2026-10-16)",
+  "MOTOR, 'Advanced Mode $06 Diagnostics' (read 2026-10-16)",
+  "RLEscalambre, '$06 Non-Continuous/Continuous Monitor Test Results' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "update-rates"
+title = "How often values update"
+group = "live-data"
+aliases = ["update rate", "sample rate", "refresh rate", "polling rate", "gap in the graph"]
+summary = "Scana asks the car for each value in turn, so more values selected means each one updates less often."
+body = [
+  "Scana asks the car for values by sending a request and waiting for the reply. The engine computer answers one request at a time on the diagnostic bus, so the more values you watch, the less often each one updates.",
+  "When Scana is alone on the bus, it asks for up to 6 values in one request, and waits at least 50 ms between requests. If another tester, such as a dash display, is polling too, it asks for only as many values as fit a one-frame reply (2 or 3) and waits at least 100 ms. That is because the engine computer can cut off a longer reply.",
+  "Scana also sorts values by how fast they change. Fast ones (engine speed, vehicle speed, load, fuel trims, oxygen sensors, throttle) are asked for every 200 ms, most temperatures and pressures every 1 s, and slow ones (distance since codes were cleared, run time, fuel type) every 5 s.",
+]
+how_to_read = [
+  "Live data shows each value's real update rate in Hz. Use that number, not the value's target rate, to judge how much detail you see.",
+  "Fast values show about 5 updates a second at best. A fast swing, such as an oxygen sensor crossing 0.45 V several times a second, can be smoothed or missed.",
+  "Fewer values selected gives faster updates. Another tester on the bus slows every value.",
+  "A flat step in a graph means the value did not change between updates, or the reply was late. A gap in a line means no reply came: the car was busy, the bridge dropped a message, or the engine computer stopped answering.",
+  "Slow values such as run time and fuel type are asked for only every 5 s, so a steady line there is normal.",
+]
+related = ["using-graphs", "reading-live-data", "obd-on-can", "sharing-the-bus", "bus-load", "page:live", "page:graphs"]
+sources = [
+  "Scana's design notes, docs/DESIGN.md (read 2026-10-16)",
+  "Wikipedia, 'OBD-II PIDs', mode 01 requests (read 2026-10-16)",
+]
+
+[[term]]
+name = "Cross counts"
+text = "How many times a front oxygen sensor's voltage crosses 0.45 V each second. A healthy sensor gives several."
+
+[[term]]
+name = "Fuel cut"
+text = "The engine computer stops fuel to the injectors when you coast down with the throttle closed, to save fuel."
+
+[[term]]
+name = "Equivalence ratio"
+text = "The same idea as lambda, shown as a number: 1.00 is the ideal mixture, below 1.00 is rich, above 1.00 is lean."
+
+[[term]]
+name = "Heat soak"
+text = "Heat from a hot engine warming the air and parts around it, so intake air temperature climbs when the car is stopped."
+
+[[term]]
+name = "Fast idle"
+text = "A raised idle speed on a cold engine, used to warm the engine and keep it running smoothly."
+
+[[term]]
+name = "Hunting idle"
+text = "Idle speed that rises and falls on its own in a slow cycle instead of holding steady."
+
+[[term]]
+name = "Knock retard"
+text = "The engine computer delays the spark when it hears knock, to protect the engine. It costs some power."
+
+[[term]]
+name = "Monitor ID"
+text = "A number that names one self-test system in mode 06 results, such as the catalyst or one cylinder's misfire count."
+
+[[term]]
+name = "Pump current"
+text = "The small current in mA a wide-band sensor needs to keep its cell steady. It shows how lean or rich the exhaust is."
+
+[[term]]
+name = "Key-on engine-off"
+text = "Ignition on with the engine not running. Many sensors should read the outside world in this state."
+
+[[term]]
+name = "Commanded value"
+text = "The target the engine computer asks for, such as a throttle position or air-fuel ratio, as opposed to the measured value."

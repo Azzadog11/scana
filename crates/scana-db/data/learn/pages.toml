@@ -68,8 +68,13 @@ text = "Each connection can be recorded to a session folder: every frame, every 
 
 [[page]]
 id = "learn"
-title = "Learn"
-text = "Type a code (P0420), a word (fuel trim) or a tool (multimeter) in Look up. A code shows what it means, what to check first and its step-by-step guide if Scana has one. Words show matching guides, tools and glossary entries. Below are guided jobs for common tasks and a short lesson on how OBD-II works."
+title = "Library"
+text = "Explanations of how to read the car's data, how its systems work, and how scan tools talk to it, in plain words. Click a topic to read it here; underlined words anywhere in Scana open here too, with Back and Forward. Also: a short lesson on OBD-II and guided jobs."
+
+[[page]]
+id = "glossary"
+title = "Glossary"
+text = "Every word Scana explains, A to Z. Click a word to read it here, with links to Library topics that go further."
 
 [[page]]
 id = "settings"

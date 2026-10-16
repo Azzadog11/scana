@@ -30,11 +30,12 @@ pub enum Page {
     Monitor,
     Sessions,
     Learn,
+    Glossary,
     Settings,
 }
 
 impl Page {
-    pub const ALL: [Page; 15] = [
+    pub const ALL: [Page; 16] = [
         Page::Home,
         Page::Health,
         Page::Codes,
@@ -49,8 +50,51 @@ impl Page {
         Page::Monitor,
         Page::Sessions,
         Page::Learn,
+        Page::Glossary,
         Page::Settings,
     ];
+
+    /// The menu: section headings and their pages.
+    pub const MENU: [(&'static str, &'static [Page]); 6] = [
+        ("", &[Page::Home]),
+        ("CAR", &[Page::Health, Page::Codes, Page::Live, Page::Graphs, Page::Readiness, Page::Tests, Page::Info]),
+        ("DIAGNOSE", &[Page::Diagnose]),
+        ("MODULES", &[Page::Modules, Page::Explorer]),
+        ("LEARN", &[Page::Learn, Page::Glossary]),
+        ("TOOLS", &[Page::Monitor, Page::Sessions, Page::Settings]),
+    ];
+
+    /// The name in the menu, where it differs from the page's title.
+    pub fn menu_label(self) -> &'static str {
+        match self {
+            Page::Diagnose => "Guides",
+            Page::Modules => "All modules",
+            Page::Sessions => "Sessions",
+            p => p.title(),
+        }
+    }
+
+    /// The menu icon (assets/icons/icon-NAME.png).
+    pub fn icon(self) -> &'static str {
+        match self {
+            Page::Home => "home",
+            Page::Health => "health",
+            Page::Codes => "codes",
+            Page::Diagnose => "diagnose",
+            Page::Live => "live",
+            Page::Graphs => "graphs",
+            Page::Readiness => "readiness",
+            Page::Tests => "tests",
+            Page::Info => "info",
+            Page::Modules => "modules",
+            Page::Explorer => "explorer",
+            Page::Monitor => "monitor",
+            Page::Sessions => "sessions",
+            Page::Learn => "library",
+            Page::Glossary => "glossary",
+            Page::Settings => "settings",
+        }
+    }
 
     pub fn id(self) -> &'static str {
         match self {
@@ -68,6 +112,7 @@ impl Page {
             Page::Monitor => "monitor",
             Page::Sessions => "sessions",
             Page::Learn => "learn",
+            Page::Glossary => "glossary",
             Page::Settings => "settings",
         }
     }
@@ -87,7 +132,8 @@ impl Page {
             Page::Explorer => "Data explorer",
             Page::Monitor => "Bus monitor",
             Page::Sessions => "Sessions, reports",
-            Page::Learn => "Learn",
+            Page::Learn => "Library",
+            Page::Glossary => "Glossary",
             Page::Settings => "Settings",
         }
     }
@@ -103,6 +149,8 @@ pub enum Topic {
     Pid(CanId, u8),
     Dtc(Dtc),
     Term(String),
+    /// A Library topic, by id.
+    Library(String),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -162,6 +210,13 @@ pub struct ScanaApp {
     pub diag_measure: Option<crate::pages::diagnose::DiagMeasure>,
     /// One-off reads waiting to answer tests (several can wait at once).
     pub diag_wait: Vec<crate::pages::diagnose::DiagWait>,
+    /// The Learn panel's history: Back and Forward.
+    pub learn_back: Vec<Option<Topic>>,
+    pub learn_forward: Vec<Option<Topic>>,
+    /// The sidebar's search box.
+    pub search_text: String,
+    /// The logo and menu icons, loaded on the first frame.
+    pub assets: Option<crate::assets::Assets>,
     applied: Option<(ThemeChoice, f32)>,
 }
 
@@ -214,6 +269,10 @@ impl ScanaApp {
             diag_open: None,
             diag_measure: None,
             diag_wait: Vec::new(),
+            learn_back: Vec::new(),
+            learn_forward: Vec::new(),
+            search_text: String::new(),
+            assets: None,
             applied: None,
         };
         app.push_gaps();
@@ -269,6 +328,68 @@ impl ScanaApp {
         self.page = page;
         if page == Page::Sessions {
             self.sessions = None; // rescan on entry
+        }
+    }
+
+    /// Shows something in the Learn panel (`None`: the page's help), keeping Back and Forward.
+    pub fn set_topic(&mut self, t: Option<Topic>) {
+        if self.topic != t {
+            self.learn_back.push(self.topic.take());
+            if self.learn_back.len() > 50 {
+                self.learn_back.remove(0);
+            }
+            self.learn_forward.clear();
+            self.topic = t;
+        }
+    }
+
+    /// Opens something in the Learn panel, showing the panel if it was hidden.
+    pub fn open_topic(&mut self, t: Topic) {
+        self.set_topic(Some(t));
+        if !self.settings.show_learn {
+            self.settings.show_learn = true;
+            self.save_settings();
+        }
+    }
+
+    pub fn learn_go_back(&mut self) {
+        if let Some(t) = self.learn_back.pop() {
+            self.learn_forward.push(std::mem::replace(&mut self.topic, t));
+        }
+    }
+
+    pub fn learn_go_forward(&mut self) {
+        if let Some(t) = self.learn_forward.pop() {
+            self.learn_back.push(std::mem::replace(&mut self.topic, t));
+        }
+    }
+
+    /// Follows a link from a word, a related entry or a search result.
+    pub fn follow(&mut self, link: scana_db::library::Link) {
+        use scana_db::library::Link;
+        match link {
+            Link::Topic(id) => self.open_topic(Topic::Library(id)),
+            Link::Term(name) => self.open_topic(Topic::Term(name)),
+            Link::Pid(p) => {
+                let ecu =
+                    self.model.conn.as_ref().and_then(|c| c.ecus.first()).map_or(CanId::Standard(0x7E8), |e| e.id);
+                self.open_topic(Topic::Pid(ecu, p));
+            }
+            Link::Code(c) => {
+                if let Some(d) = Dtc::parse(&c) {
+                    self.open_topic(Topic::Dtc(d));
+                }
+            }
+            Link::Guide(g) => {
+                if let Some(g) = scana_db::diag::guide(&g) {
+                    self.start_guide(g);
+                }
+            }
+            Link::Page(p) => {
+                if let Some(p) = Page::from_id(&p) {
+                    self.go(p);
+                }
+            }
         }
     }
 
@@ -333,6 +454,9 @@ impl ScanaApp {
         let pal = self.pal();
         ui.add_space(4.0);
         ui.horizontal(|ui| {
+            if let Some(logo) = self.assets.as_ref().and_then(|a| a.logo.as_ref()) {
+                ui.add(egui::Image::new((logo.id(), egui::vec2(30.0, 30.0))));
+            }
             ui.label(RichText::new("Scana").size(24.0).strong());
             ui.add_space(8.0);
             ui.vertical(|ui| {
@@ -362,6 +486,15 @@ impl ScanaApp {
                 } else if ui.button("Connect").clicked() {
                     self.go(Page::Home);
                 }
+                let learn_on = self.settings.show_learn;
+                if ui
+                    .add(egui::Button::new("Learn").selected(learn_on))
+                    .on_hover_text("Show or hide the Learn panel on the right (F1)")
+                    .clicked()
+                {
+                    self.settings.show_learn = !learn_on;
+                    self.save_settings();
+                }
                 let rec_on = self.model.recording.is_some();
                 let rec_label =
                     if rec_on { RichText::new("● Recording").color(pal.bad) } else { RichText::new("○ Record") };
@@ -373,7 +506,7 @@ impl ScanaApp {
                     self.set_record(!rec_on);
                 }
                 if ui
-                    .add_enabled(connected, egui::Button::new(RichText::new("Health check").strong()).fill(pal.accent))
+                    .add_enabled(connected, crate::theme::accent_button(&pal, "Health check"))
                     .on_hover_text("Codes, readiness, freeze frame and key values in one go (Ctrl+H)")
                     .clicked()
                 {
@@ -410,33 +543,104 @@ impl ScanaApp {
         }
     }
 
+    /// The sidebar: a search box over everything Scana knows, then the menu in sections with
+    /// icons. While something is typed, the results take the menu's place.
     fn nav(&mut self, ui: &mut Ui) {
-        ui.add_space(6.0);
-        for p in Page::ALL {
-            let selected = self.page == p;
-            let text = RichText::new(p.title());
-            let w = ui.available_width();
-            if ui
-                .add(
-                    egui::Button::new(text).selected(selected).frame_when_inactive(false).min_size(egui::vec2(w, 30.0)),
-                )
-                .clicked()
-            {
-                self.go(p);
-                self.topic = None;
-            }
+        let pal = self.pal();
+        ui.add_space(8.0);
+        let resp = ui.add(
+            egui::TextEdit::singleline(&mut self.search_text).hint_text("Search anything").desired_width(f32::INFINITY),
+        );
+        if resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.search_text.clear();
         }
-        ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-            ui.add_space(4.0);
-            let learn = if self.settings.show_learn { "Hide Learn panel (F1)" } else { "Show Learn panel (F1)" };
-            if ui.small_button(learn).clicked() {
-                self.settings.show_learn = !self.settings.show_learn;
-                self.save_settings();
+        ui.add_space(6.0);
+        if self.search_text.trim().len() >= 2 {
+            self.search_results(ui);
+            return;
+        }
+        egui::ScrollArea::vertical().id_salt("menu").auto_shrink([false, false]).show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 2.0;
+            for (heading, pages) in Page::MENU {
+                if !heading.is_empty() {
+                    ui.add_space(6.0);
+                    ui.label(RichText::new(heading).small().strong().color(pal.dim));
+                    ui.add_space(1.0);
+                }
+                for &p in pages {
+                    if self.menu_item(ui, p) {
+                        self.go(p);
+                        self.set_topic(None);
+                    }
+                }
             }
             if self.settings.advanced {
-                ui.label(RichText::new("Advanced mode on").small().color(self.pal().note));
+                ui.add_space(6.0);
+                ui.label(RichText::new("Advanced mode on").small().color(pal.note));
             }
         });
+    }
+
+    /// One menu row: icon and label, with an orange bar and background when selected.
+    fn menu_item(&mut self, ui: &mut Ui, p: Page) -> bool {
+        let pal = self.pal();
+        let selected = self.page == p;
+        let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 28.0), egui::Sense::click());
+        let painter = ui.painter();
+        if selected {
+            painter.rect_filled(rect, 5.0, pal.sel_bg);
+            painter.rect_filled(egui::Rect::from_min_size(rect.min, egui::vec2(3.0, rect.height())), 0.0, pal.accent);
+        } else if resp.hovered() {
+            painter.rect_filled(rect, 5.0, pal.tile);
+        }
+        let colour = if selected { pal.accent } else { pal.dim };
+        let icon_rect =
+            egui::Rect::from_center_size(egui::pos2(rect.left() + 20.0, rect.center().y), egui::vec2(18.0, 18.0));
+        if let Some(tex) = self.assets.as_ref().and_then(|a| a.icon(p.icon())) {
+            egui::Image::new((tex.id(), icon_rect.size())).tint(colour).paint_at(ui, icon_rect);
+        }
+        let text_colour = if selected { pal.accent } else { ui.visuals().text_color() };
+        let font = egui::FontId::proportional(15.0);
+        ui.painter().text(
+            egui::pos2(rect.left() + 38.0, rect.center().y),
+            egui::Align2::LEFT_CENTER,
+            p.menu_label(),
+            font,
+            text_colour,
+        );
+        resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked()
+    }
+
+    /// Search results in the sidebar: click one to open it.
+    fn search_results(&mut self, ui: &mut Ui) {
+        let pal = self.pal();
+        let hits = scana_db::library::search(&self.search_text, 40);
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(format!("{} found", hits.len())).small().color(pal.dim));
+            if ui.small_button("Clear").clicked() {
+                self.search_text.clear();
+            }
+        });
+        let mut chosen = None;
+        egui::ScrollArea::vertical().id_salt("search").auto_shrink([false, false]).show(ui, |ui| {
+            if hits.is_empty() {
+                ui.label(RichText::new("Nothing matches. Try fewer or other words.").color(pal.dim));
+            }
+            for h in &hits {
+                ui.label(RichText::new(h.kind.label().to_uppercase()).small().color(pal.dim));
+                let resp = ui
+                    .add(egui::Label::new(RichText::new(&h.title).color(pal.link)).sense(egui::Sense::click()))
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_text(&h.detail);
+                if resp.clicked() {
+                    chosen = Some(h.link.clone());
+                }
+                ui.add_space(2.0);
+            }
+        });
+        if let Some(link) = chosen {
+            self.follow(link);
+        }
     }
 
     fn status_bar(&mut self, ui: &mut Ui) {
@@ -570,6 +774,7 @@ impl ScanaApp {
                 Page::Monitor => self.page_monitor(ui),
                 Page::Sessions => self.page_sessions(ui),
                 Page::Learn => self.page_learn(ui),
+                Page::Glossary => self.page_glossary(ui),
                 Page::Settings => self.page_settings(ui),
             }
         });
@@ -607,16 +812,20 @@ impl eframe::App for ScanaApp {
         self.diag_after_updates();
         self.apply_look(&ctx);
         self.keys(&ctx);
+        if self.assets.is_none() {
+            self.assets = Some(crate::assets::Assets::load(&ctx));
+        }
 
         egui::Panel::top("top-bar").show(ui, |ui| self.top_bar(ui));
         egui::Panel::bottom("status-bar").show(ui, |ui| self.status_bar(ui));
-        egui::Panel::left("nav").resizable(false).exact_size(190.0).show(ui, |ui| self.nav(ui));
+        egui::Panel::left("nav").resizable(false).exact_size(210.0).show(ui, |ui| self.nav(ui));
         // On a narrow window the Learn panel gives way to the page.
         let wide = ctx.content_rect().width() >= 1100.0;
         if self.settings.show_learn && wide {
             egui::Panel::right("learn").resizable(true).default_size(300.0).show(ui, |ui| self.learn_panel(ui));
         }
-        egui::CentralPanel::default().show(ui, |ui| self.page(ui));
+        let page_frame = egui::Frame::central_panel(ui.style()).fill(self.pal().page_bg);
+        egui::CentralPanel::default().frame(page_frame).show(ui, |ui| self.page(ui));
         self.clear_dialog(&ctx);
 
         if let Some(plan) = self.shot.take() {

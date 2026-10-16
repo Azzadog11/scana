@@ -172,7 +172,7 @@ impl ScanaApp {
         });
         let click = ui.interact(resp.response.rect, ui.scope_id().with(("tile", ecu.raw(), pid)), Sense::click());
         if click.clicked() {
-            self.topic = Some(Topic::Pid(ecu, pid));
+            self.open_topic(Topic::Pid(ecu, pid));
         }
     }
 
@@ -301,7 +301,7 @@ impl ScanaApp {
         if !self.need_car(ui) {
             return;
         }
-        if ui.add(egui::Button::new(RichText::new("Read readiness").strong()).fill(pal.accent)).clicked() {
+        if ui.add(crate::theme::accent_button(&pal, "Read readiness")).clicked() {
             self.session.send(Command::ReadReadiness);
         }
         ui.add_space(8.0);
@@ -345,7 +345,7 @@ impl ScanaApp {
             ui.add_space(8.0);
         }
         if ui.link("What is a readiness monitor?").clicked() {
-            self.topic = Some(Topic::Term("Readiness monitor".into()));
+            self.open_topic(Topic::Term("Readiness monitor".into()));
         }
     }
 
@@ -355,7 +355,7 @@ impl ScanaApp {
         if !self.need_car(ui) {
             return;
         }
-        if ui.add(egui::Button::new(RichText::new("Read test results").strong()).fill(pal.accent)).clicked() {
+        if ui.add(crate::theme::accent_button(&pal, "Read test results")).clicked() {
             self.session.send(Command::ReadTests);
         }
         ui.add_space(8.0);

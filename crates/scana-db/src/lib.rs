@@ -8,5 +8,6 @@
 pub mod diag;
 pub mod dtc;
 pub mod learn;
+pub mod library;
 pub mod modules;
 pub mod profile;

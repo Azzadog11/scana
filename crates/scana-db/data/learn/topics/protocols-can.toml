@@ -1,0 +1,536 @@
+# Scana Library: Protocols, the CAN bus. Researched for Scana (2026-10-16). Sources per topic.
+
+[[topic]]
+id = "can-bus"
+title = "What CAN is"
+group = "protocols"
+aliases = ["CAN bus", "CAN network", "controller area network", "high-speed CAN"]
+summary = "CAN is a shared two-wire network where every module hears every message, and each message carries an ID instead of an address."
+body = [
+  "CAN (Controller Area Network) is a network that lets a car's computers talk over just two wires. Every module on the bus is wired to the same pair, like people in one room. Everyone hears every message.",
+  "A message has no sender or receiver address. It has an ID that says what the message is about, such as 'engine speed'. Each module picks the IDs it cares about and ignores the rest.",
+  "Cars use CAN because it needs little wiring, copes with electrical noise, and shares the wires fairly. Bosch designed it in the 1980s. Since 2008 every new car sold in the US must use it for diagnostics, and many other markets followed.",
+  "Scana's bridge joins this network through the car's OBD-II socket. Every frame it hears appears on the Bus monitor page.",
+]
+more_detail = [
+  "Most cars have more than one CAN bus: for example one for the engine and brakes, one for the body and one for infotainment. A gateway module joins them and passes some messages across. The OBD-II socket usually reaches the diagnostic side through that gateway.",
+]
+related = ["can-physical", "can-frame", "can-id", "car-networks", "obd-on-can", "page:monitor", "term:CAN"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+  "Wikipedia 'On-board diagnostics' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "can-physical"
+title = "CAN wires and signals"
+group = "protocols"
+aliases = ["CAN-H", "CAN-L", "CAN high", "CAN low", "CANH", "CANL", "differential signal", "twisted pair"]
+summary = "CAN uses two twisted wires, CAN-H and CAN-L. The message is the voltage difference between them, so noise on both wires cancels."
+body = [
+  "CAN sends data on two wires, CAN-H (high) and CAN-L (low). Both rest at about 2.5 V when nobody is sending. That resting state is called recessive and counts as a 1.",
+  "To send a 0, a module drives CAN-H up to about 3.5 V and CAN-L down to about 1.5 V. That is the dominant state. The receiver looks only at the difference: about 0 V for recessive, about 2 V for dominant.",
+  "The two wires are twisted together. Electrical noise from ignition or motors hits both wires about equally, so the difference stays the same. This is why CAN works in a noisy engine bay.",
+  "Dominant always beats recessive. If one module sends dominant while another sends recessive, the bus shows dominant.",
+]
+how_to_read = [
+  "With a multimeter on a live bus, CAN-H to ground reads a little above 2.5 V and CAN-L a little below 2.5 V, because the bus flickers between states. Treat this as a rough check only; an oscilloscope shows the real signal.",
+  "CAN-H and CAN-L shorted together, or either shorted to ground or battery, stops all traffic. The Bus monitor then shows nothing, or only errors.",
+]
+faults = [
+  "Broken or loose wire at the OBD-II socket: no frames at all, even though the car is on.",
+  "CAN-H and CAN-L swapped: the bridge hears garbage or error frames.",
+  "Water or corrosion in a connector: random errors that come and go with bumps or weather.",
+]
+more_detail = [
+  "The numbers above are the typical values for high-speed CAN (the kind on the OBD-II socket). A receiver treats a difference below about 0.5 V as recessive and above about 0.9 V as dominant. The transceiver chip tolerates wires touching battery voltage or ground without damage, which helps when a wire is faulty.",
+]
+related = ["can-bus", "termination", "controller-transceiver", "arbitration", "obd-connector", "term:Dominant bit", "term:Recessive bit", "term:Differential signal"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "termination"
+title = "Termination"
+group = "protocols"
+aliases = ["termination resistor", "terminating resistor", "120 ohm resistor", "bus termination"]
+summary = "A 120 ohm resistor at each end of the CAN bus stops signal echoes; the bus measures about 60 ohms with the power off."
+body = [
+  "A fast signal on a wire can bounce back from the end, like an echo in a tunnel. A 120 ohm resistor at each end of the bus absorbs the signal and stops the echo. The resistors also pull the wires back to the resting state after each dominant bit.",
+  "Two 120 ohm resistors in parallel make 60 ohms. So with the car off, a multimeter across CAN-H and CAN-L at the OBD-II socket reads about 60 ohms. In many cars the two resistors are inside modules at opposite ends of the car.",
+  "Do not add a third resistor on the car. Scana's shield has no terminator fitted, which is right for a car: the car's bus already has both ends covered. Some CAN boards have a terminator jumper; on a car it stays off.",
+]
+how_to_read = [
+  "About 60 ohms (typical range 50 to 65): both resistors present. Normal.",
+  "About 120 ohms: one resistor missing, or a break in the wiring.",
+  "About 40 ohms: an extra 120 ohm resistor is on the bus, such as a shield's termination turned on.",
+  "Near 0 ohms: CAN-H and CAN-L shorted together. Far above 120 ohms or open: wire break.",
+  "Measure with the battery disconnected or the car asleep, and note some modules can skew the reading.",
+]
+faults = [
+  "No termination: rings and echoes, so bits are misread and errors rise, especially at high speed.",
+  "Too much termination (three or more resistors): the signal is weaker and noise gets through more easily.",
+  "Bench setups: two modules on a table with no resistors often fail until you add one at each end.",
+]
+related = ["can-physical", "can-errors", "controller-transceiver", "obd-connector", "can-bus"]
+sources = [
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "bit-rate"
+title = "Bit rate and bit timing"
+group = "protocols"
+aliases = ["baud rate", "CAN speed", "500 kbit/s", "250 kbit/s", "bit timing", "bitrate"]
+summary = "Every node on a CAN bus must use the same bit rate, usually 500 or 250 kbit/s on cars, or everyone gets errors."
+body = [
+  "CAN has no separate clock wire. Each node counts time on its own, so every node must agree on how long one bit lasts. That is the bit rate. Most cars use 500 kbit/s on the OBD-II socket; some, mainly trucks and a few cars, use 250 kbit/s.",
+  "Each bit is cut into small slices called time quanta. A node reads the wire at one moment inside the bit, the sample point, usually about 75 to 87 percent of the way through. The chip settings that split the bit are called bit timing.",
+  "A node at the wrong rate reads garbage. It then sees errors and sends error frames, which damage good frames on the bus. One badly set tool can disturb everyone.",
+  "That is why a careful tool listens first and sends only after it hears clean frames at the right rate.",
+]
+how_to_read = [
+  "On the Bus monitor, a wrong bit rate shows as no frames or a stream of errors. A right rate shows steady frames within a second or two.",
+]
+more_detail = [
+  "A bit is made of four segments: a sync segment of one time quantum, then a propagation segment, then two phase segments, with the sample point between the two phase segments. Nodes lengthen or shorten the phase segments by a few time quanta to stay in step (resynchronisation). The time quantum comes from the crystal: the MCP2515 on Scana's shield uses a 16 MHz crystal, and a divider sets the quantum. For example 500 kbit/s can use 16 quanta of 125 ns each.",
+  "Longer buses need slower rates because the signal takes time to travel. The textbook limits are about 40 m at 1 Mbit/s and 500 m at 125 kbit/s.",
+]
+related = ["can-bus", "can-errors", "listen-only", "slcan-socketcan", "term:Bit rate", "term:Time quantum", "term:Sample point"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus errors explained' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "can-frame"
+title = "The CAN frame"
+group = "protocols"
+aliases = ["CAN frame", "CAN message", "CAN frames", "frame format", "DLC", "data length code", "CRC field"]
+summary = "A CAN frame is one message: an ID, a length, up to 8 data bytes, a checksum and an acknowledge slot."
+body = [
+  "A classic CAN frame holds, in order: a start bit, the ID (11 or 29 bits), control bits with the data length code (DLC), 0 to 8 data bytes, a checksum (CRC), an acknowledge slot (ACK) and an end marker. A frame with 8 data bytes is about 110 bits long, so it lasts roughly 0.22 ms at 500 kbit/s.",
+  "The DLC says how many data bytes follow, from 0 to 8. The CRC is a 15 bit check number that lets every receiver confirm the frame arrived intact. In the ACK slot, each receiver that got a good frame sends one dominant bit.",
+  "The Bus monitor shows only the useful parts of each frame: a time, the ID in hex, the DLC and the data bytes in hex. The CRC, ACK and framing bits are handled by the CAN chip and never reach the screen.",
+]
+how_to_read = [
+  "A line such as 7E8 [8] 04 41 0C 1A F8 00 00 00 means ID 0x7E8, 8 data bytes, then those bytes in hex.",
+  "DLC 0 is legal: the frame carries no data and the ID alone is the message.",
+]
+more_detail = [
+  "Besides data frames there are three other kinds. A remote frame asks for a data frame with the same ID and carries no data (rarely used now). An error frame is sent when a node spots a fault. An overload frame asks for a short pause. A DLC from 9 to 15 in a classic frame means 8 bytes.",
+]
+related = ["can-id", "ack", "bit-stuffing", "can-errors", "reading-bus-monitor", "page:monitor", "term:DLC", "term:CRC"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "can-id"
+title = "CAN IDs"
+group = "protocols"
+aliases = ["CAN ID", "CAN IDs", "arbitration ID", "message ID", "11-bit ID", "29-bit ID", "standard ID", "extended ID", "identifier"]
+summary = "A CAN ID names what a message is, not who sent it: 11 or 29 bits long, and the lower number wins priority."
+body = [
+  "A CAN ID is a number at the start of every frame. It says what the message contains, such as 'wheel speeds' or 'gear'. Standard frames use an 11 bit ID, which gives 2048 values (0x000 to 0x7FF). Extended frames use a 29 bit ID.",
+  "The ID also sets priority. A lower number wins when two modules send at the same time, so urgent messages get low IDs. A brake message might use a lower ID than a radio message.",
+  "Makers choose their own IDs for broadcasts and keep the list private. Only diagnostics have common IDs. For OBD-II on 11 bit CAN, the scan tool sends requests to 0x7DF (all modules) or 0x7E0 to 0x7E7 (one module), and modules reply on 0x7E8 to 0x7EF.",
+]
+how_to_read = [
+  "IDs from 0x7DF and 0x7E0 to 0x7EF are diagnostic traffic. Most other IDs on the Bus monitor are the car's own broadcasts.",
+  "An ID with 8 hex digits, like 18DAF110, is a 29 bit extended ID. Some cars use these for diagnostics, with the module addresses packed inside the ID.",
+]
+related = ["arbitration", "can-frame", "reading-bus-monitor", "obd-on-can", "gateways-addressing", "decoding-signals", "term:Standard frame", "term:Extended frame"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "arbitration"
+title = "Arbitration"
+group = "protocols"
+aliases = ["bus arbitration", "arbitration lost", "lowest ID wins", "collision"]
+summary = "When two modules start sending together, the one with the lower ID keeps going and the other stops, with no damage to the frame."
+body = [
+  "Any module may start sending when the bus is quiet, so sometimes two start at once. CAN settles this while the IDs are being sent. Each module listens to the wire as it sends each bit.",
+  "A 0 is dominant and a 1 is recessive, and dominant wins on the wire. If a module sends a 1 but hears a 0, another module has a lower ID. It stops at once and tries again later. The winner never notices, and its frame arrives whole.",
+  "So nothing is lost and no time is wasted. The lowest ID always goes first. A busy bus can starve a high ID, but that is rare on well designed cars.",
+]
+more_detail = [
+  "Example: module A sends ID 0x100 (001 0000 0000) and module B sends 0x120 (001 0010 0000). They match until the 7th bit, where A sends 0 and B sends 1. The wire shows 0, so B backs off. This works because the bus acts like an AND gate: dominant (0) overrides recessive (1).",
+  "Scana listens before it sends, so it rarely starts at the same moment as another node. It also sends each frame one time only. If it loses arbitration, a normal CAN chip would retry; Scana does not, which keeps its traffic light.",
+]
+related = ["can-id", "can-physical", "can-frame", "listen-only", "bus-load", "term:Arbitration"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "ack"
+title = "Acknowledgement"
+group = "protocols"
+aliases = ["ACK", "ACK slot", "acknowledge", "acknowledgement", "ACK error"]
+summary = "Every module that receives a good frame answers in the ACK slot. A node alone on a bus hears no answer and logs errors."
+body = [
+  "Near the end of each frame is one bit called the ACK slot. The sender leaves it recessive. Every module that received the frame correctly drives it dominant, all at once.",
+  "If the sender sees the slot go dominant, at least one module got the frame. If it stays recessive, nobody did, and the sender logs an ACK error.",
+  "This is why a lone node on a bench cannot work. A scan tool plugged into nothing sends frames that nobody confirms, and its error count climbs. A normal CAN chip also retries a failed frame forever. Scana sends once and stops.",
+  "The ACK shows that someone heard the frame, not that the right module understood it.",
+]
+more_detail = [
+  "Listen-only mode does not drive the ACK slot, so a listener never changes what the senders see. Scana's MCP2515 can be set to listen-only while it learns the bit rate, then switched to normal mode when it needs to send. Once any other node is awake and acknowledging, the bench problem goes away: two nodes are enough.",
+]
+related = ["can-frame", "can-errors", "error-states", "listen-only", "bit-rate"]
+sources = [
+  "CSS Electronics 'CAN bus errors explained' (read 2026-10-16)",
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "can-errors"
+title = "CAN errors"
+group = "protocols"
+aliases = ["CAN error", "error frame", "error frames", "bit error", "stuff error", "form error", "CRC error"]
+summary = "CAN nodes check every frame and shout an error frame when something is wrong. There are five kinds of error."
+body = [
+  "Every node checks every frame. When one finds a fault, it sends an error frame: six dominant bits that break the rule of bit stuffing, so all nodes notice. The frame is thrown away and the sender tries again.",
+  "There are five error types. Bit error: a sender reads back a different bit from the one it sent. Stuff error: six bits in a row the same. CRC error: the checksum is wrong. Form error: a fixed part of the frame has the wrong value. ACK error: nobody acknowledged.",
+  "Common causes: a wrong bit rate, a loose or broken wire, wrong termination, and electrical noise. A bad bit rate causes errors for the whole bus.",
+  "A few errors are normal. A constant stream means something is wrong in the wiring or settings.",
+]
+how_to_read = [
+  "If the Bus monitor shows error counts rising and few good frames, check bit rate first, then wiring and termination.",
+  "Errors only when the bridge sends: the bridge may be at the wrong rate, or its shield termination is on.",
+]
+faults = [
+  "Only ACK errors: nobody else is on the bus, or the bus is asleep.",
+  "CRC and stuff errors that come and go: noise, a poor connection or a damaged twisted pair.",
+  "Bit errors on every frame: CAN-H and CAN-L shorted, or a transceiver fault.",
+]
+more_detail = [
+  "Because the error frame is dominant, it overwrites the bad frame on the wire so everyone drops it together. This keeps every node's view of the bus the same. Each error also raises the sender's error counters, which lets a faulty node isolate itself.",
+]
+related = ["error-states", "bit-stuffing", "ack", "bit-rate", "termination", "can-frame", "term:Error frame"]
+sources = [
+  "CSS Electronics 'CAN bus errors explained' (read 2026-10-16)",
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "error-states"
+title = "Error counters and states"
+group = "protocols"
+aliases = ["error counter", "error counters", "error active", "error passive", "TEC", "REC", "bus off", "bus-off state"]
+summary = "Each CAN node counts its own errors. Too many and it falls from error active to error passive, then to bus-off, where it stops sending."
+body = [
+  "Every CAN controller keeps two counts: a transmit error counter (TEC) and a receive error counter (REC). Errors raise them, and good frames lower them slowly. A failed send adds more than a failed receive.",
+  "Under 128, the node is error active and works normally. If either counter goes above 127, the node is error passive. It still sends, but its error flags are quiet, and it waits extra time between frames.",
+  "If the TEC goes above 255, the node goes bus-off. It disconnects from the bus so it cannot disrupt others. A node recovers after it sees 128 stretches of quiet bus (11 recessive bits each), or when the software restarts it.",
+  "Scana can show these states so you can see why the bridge stopped sending. A node alone on a bus fast reaches error passive, because nobody acknowledges.",
+]
+how_to_read = [
+  "Error active: normal.",
+  "Error passive: the bridge has seen many errors. Check bit rate, wiring and termination.",
+  "Bus-off: the bridge has shut itself off the bus. Fix the cause, then reconnect or reset.",
+]
+more_detail = [
+  "The counter steps are: a transmitter adds 8 for each error, a receiver adds 1 (or 8 in some cases), and each good frame takes off 1. A transmitter that keeps failing therefore reaches the limits much sooner than receivers, which is why one faulty sender cannot drag the healthy nodes down with it. In error passive, an ACK error does not push the transmit counter any higher, so a lone node stays passive instead of going bus-off. The MCP2515 exposes both counters and flags for warning, passive and bus-off in its registers.",
+]
+related = ["can-errors", "ack", "listen-only", "bit-rate", "page:health", "term:Bus-off"]
+sources = [
+  "CSS Electronics 'CAN bus errors explained' (read 2026-10-16)",
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "bit-stuffing"
+title = "Bit stuffing"
+group = "protocols"
+aliases = ["bit stuffing", "stuff bit", "stuff bits", "stuffing"]
+summary = "After five equal bits in a row, a CAN sender inserts one opposite bit so receivers can keep their clocks in step."
+body = [
+  "CAN has no clock wire. Receivers keep time by watching for changes from 0 to 1 or 1 to 0. A long run of equal bits has no changes, so a receiver's clock could drift.",
+  "The fix is bit stuffing. After five equal bits in a row, the sender adds one bit of the opposite value. The receiver sees the run of five, knows the next bit is extra, and removes it.",
+  "Stuff bits cost a little time. A frame can grow by up to about a fifth. Six equal bits in a row is a stuff error, which is how error frames get noticed: they are six dominant bits.",
+]
+more_detail = [
+  "Stuffing applies from the start bit to the end of the CRC. The fixed tail (CRC delimiter, ACK and end of frame) is not stuffed. Stuffing makes frame length depend on the data, so two frames with the same ID can take slightly different times.",
+]
+related = ["can-frame", "can-errors", "bit-rate", "can-bus"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus errors explained' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "controller-transceiver"
+title = "Controllers and transceivers"
+group = "protocols"
+aliases = ["CAN controller", "CAN transceiver", "MCP2515", "MCP2551", "CAN shield", "CAN-BUS Shield"]
+summary = "A CAN controller (MCP2515) handles frames and rules; a transceiver (MCP2551) turns its logic levels into the bus voltages."
+body = [
+  "Two chips do the work. The controller builds and checks frames, handles arbitration, counts errors and holds received frames. The transceiver is the line driver: it turns the controller's 0 V and 5 V logic into the CAN-H and CAN-L voltages, and back.",
+  "Scana's shield uses a Microchip MCP2515 as the controller and an MCP2551 as the transceiver. The Arduino Uno talks to the MCP2515 over a serial link called SPI. A 16 MHz crystal gives the chip its timing.",
+  "The shield's connector carries CAN-H and CAN-L. A cable takes those to pins 6 and 14 of the car's OBD-II socket. The Uno then sends each frame to the laptop over USB.",
+]
+more_detail = [
+  "The MCP2515 has two receive buffers and three transmit buffers, plus filters and masks that choose which IDs to keep. A small board like the Uno can fall behind on a busy bus because the SPI link and the USB serial link are slow compared with 500 kbit/s traffic. It supports only classic CAN, up to 8 bytes per frame. It also has a one-shot mode, which Scana uses so a failed frame is not retried.",
+  "The MCP2551 is a 5 V transceiver and protects the bus against short circuits to battery voltage or ground within its limits. Newer cars may use 3.3 V logic internally, but the bus voltage levels are the same, so mixed chips share one bus.",
+]
+related = ["can-physical", "termination", "can-fd", "bus-load", "obd-connector", "slcan-socketcan", "term:Transceiver"]
+sources = [
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+  "Scana's design notes (docs/DESIGN.md) and its MCP2515 driver (firmware/scana-bridge/mcp2515.cpp), for the buffers and one-shot mode (read 2026-10-16)",
+]
+
+[[topic]]
+id = "bus-load"
+title = "Bus load"
+group = "protocols"
+aliases = ["bus load", "bus utilisation", "bus utilization", "frames per second", "frame rate"]
+summary = "Bus load is how full the CAN wires are. A busy bus can overwhelm a small device that tries to show every frame."
+body = [
+  "Bus load is the share of time the wires are carrying frames. At 500 kbit/s, one full frame takes about 0.25 ms, so the bus can carry roughly 4000 frames per second at most.",
+  "Most of the traffic is periodic. Modules broadcast their data every 10 ms to 1 s, whether anyone asks or not. A typical car bus runs at 30 to 60 percent load.",
+  "Diagnostics need almost none of it. Reading live data is a short request and reply, a handful of frames a second. Scana's bridge only needs to hear the replies.",
+  "Showing every frame is much harder. A small Uno must pass each frame over a slow serial link, so on a busy bus it may drop some. Filters that keep only the IDs you need, and asking for specific data, keep the load within the limit.",
+]
+how_to_read = [
+  "On the Bus monitor, if the frame count stalls or frames arrive in bursts while the engine runs, the bridge may be falling behind rather than the bus going quiet.",
+]
+more_detail = [
+  "Rough sums: 4000 frames a second at about 25 bytes of text each is about 100 kB/s. Scana's bridge runs its serial link at 1,000,000 baud, about 100 kB/s: just enough, but the Uno's buffers are small. The MCP2515 holds only two received frames, so a long delay before the Uno reads them loses frames.",
+]
+related = ["reading-bus-monitor", "controller-transceiver", "slcan-socketcan", "can-frame", "sharing-the-bus", "page:monitor"]
+sources = [
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "reading-bus-monitor"
+title = "Reading a bus monitor"
+group = "protocols"
+aliases = ["bus monitor", "CAN monitor", "candump log", "sniffing", "sniff the bus", "raw frames"]
+summary = "The Bus monitor lists raw frames: an ID and data bytes in hex. Repeating IDs are broadcasts; short request and reply pairs are diagnostics."
+body = [
+  "Each row is one frame: a time, an ID and the data bytes, all in hex. Hex uses 0 to 9 and A to F, so one byte is two digits, 00 to FF.",
+  "Most rows are broadcasts: the same ID repeats at a steady rate, such as every 10 ms or 100 ms. Look at one ID and watch its bytes. A byte that moves when you press the pedal or turn the wheel holds that signal.",
+  "Diagnostic traffic looks different. A request on 7DF or 7E0 to 7E7 is answered on 7E8 to 7EF. On 11 bit OBD-II, byte 1 is the length, byte 2 is the service (replies add 0x40) and byte 3 is the PID. For example 04 41 0C 1A F8 is engine speed.",
+]
+how_to_read = [
+  "Steady rate: periodic broadcast. Appears once, only when you ask: diagnostic reply.",
+  "To find a signal, change one thing on the car (lights, pedal) and see which ID and byte changes.",
+  "A common log format from Linux tools, candump, writes (1700000000.123456) can0 7E8#04410C1AF8: a time, the interface, then ID, a hash, then data bytes with no spaces.",
+]
+more_detail = [
+  "Counting bytes: in 04 41 0C 1A F8, the engine speed value is 0x1AF8 = 6904, and the OBD-II formula divides by 4, giving 1726 rpm. Broadcast signals use the maker's own scheme, which is rarely published. Open databases and projects share decodes for some cars (see decoding-signals).",
+]
+related = ["can-frame", "can-id", "decoding-signals", "obd-on-can", "pids-explained", "slcan-socketcan", "page:monitor"]
+sources = [
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+  "CSS Electronics 'CAN bus explained: a simple intro' (read 2026-10-16)",
+  "linux-can/can-utils README on GitHub (read 2026-10-16)",
+]
+
+[[topic]]
+id = "decoding-signals"
+title = "Decoding signals in frames"
+group = "protocols"
+aliases = ["DBC file", "DBC files", "CAN signal", "signal decoding", "little endian", "big endian", "byte order", "scale and offset", "endianness"]
+summary = "A value sits in a frame as a run of bits; a scale, an offset and the byte order turn those bits into a number."
+body = [
+  "A signal such as engine speed sits at a set start bit and length inside a frame's data. It may fill one byte, two bytes, or just a few bits shared with other signals. To read it, pick those bits out and join them into one number.",
+  "Byte order matters. Little endian (Intel) puts the low byte first; big endian (Motorola) puts the high byte first. The bytes 68 13 mean 0x1368 (4968) in little endian but 0x6813 (26643) in big endian.",
+  "The raw number then gets a scale and offset: value = raw x scale + offset. Example: raw 4968 x 0.25 = 1242 rpm.",
+  "Makers keep these definitions private. A DBC file is the common text format that lists each signal's ID, start bit, length, byte order, scale, offset and unit. Some DBC files for cars are shared openly by owners; check how reliable one is before you trust it.",
+]
+how_to_read = [
+  "Signed values use two's complement: a 16 bit raw value above 32767 is negative.",
+  "A decode that looks right at idle but fails at high values often has the wrong byte order or length.",
+]
+more_detail = [
+  "In DBC notation '@1' marks little endian and '@0' big endian, and '(scale,offset)' follows. The OBD-II PIDs in Scana's Live data already come with their formulas, so you only need this for broadcast frames on the Bus monitor.",
+]
+related = ["reading-bus-monitor", "can-frame", "pids-explained", "can-id", "term:DBC file", "term:Endianness"]
+sources = [
+  "CSS Electronics 'CAN DBC file: convert raw data' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "listen-only"
+title = "Listen-only mode"
+group = "protocols"
+aliases = ["listen only", "silent mode", "passive listening", "listening"]
+summary = "In listen-only mode the bridge hears the bus but never sends, acknowledges or raises errors, so it cannot disturb the car."
+body = [
+  "In listen-only mode the CAN chip receives frames but stays silent. It sends nothing, does not fill the ACK slot, and sends no error frames. To the car, the bridge is not there.",
+  "A tool listens first because it does not yet know the bus. If it sent at the wrong bit rate, it would cause errors for every module. Listening is safe at any rate: a wrong rate just gives no good frames.",
+  "Scana listens before it sends. It checks that the bus is alive and at the right rate, then it switches to normal mode only when it must ask a question.",
+]
+more_detail = [
+  "The MCP2515 has a listen-only mode. Because the chip does not acknowledge, a listener on a bus with no other node sees nothing at all. Listen-only is also how a logger can record safely from a bus without changing it. Nodes in error passive or bus-off states do not disturb others either, but they do not have the choice.",
+]
+related = ["bit-rate", "ack", "can-errors", "why-read-only", "sharing-the-bus", "term:Listen-only"]
+sources = [
+  "CSS Electronics 'CAN bus errors explained' (read 2026-10-16)",
+  "Wikipedia 'CAN bus' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "can-fd"
+title = "CAN FD"
+group = "protocols"
+aliases = ["CAN FD", "CAN-FD", "flexible data rate", "classic CAN"]
+summary = "CAN FD carries up to 64 data bytes and speeds up its data phase. Classic CAN chips like the MCP2515 cannot join such a bus."
+body = [
+  "CAN FD (Flexible Data-rate) is a newer version of CAN. A frame can carry up to 64 data bytes, not 8. After the ID it can switch to a faster bit rate for the data, commonly 2 to 5 Mbit/s, then slow back down for the end of the frame.",
+  "Carmakers use it where there is more data, such as driver assistance, and some newer cars have it on internal buses. Diagnostics on the OBD-II socket still use classic CAN in most cars today.",
+  "A classic CAN chip like Scana's MCP2515 does not understand the CAN FD frame. It sees a long frame with a speed change and reads it as an error. On a mixed bus, it can even upset the FD nodes, so keep the bridge off a CAN FD bus.",
+]
+how_to_read = [
+  "If Scana shows only errors on a modern car at a standard rate, the diagnostic bus may use CAN FD. Classic OBD-II requests usually still work through the OBD-II socket.",
+]
+more_detail = [
+  "CAN FD data lengths go 0 to 8, then 12, 16, 20, 24, 32, 48 and 64 bytes. It stays compatible with classic CAN at the frame start, so an FD-capable chip can handle both kinds. Payload rates of 5 to 8 Mbit/s are possible with better transceivers, but real speeds depend on the length of the wiring.",
+]
+related = ["can-frame", "controller-transceiver", "bit-rate", "can-errors", "obd-on-can", "can-fd"]
+sources = [
+  "Wikipedia 'CAN FD' (read 2026-10-16)",
+  "CSS Electronics 'CAN FD explained' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "obd-connector"
+title = "The OBD-II connector"
+group = "protocols"
+aliases = ["OBD-II connector", "OBD connector", "OBD port", "OBD socket", "diagnostic socket", "DLC connector", "data link connector", "16-pin connector"]
+summary = "The OBD-II socket has 16 pins. Pins 4 and 5 are grounds, 16 is battery, and 6 and 14 are CAN-H and CAN-L."
+body = [
+  "The OBD-II socket is a standard 16 pin connector, usually under the dash on the driver's side, often near the steering column or hidden behind a small panel. Every OBD-II car uses the same shape.",
+  "Fixed pins: 4 is chassis ground, 5 is signal ground and 16 is battery positive (12 V, often live with the key off). The bus pins depend on the car's protocol: 6 is CAN-H and 14 is CAN-L, 7 is the K-line and 15 the L-line, 2 is J1850 bus+ and 10 is J1850 bus-.",
+  "Other pins (1, 3, 8, 9, 11, 12, 13) are free for the maker's own use, sometimes for other CAN buses. A cheap adapter may wire only the pins it needs.",
+  "Scana's cable uses pins 6 and 14 (CAN), 4 and 5 (grounds) and 16 (battery). The shield takes the car's 12 V through a fuse and a diode, as well as power from the laptop's USB.",
+]
+how_to_read = [
+  "No pins 6 and 14 fitted in the socket: the car probably uses another protocol (K-line or J1850), not CAN.",
+  "Check pin 16 and ground with a multimeter first. About 12 V between pins 16 and 4 means the socket is alive.",
+]
+related = ["can-physical", "termination", "obd-protocols", "k-line", "other-networks", "obd2-overview", "term:OBD-II"]
+sources = [
+  "Wikipedia 'On-board diagnostics' (read 2026-10-16)",
+  "CSS Electronics 'OBD2 explained: a simple intro' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "other-networks"
+title = "Other in-car networks"
+group = "protocols"
+aliases = ["LIN bus", "LIN", "FlexRay", "MOST", "automotive Ethernet", "in-car networks"]
+summary = "Besides CAN, cars use LIN for simple parts, FlexRay and Ethernet for fast or critical data, MOST for media, and J1850 on older cars."
+body = [
+  "LIN (Local Interconnect Network) is a cheap single-wire bus. It links simple parts to one master, such as window switches, mirror motors and rain sensors. It is slow, about 20 kbit/s.",
+  "FlexRay is faster (up to 10 Mbit/s) and keeps strict time slots, so messages arrive on schedule. A few makers use it for chassis and safety systems. It is being replaced by Ethernet.",
+  "MOST carried audio and video over optical fibre in some cars. Automotive Ethernet is now the choice for cameras, displays, and software updates, at 100 Mbit/s and up.",
+  "J1850 (PWM and VPW) was the diagnostic link on older US cars before CAN. Older K-line cars use a one-wire serial line.",
+  "Scana reads CAN only. Other networks can sit behind a gateway module that joins them to CAN.",
+]
+related = ["car-networks", "can-bus", "k-line", "obd-protocols", "gateways-addressing", "term:J1850", "term:K-line"]
+sources = [
+  "Wikipedia 'Local Interconnect Network' (read 2026-10-16)",
+  "Wikipedia 'FlexRay' (read 2026-10-16)",
+  "Wikipedia 'On-board diagnostics' (read 2026-10-16)",
+]
+
+[[topic]]
+id = "slcan-socketcan"
+title = "How PC tools talk to CAN adapters"
+group = "protocols"
+aliases = ["SLCAN", "SocketCAN", "candump", "can-utils", "Lawicel", "serial line CAN", "slcand"]
+summary = "SLCAN is a simple text protocol over a serial port; SocketCAN is how Linux treats CAN adapters as network interfaces, with can-utils tools."
+body = [
+  "A laptop does not speak CAN directly. An adapter does that and talks to the laptop in another language. SLCAN (serial line CAN) is a simple text one. Scana's Arduino bridge speaks it over USB.",
+  "Commands are short letters ending with a carriage return. S6 sets 500 kbit/s (S5 is 250 kbit/s), O opens the channel and C closes it. A received standard frame is written t, then the ID, the length and the data in hex, for example t7E8804410C1AF8000000 for ID 7E8.",
+  "SocketCAN is the Linux way: a CAN adapter appears as an interface such as can0, like a network card. The can-utils programs work with it: candump shows frames, cansend sends one, and canplayer replays a log. Scana does not need these but you can use them on the same bus to compare.",
+]
+more_detail = [
+  "In SLCAN, lower case t means a standard 11 bit frame and upper case T an extended 29 bit frame, with the ID as 3 or 8 hex digits. Some firmware adds listen-only (L) and other commands, and not all adapters agree on every command, so check the firmware. The tool slcand can attach an SLCAN adapter to SocketCAN as a can0 interface.",
+]
+related = ["reading-bus-monitor", "controller-transceiver", "listen-only", "bit-rate", "bus-load", "page:monitor", "slcan-socketcan"]
+sources = [
+  "Wikipedia 'SocketCAN' (read 2026-10-16)",
+  "linux-can/can-utils README on GitHub (read 2026-10-16)",
+  "Linux kernel documentation 'SocketCAN' (read 2026-10-16)",
+]
+
+# Short words that need a one-line meaning but not a whole topic, and aren't in glossary.toml yet:
+[[term]]
+name = "Dominant bit"
+text = "On CAN, a 0 bit, sent by driving CAN-H up and CAN-L down. It always wins over a recessive bit."
+
+[[term]]
+name = "Recessive bit"
+text = "On CAN, a 1 bit, the resting state where both wires sit near 2.5 V. Any dominant bit overrides it."
+
+[[term]]
+name = "Differential signal"
+text = "A signal carried as the voltage difference between two wires, so noise that hits both wires cancels out."
+
+[[term]]
+name = "Twisted pair"
+text = "Two wires twisted around each other so that noise reaches both equally and cancels in a differential signal."
+
+[[term]]
+name = "Time quantum"
+text = "The smallest slice of time in a CAN bit. Each bit is built from a set number of them."
+
+[[term]]
+name = "Sample point"
+text = "The moment inside each bit when a CAN node reads the wire, usually about three quarters of the way through."
+
+[[term]]
+name = "Arbitration"
+text = "How CAN decides who sends when two modules start together: the lower ID wins, and the other waits."
+
+[[term]]
+name = "CRC"
+text = "A check number sent with a frame. The receiver works it out again to confirm the data arrived unchanged."
+
+[[term]]
+name = "DLC"
+text = "Data length code: the number of data bytes in a CAN frame, 0 to 8 on classic CAN."
+
+[[term]]
+name = "Error frame"
+text = "Six dominant bits that a CAN node sends to tell everyone the current frame is faulty and must be dropped."
+
+[[term]]
+name = "Standard frame"
+text = "A CAN frame with an 11 bit ID. The other kind, with a 29 bit ID, is the extended frame."
+
+[[term]]
+name = "Extended frame"
+text = "A CAN frame with a 29 bit ID, used for some diagnostics and in trucks."
+
+[[term]]
+name = "DBC file"
+text = "A text file that lists the signals in each CAN frame: where they sit, their scale, offset and unit."
+
+[[term]]
+name = "Endianness"
+text = "The byte order of a number in a frame: little endian puts the low byte first, big endian puts the high byte first."
+
+[[term]]
+name = "Transceiver"
+text = "The chip that turns a CAN controller's logic levels into the voltages on the CAN wires and back."

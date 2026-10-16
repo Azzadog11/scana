@@ -295,7 +295,7 @@ impl ScanaApp {
             ui.label("Code:");
             let r = ui.add(egui::TextEdit::singleline(&mut self.diag_code_text).desired_width(80.0).hint_text("P0420"));
             let go = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if ui.add(egui::Button::new(RichText::new("Start").strong()).fill(pal.accent)).clicked() || go {
+            if ui.add(crate::theme::accent_button(&pal, "Start")).clicked() || go {
                 match Dtc::parse(&self.diag_code_text) {
                     Some(c) => start = Some(c),
                     None => self.model.banner("Type a fault code like P0420.", true),
@@ -380,7 +380,7 @@ impl ScanaApp {
         ui.add_space(6.0);
         let code = d.code.map(|c| c.to_string()).unwrap_or_default();
         ui.label(RichText::new(format!("{code}  {}", g.title)).size(18.0).strong());
-        ui.label(&g.summary);
+        self.linked(ui, &g.summary);
         // Codes on the car that should be fixed first.
         if let Some(sets) = &self.model.codes {
             let codes: Vec<Dtc> = sets.iter().flat_map(|s| s.stored.iter().chain(s.pending.iter()).copied()).collect();
@@ -398,14 +398,14 @@ impl ScanaApp {
         }
         egui::CollapsingHeader::new("How it works").id_salt(("how", &g.id)).show(ui, |ui| {
             for p in &g.how_it_works {
-                ui.label(p);
+                self.linked(ui, p);
             }
             if !g.terms.is_empty() {
                 ui.horizontal_wrapped(|ui| {
                     ui.label(RichText::new("Words:").color(pal.dim));
                     for t in &g.terms {
                         if ui.small_button(t).clicked() {
-                            self.topic = Some(Topic::Term(t.clone()));
+                            self.open_topic(Topic::Term(t.clone()));
                         }
                     }
                 });
@@ -415,9 +415,7 @@ impl ScanaApp {
             egui::CollapsingHeader::new(RichText::new("Safety").color(pal.note)).id_salt(("safety", &g.id)).show(
                 ui,
                 |ui| {
-                    for s in &g.safety {
-                        ui.label(format!("• {s}"));
-                    }
+                    self.linked_bullets(ui, &g.safety, &[]);
                 },
             );
         }
@@ -433,7 +431,7 @@ impl ScanaApp {
                         ))
                         .strong(),
                     );
-                    ui.label(&n.text);
+                    self.linked(ui, &n.text);
                     ui.label(RichText::new(format!("Source: {}", n.source)).small().color(pal.dim));
                 }
             });
@@ -459,7 +457,7 @@ impl ScanaApp {
         let width = ui.available_width().min(760.0);
         for r in d.ranking() {
             ui.horizontal(|ui| {
-                ui.add(egui::ProgressBar::new(r.share as f32).desired_width(120.0));
+                ui.add(egui::ProgressBar::new(r.share as f32).desired_width(120.0).fill(pal.accent));
                 ui.label(RichText::new(format!("{:>3.0} %", r.share * 100.0)).monospace());
                 let label = ui.label(RichText::new(&r.cause.name).size(15.0));
                 let mut tip = format!("{}\n\nFix: {}", r.cause.detail, r.cause.fix);
@@ -531,7 +529,7 @@ impl ScanaApp {
         let open = self.diag_open.as_deref() == Some(t.id.as_str()) || (self.diag_open.is_none() && is_next);
         let header =
             egui::CollapsingHeader::new(title).id_salt(("test", &d.guide.id, &t.id)).open(Some(open)).show(ui, |ui| {
-                ui.label(RichText::new(&t.why).color(pal.dim));
+                self.linked_look(ui, &t.why, crate::widgets::Look::dim(&pal), &[]);
                 if !tools.is_empty() {
                     ui.horizontal_wrapped(|ui| {
                         ui.label(RichText::new(format!("Needs: {}.", tools.join(", "))).color(pal.note));
@@ -544,7 +542,7 @@ impl ScanaApp {
                     });
                 }
                 for (i, s) in t.steps.iter().enumerate() {
-                    ui.label(format!("{}. {s}", i + 1));
+                    self.linked(ui, &format!("{}. {s}", i + 1));
                 }
                 for s in &t.safety {
                     ui.label(RichText::new(format!("! {s}")).color(pal.note));
@@ -584,7 +582,12 @@ impl ScanaApp {
                 }
                 if let Some(c) = chosen {
                     if let Some(n) = &c.note {
-                        ui.label(RichText::new(n).color(pal.note));
+                        self.linked_look(
+                            ui,
+                            n,
+                            crate::widgets::Look { color: Some(pal.note), ..Default::default() },
+                            &[],
+                        );
                     }
                     if let Some(to) = &c.goto
                         && let Some(other) = diag::guide(to)
@@ -631,6 +634,7 @@ impl ScanaApp {
             ui.add(
                 egui::ProgressBar::new((good_s / want) as f32)
                     .desired_width(240.0)
+                    .fill(pal.accent)
                     .text(format!("{good_s:.0} of {want:.0} s")),
             );
             stop = ui.button("Stop measuring").clicked();

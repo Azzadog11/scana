@@ -63,6 +63,8 @@ Work is done when the gate passes and the screenshots look right.
 - Each link's clock starts at 0: the recorder rebases after a reconnect, or times in the logs overlap.
 - A bridge restart mid-session shows first as a refused send (BEL: its bus is closed), before the `#R` line is read. The client looks for that line when a send fails, so the reset report gets logged.
 - The Uno's stock boot loader clears MCUSR, and r2 holds leftovers, not reset flags (both checked on the Uno). Firmware 0.1.1 tells watchdog resets apart with the watchdog interrupt and warm from cold with `.noinit` bytes.
+- The Library (`crates/scana-db/data/learn/topics/`): topics need a summary of at most 25 words, at least two sources read on a stated date, related links that resolve, and aliases no other topic claims; the tests check all of it. Keep aliases specific: a common word as an alias ("rpm", "converter") underlines everywhere or links the wrong thing ("DC-DC converter").
+- The look: workshop dark, orange accent (`theme.rs`); main buttons use `theme::accent_button` (dark text on orange). Logo and icons are made in VectorCraft from `design/`; see `design/README.md`.
 - Switching cars in one app session: everything read from the last car must be cleared, the health check too (it once stayed and showed under the new car's name). The same car back after a lost link keeps its results and graphs.
 - Several measurements can wait at once in the Diagnose page (`diag_wait` is a list): one slot silently dropped the first when a second started.
 - Older cars: no permanent codes (service 0A), no ECU name; say so rather than show nothing. Try a new kind of car on a simulated one first (`scana-sim`): the 2006 Corolla emulation found several of these problems.

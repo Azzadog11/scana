@@ -52,6 +52,8 @@ enum Act {
     OpenTest(&'static str),
     CloseDiag,
     Lookup(&'static str),
+    /// Type in the sidebar's search box.
+    Search(&'static str),
 }
 
 pub struct ShotPlan {
@@ -104,9 +106,23 @@ impl ShotPlan {
             Wait(1.0),
             Shot("07-monitor"),
             Go(Page::Learn),
+            Topic(Some(crate::app::Topic::Library("fuel-trim".into()))),
+            Wait(1.0),
+            Shot("08-library"),
+            Go(Page::Glossary),
             Topic(Some(crate::app::Topic::Term("Freeze frame".into()))),
             Wait(1.0),
-            Shot("08-learn"),
+            Shot("34-glossary"),
+            Go(Page::Live),
+            Search("vacuum"),
+            Topic(Some(crate::app::Topic::Library("pattern-vacuum-leak".into()))),
+            Wait(1.0),
+            Shot("35-search"),
+            Search(""),
+            Go(Page::Monitor),
+            Topic(Some(crate::app::Topic::Library("reading-bus-monitor".into()))),
+            Wait(1.0),
+            Shot("36-monitor-topic"),
             Lookup("P0420"),
             Topic(None),
             Wait(1.0),
@@ -384,6 +400,10 @@ pub fn step(app: &mut ScanaApp, mut plan: ShotPlan, ctx: &egui::Context) -> Opti
         Act::WaitMeasured => app.diag_measure.is_none() || elapsed > 200.0,
         Act::OpenTest(test) => {
             app.diag_open = Some(test.to_string());
+            true
+        }
+        Act::Search(text) => {
+            app.search_text = text.to_string();
             true
         }
         Act::Lookup(text) => {

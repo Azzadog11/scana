@@ -30,11 +30,8 @@ impl ScanaApp {
                 ui.label(RichText::new("Diagnosis guides").strong());
                 for g in guides {
                     ui.horizontal_wrapped(|ui| {
-                        if ui.link(&g.title).clicked()
-                            && let Some(c) =
-                                g.codes.first().and_then(|c| scana_proto::Dtc::parse(c.split('-').next().unwrap_or("")))
-                        {
-                            self.start_diagnosis(c);
+                        if ui.link(&g.title).clicked() {
+                            self.start_guide(g);
                         }
                         ui.label(RichText::new(g.codes.join(", ")).small().color(pal.dim));
                     });

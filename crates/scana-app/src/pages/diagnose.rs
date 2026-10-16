@@ -556,10 +556,8 @@ impl ScanaApp {
                     if let Some(to) = &c.goto
                         && let Some(other) = diag::guide(to)
                         && ui.link(format!("Open the guide: {}", other.title)).clicked()
-                        && let Some(code) =
-                            other.codes.first().and_then(|c| Dtc::parse(c.split('-').next().unwrap_or("")))
                     {
-                        self.start_diagnosis(code);
+                        self.start_guide(other);
                     }
                 }
             });

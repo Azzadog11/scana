@@ -190,6 +190,8 @@ pub struct EcuReply {
 /// Something that wants to see every frame: a log file, the bus monitor.
 pub trait FrameSink: Send {
     fn frame(&mut self, frame: &Frame, at_ms: u64, outgoing: bool);
+    /// Something happened on the link or the bus (a bridge restart, a bus error), in words.
+    fn event(&mut self, _text: &str, _at_ms: u64) {}
 }
 
 /// Timings. The defaults follow ISO 15765-4 with some slack.
@@ -296,7 +298,9 @@ impl Client {
 
     fn send_frame(&mut self, id: CanId, payload: &[u8]) -> Result<(), CoreError> {
         let frame = Frame::new(id, payload).map_err(|e| CoreError::BadRequest(e.to_string()))?;
-        self.link.send(&frame)?;
+        if let Err(e) = self.link.send(&frame) {
+            return Err(self.send_failed(e));
+        }
         let now = self.link.now_ms();
         if let Some(s) = self.sink.as_mut() {
             s.frame(&frame, now, true);
@@ -304,14 +308,61 @@ impl Client {
         Ok(())
     }
 
-    /// Turns bus events into errors where Scana must stop.
-    fn check_bus_event(e: &BusEvent) -> Result<(), CoreError> {
+    /// Tells the sink (the session's events log) something happened.
+    pub fn note_event(&mut self, text: &str) {
+        let now = self.link.now_ms();
+        if let Some(s) = self.sink.as_mut() {
+            s.event(text, now);
+        }
+    }
+
+    /// Logs a bus event, and turns it into an error where Scana must stop.
+    fn bus_event(&mut self, e: &BusEvent) -> Result<(), CoreError> {
+        self.note_event(&e.describe());
         match e {
             BusEvent::TxError | BusEvent::TxArbitration => Err(CoreError::NotAcknowledged),
             BusEvent::BusOff => Err(CoreError::BusOff),
             BusEvent::HostWatchdog => Err(CoreError::WatchdogClosed),
             _ => Ok(()),
         }
+    }
+
+    /// Logs a bridge restart (with its reset report) and returns the error for it.
+    pub(crate) fn bridge_restarted(&mut self, version: &str, reset: &str) -> CoreError {
+        let why = scana_proto::slcan::describe_reset(reset);
+        let raw = if reset.is_empty() { String::new() } else { format!(" (report: {reset})") };
+        self.note_event(&format!("the bridge restarted, scana-bridge {version}: {why}{raw}"));
+        CoreError::BridgeReset
+    }
+
+    /// A send that fails often means the bridge restarted: its bus is closed until Scana opens
+    /// it again, and its restart line (with the reset report) is waiting behind the frames
+    /// before it. Looks for that line, so the report reaches the log before the link is dropped.
+    fn send_failed(&mut self, e: LinkError) -> CoreError {
+        let look_ms = match e {
+            LinkError::Refused(_) | LinkError::Unexpected(_) => 300,
+            // A bridge that is restarting doesn't answer; after a reset by its pin it waits
+            // about a second in the boot loader before it starts.
+            LinkError::NoAnswer(_) => 2000,
+            _ => return e.into(),
+        };
+        let until = self.link.now_ms() + look_ms;
+        loop {
+            let now = self.link.now_ms();
+            if now >= until {
+                break;
+            }
+            match self.link.recv(Duration::from_millis(until - now)) {
+                Ok(Some(LinkEvent::BridgeReady { version, reset, .. })) => {
+                    return self.bridge_restarted(&version, &reset);
+                }
+                Ok(Some(LinkEvent::Frame(tf))) => self.note_frame(&tf),
+                Ok(Some(LinkEvent::Bus(b))) => self.note_event(&b.describe()),
+                Ok(None) | Err(_) => break,
+            }
+        }
+        self.note_event(&format!("sending failed: {e}"));
+        e.into()
     }
 
     /// Handles frames and events until `until_ms`, without sending anything.
@@ -323,8 +374,10 @@ impl Client {
             }
             match self.link.recv(Duration::from_millis(until_ms - now))? {
                 Some(LinkEvent::Frame(tf)) => self.note_frame(&tf),
-                Some(LinkEvent::Bus(e)) => Self::check_bus_event(&e)?,
-                Some(LinkEvent::BridgeReady { .. }) => return Err(CoreError::BridgeReset),
+                Some(LinkEvent::Bus(e)) => self.bus_event(&e)?,
+                Some(LinkEvent::BridgeReady { version, reset, .. }) => {
+                    return Err(self.bridge_restarted(&version, &reset));
+                }
                 None => {}
             }
         }
@@ -367,6 +420,9 @@ impl Client {
         let mut receivers: HashMap<CanId, Receiver> = HashMap::new();
         let mut waiting: HashSet<CanId> = HashSet::new();
         let mut results: Vec<EcuReply> = Vec::new();
+        // Answers that start right but lack some of the PIDs asked for, per ECU: kept in case
+        // the full one never comes.
+        let mut partial: HashMap<CanId, EcuReply> = HashMap::new();
         let mut sending = !sender.is_single_frame();
 
         loop {
@@ -390,10 +446,10 @@ impl Client {
             let tf = match ev {
                 LinkEvent::Frame(tf) => tf,
                 LinkEvent::Bus(e) => {
-                    Self::check_bus_event(&e)?;
+                    self.bus_event(&e)?;
                     continue;
                 }
-                LinkEvent::BridgeReady { .. } => return Err(CoreError::BridgeReset),
+                LinkEvent::BridgeReady { version, reset, .. } => return Err(self.bridge_restarted(&version, &reset)),
             };
             self.note_frame(&tf);
             let id = tf.frame.id;
@@ -419,12 +475,20 @@ impl Client {
                     if !obd::reply_matches(payload, &reply) {
                         continue; // an answer to another tester
                     }
+                    if !obd::reply_complete(payload, &reply) {
+                        // Most likely another tester's answer for the first PID alone (a dash
+                        // display asking for rpm). Ours should follow within a few ms.
+                        partial.entry(id).or_insert(EcuReply { ecu: id, reply, at_ms: tf.at_ms });
+                        deadline = deadline.min(tf.at_ms + self.options.physical_timeout_ms).max(now);
+                        continue;
+                    }
                     if let Reply::Negative { code: 0x78, .. } = reply {
                         waiting.insert(id);
                         deadline = deadline.max(tf.at_ms + self.options.pending_timeout_ms);
                         continue;
                     }
                     waiting.remove(&id);
+                    partial.remove(&id);
                     results.push(EcuReply { ecu: id, reply, at_ms: tf.at_ms });
                     if matches!(target, Target::Ecu(_)) {
                         break;
@@ -444,6 +508,13 @@ impl Client {
                 }
                 Received::InProgress => deadline = deadline.max(tf.at_ms + Receiver::CF_TIMEOUT_MS),
                 Received::Ignored | Received::Failed(_) => {}
+            }
+        }
+        // An ECU that only ever gave part of the answer (it may have dropped ours to answer the
+        // other tester): what it gave is still today's data.
+        for (ecu, r) in partial {
+            if !results.iter().any(|x| x.ecu == ecu) {
+                results.push(r);
             }
         }
         results.sort_by_key(|r| r.ecu);
@@ -483,10 +554,12 @@ impl Client {
             let tf = match self.link.recv(Duration::from_millis(wait))? {
                 Some(LinkEvent::Frame(tf)) => tf,
                 Some(LinkEvent::Bus(e)) => {
-                    Self::check_bus_event(&e)?;
+                    self.bus_event(&e)?;
                     continue;
                 }
-                Some(LinkEvent::BridgeReady { .. }) => return Err(CoreError::BridgeReset),
+                Some(LinkEvent::BridgeReady { version, reset, .. }) => {
+                    return Err(self.bridge_restarted(&version, &reset));
+                }
                 None => continue,
             };
             self.note_frame(&tf);
@@ -576,8 +649,10 @@ impl Client {
                     self.note_frame(&tf);
                     heard.push(tf);
                 }
-                Some(LinkEvent::Bus(e)) => Self::check_bus_event(&e)?,
-                Some(LinkEvent::BridgeReady { .. }) => return Err(CoreError::BridgeReset),
+                Some(LinkEvent::Bus(e)) => self.bus_event(&e)?,
+                Some(LinkEvent::BridgeReady { version, reset, .. }) => {
+                    return Err(self.bridge_restarted(&version, &reset));
+                }
                 None => {}
             }
         }
@@ -625,6 +700,42 @@ mod tests {
         let mut link = SimLink::new(car);
         link.open(OpenMode::Normal).unwrap();
         Client::new(Box::new(link))
+    }
+
+    /// Keeps what the client tells its sink.
+    struct Events(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+
+    impl FrameSink for Events {
+        fn frame(&mut self, _: &Frame, _: u64, _: bool) {}
+        fn event(&mut self, text: &str, _: u64) {
+            self.0.lock().unwrap().push(text.to_string());
+        }
+    }
+
+    #[test]
+    fn a_refused_send_finds_the_bridge_restart_and_logs_it() {
+        let mut link = SimLink::new(VirtualCar::hijet());
+        link.open(OpenMode::Normal).unwrap();
+        link.restart_bridge("reset=warm step=3 count=1 flags=B");
+        let mut c = Client::new(Box::new(link));
+        let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        c.set_sink(Box::new(Events(log.clone())));
+        let e = c.request(Target::AllEcus, &[0x01, 0x0C]).unwrap_err();
+        assert!(matches!(e, CoreError::BridgeReset), "{e:?}");
+        let log = log.lock().unwrap();
+        assert_eq!(log.len(), 1, "{log:?}");
+        assert!(log[0].contains("the bridge restarted") && log[0].contains("report: reset=warm"), "{log:?}");
+    }
+
+    #[test]
+    fn a_refused_send_without_a_restart_is_logged() {
+        let link = SimLink::new(VirtualCar::hijet()); // never opened
+        let mut c = Client::new(Box::new(link));
+        let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        c.set_sink(Box::new(Events(log.clone())));
+        let e = c.request(Target::AllEcus, &[0x01, 0x0C]).unwrap_err();
+        assert!(matches!(e, CoreError::Link(LinkError::Refused(_))), "{e:?}");
+        assert!(log.lock().unwrap()[0].starts_with("sending failed"));
     }
 
     #[test]

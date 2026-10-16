@@ -1,6 +1,7 @@
 # Vehicle profile: 2024 Daihatsu Hijet Jumbo (S510P). Facts from one truck: a reference scan
-# with a handheld scan tool (2026-10-10) and a bench test (2026-10-11). A profile matches when
-# a car's engine ECU lists exactly these live PIDs.
+# with a handheld scan tool (2026-10-10), a bench test (2026-10-11) and three drives recorded
+# with Scana (2026-10-16). A profile matches when a car's engine ECU lists these live PIDs, or
+# all but two (see profile::find_match).
 
 id = "daihatsu-hijet-s510p-2024"
 name = "2024 Daihatsu Hijet Jumbo"
@@ -10,9 +11,11 @@ make = "Daihatsu"
 model = "S510P, KF-VE4 658 cc three-cylinder, 4WD 5-speed manual"
 bitrate = 500000
 addressing = "11-bit"
+# From the engine ECU's support masks on the 2026-10-16 drives (BE3FB813, 80042001, 4ADF0000).
+# The handheld's list had 41 and lacked 4F and 50.
 match_pids = [
   0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x13, 0x14, 0x15,
-  0x1C, 0x1F, 0x21, 0x2E, 0x33, 0x41, 0x42, 0x45, 0x47, 0x49, 0x4A, 0x4C, 0x4D, 0x4E,
+  0x1C, 0x1F, 0x21, 0x2E, 0x33, 0x42, 0x45, 0x47, 0x49, 0x4A, 0x4C, 0x4D, 0x4E, 0x4F, 0x50,
 ]
 default_live = [0x0C, 0x0D, 0x05, 0x42, 0x04, 0x06]
 not_reported = "Engine oil temperature, fuel level, outside air temperature and the odometer."
@@ -23,11 +26,15 @@ name = "Engine (ECM)"
 
 [[note]]
 pid = 0x05
-text = "The radiator fan cuts in at about 101 °C (observed on one truck). Scana warns at 107 °C and alarms at 112 °C."
+text = "Reaches 80 °C about 4.6 minutes after a cold start on the road. The radiator fan cuts in at about 101 °C and the temperature falls back to 88-91 °C (three drives, 2026-10-16). Scana warns at 107 °C and alarms at 112 °C."
 
 [[note]]
 pid = 0x42
-text = "14.28 V running at the 2026-10-10 scan. Scana alarms below 12.8 V or above 15.2 V with the engine running."
+text = "13.65-14.41 V with the engine running on three drives (2026-10-16); 14.28 V at the 2026-10-10 scan. Scana alarms below 12.8 V or above 15.2 V with the engine running."
+
+[[note]]
+pid = 0x0C
+text = "About 815 rpm at a warm idle (three drives, 2026-10-16); higher for the first minutes after a cold start."
 
 [[note]]
 pid = 0x11

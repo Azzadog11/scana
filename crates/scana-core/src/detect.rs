@@ -63,7 +63,9 @@ fn listen(client: &mut Client, ms: u64) -> Result<Heard, CoreError> {
                 client.note_frame(&tf);
             }
             Some(LinkEvent::Bus(BusEvent::ErrorWarning | BusEvent::ErrorPassive | BusEvent::BusOff)) => h.errors += 1,
-            Some(LinkEvent::BridgeReady { .. }) => return Err(CoreError::BridgeReset),
+            Some(LinkEvent::BridgeReady { version, reset, .. }) => {
+                return Err(client.bridge_restarted(&version, &reset));
+            }
             Some(LinkEvent::Bus(_)) | None => {}
         }
     }

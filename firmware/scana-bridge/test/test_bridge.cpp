@@ -115,6 +115,8 @@ struct FakeHal {
   void serialWrite(const char* s, uint8_t n) { out.append(s, n); }
   void ledActivity() {}
   void ledState(uint8_t, uint8_t) {}
+  uint8_t lastStep = 0;
+  void step(uint8_t s) { lastStep = s; }
 };
 
 struct Rig {
@@ -249,6 +251,16 @@ static void testNoChip() {
   Bridge<FakeHal> b(h);
   b.begin();
   CHECK_EQ(h.out, std::string("#R scana-bridge " SCANA_BRIDGE_VERSION " mcp2515=missing\r"));
+}
+
+static void testResetReport() {
+  FakeHal h;
+  Bridge<FakeHal> b(h);
+  b.begin("reset=watchdog step=7 count=2");
+  CHECK_EQ(h.out, std::string("#R scana-bridge " SCANA_BRIDGE_VERSION " mcp2515=ok reset=watchdog step=7 count=2\r"));
+  // Breadcrumbs: a poll ends at the serial output step.
+  b.poll();
+  CHECK(h.lastStep == STEP_SERIAL_OUT);
 }
 
 static void testOpenFails() {
@@ -421,6 +433,7 @@ int main() {
   testBitTiming();
   testBusManners();
   testNoChip();
+  testResetReport();
   testOpenFails();
   testReceive();
   testRxQueueFull();

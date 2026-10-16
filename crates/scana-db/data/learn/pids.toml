@@ -170,6 +170,18 @@ what = "Engine running time since the codes were last cleared."
 read_with = "On a used car, a short time here with incomplete readiness monitors suggests someone cleared the codes recently."
 
 [[pid]]
+id = 0x4F
+what = "Scaling limits the engine computer uses for other values: the largest air-fuel ratio, oxygen sensor voltage and current, and manifold pressure it can report."
+normal = "Fixed for each car: it doesn't change while driving."
+read_with = "Only matters for reading those values; nothing to diagnose here."
+
+[[pid]]
+id = 0x50
+what = "The largest air flow the mass air flow reading can show: its scale."
+normal = "Fixed for each car: it doesn't change while driving."
+read_with = "Mass air flow."
+
+[[pid]]
 id = 0x5C
 what = "Engine oil temperature."
 normal = "Usually a little above the coolant temperature once warm."

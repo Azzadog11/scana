@@ -1,6 +1,8 @@
 //! Which live values to ask for next. Each value has a wanted period: engine speed and other
 //! fast-changing values every 200 ms, temperatures every second, things that rarely change every
 //! 5 s. Due values for one ECU are packed 6 to a request (service 01 on CAN allows 6).
+//! While another tester (a dash display) is on the bus, only as many as fit a one-frame
+//! reply: the ECU can cut off a longer reply to answer the other tester.
 
 use scana_proto::{CanId, obd, pids};
 
@@ -15,6 +17,8 @@ struct Entry {
 #[derive(Clone, Debug, Default)]
 pub struct Poller {
     entries: Vec<Entry>,
+    /// Pack only what fits a one-frame reply (set while another tester is active).
+    pub one_frame: bool,
 }
 
 /// How often to ask for a PID, in ms.
@@ -38,7 +42,7 @@ pub fn period_for(pid: u8) -> u64 {
         | 0x5E
         | 0x61
         | 0x62 => 200,
-        0x01 | 0x13 | 0x1C | 0x1D | 0x21 | 0x30 | 0x31 | 0x41 | 0x4D | 0x4E | 0x51 | 0x5F => 5000,
+        0x01 | 0x13 | 0x1C | 0x1D | 0x21 | 0x30 | 0x31 | 0x41 | 0x4D | 0x4E | 0x4F | 0x50 | 0x51 | 0x5F => 5000,
         _ => 1000,
     }
 }
@@ -82,6 +86,18 @@ impl Poller {
         due.sort_by_key(|&i| self.entries[i].next_ms);
         let chosen: Vec<usize> = if unknown_first {
             due.into_iter().take(1).collect()
+        } else if self.one_frame {
+            let mut pick: Vec<usize> = Vec::new();
+            let mut pids_so_far: Vec<u8> = Vec::new();
+            for i in due.into_iter().filter(|&i| pids::def(self.entries[i].pid).is_some()) {
+                pids_so_far.push(self.entries[i].pid);
+                if pick.is_empty() || obd::reply_fits_one_frame(&pids_so_far) {
+                    pick.push(i);
+                } else {
+                    pids_so_far.pop();
+                }
+            }
+            pick
         } else {
             due.into_iter()
                 .filter(|&i| pids::def(self.entries[i].pid).is_some())
@@ -143,6 +159,21 @@ mod tests {
         assert_eq!(counts[&0x0C], 50);
         assert_eq!(counts[&0x05], 10);
         assert_eq!(counts[&0x4E], 2);
+    }
+
+    #[test]
+    fn one_frame_replies_while_another_tester_is_on() {
+        let mut p = Poller::new();
+        let list: Vec<(CanId, u8)> = [0x0C, 0x0D, 0x05, 0x42, 0x04, 0x11, 0x4F].iter().map(|&x| (ECU, x)).collect();
+        p.set(&list, 0);
+        p.one_frame = true;
+        let mut seen = Vec::new();
+        while let Some((_, b)) = p.next_batch(0) {
+            assert!(obd::reply_fits_one_frame(&b), "{b:02X?}");
+            seen.extend(b);
+        }
+        seen.sort_unstable();
+        assert_eq!(seen, vec![0x04, 0x05, 0x0C, 0x0D, 0x11, 0x42, 0x4F]);
     }
 
     #[test]

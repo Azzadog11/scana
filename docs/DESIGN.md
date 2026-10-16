@@ -1,6 +1,6 @@
 # Scana design
 
-How Scana works, as built in version 0.2.0 (stages 1, 2 and 3, and the diagnosis guides; bridge firmware 0.1.0). Parts marked (draft) are still plans.
+How Scana works, as built in version 0.2.1 (stages 1, 2 and 3, and the diagnosis guides; bridge firmware 0.1.1). Parts marked (draft) are still plans.
 
 | Section | |
 |---|---|
@@ -48,7 +48,7 @@ The bridge is deliberately simple. The ATmega328P has 2 KB of RAM: enough to buf
 
 ## 3. Bridge firmware
 
-Folder `firmware/scana-bridge/`, version 0.1.0. Arduino sketch, built with arduino-cli for `arduino:avr:uno`: 10,096 bytes of flash (31%), 1,045 bytes of RAM (51%).
+Folder `firmware/scana-bridge/`, version 0.1.1. Arduino sketch, built with arduino-cli for `arduino:avr:uno`: 10,664 bytes of flash (33%), 1,117 bytes of RAM (54%).
 
 | File | Holds |
 |---|---|
@@ -82,7 +82,8 @@ Responsibilities:
 - Report health: frame counts, buffer overflows, MCP2515 error counters (TEC, REC) and error flags, bus-off.
 - Self-test on request: SPI register read-back and an internal loopback frame.
 - Host watchdog: when the host enables it, close the bus if no command arrives within the set time. A crashed or unplugged app then leaves the car's bus alone.
-- AVR watchdog at 250 ms: a hung sketch resets, and resets always come back closed.
+- AVR watchdog at 250 ms: a hung sketch resets, and resets always come back closed. It runs in interrupt-then-reset mode: the interrupt notes which step of the loop stopped, for the reset report.
+- Reset report (0.1.1): the `#R` line says why the bridge started. A few bytes in `.noinit` survive a reset that keeps the power on, so the sketch can tell cold (the power was off) from warm (the reset pin, a brown-out, noise) from the watchdog, and counts warm starts. A function in `.init3` keeps MCUSR before anything clears it; the Uno's stock boot loader clears it first, so the flags are often missing, while newer optiboot versions leave a copy in r2, which the sketch uses when it looks like reset flags.
 - At power-up, look for the MCP2515 for up to 100 ms (its oscillator starts after the Uno's), and again whenever the host asks to open.
 - Never send a frame on its own. Every frame on the bus comes from a host command.
 
@@ -139,7 +140,7 @@ Scana extensions start with `#`, which Lawicel does not use, so `slcand` never s
 | `#U1`, `#U0` | Microsecond timestamps on received frames (`:` and 8 hex after the data) |
 | `#E1`, `#E0` | Push events: `#e ERRWARN`, `ERRPASSIVE`, `BUSOFF`, `ACTIVE`, `RXOVR n`, `TXERR`, `TXARB`, `HOSTWD` |
 | `#Mmmm,fff` | Standard-ID acceptance filter, only while closed; `#M` accepts everything |
-| `#R` | Ready line, sent once after reset: `#R scana-bridge 0.1.0 mcp2515=ok` (or `=missing`) |
+| `#R` | Ready line, sent once after reset: `#R scana-bridge 0.1.1 mcp2515=ok reset=warm step=1 count=2 flags=B` (`mcp2515=missing` if the chip didn't answer). The reset report: `reset=cold`, `warm` or `watchdog`; `step=` where the loop was (1 between tasks, 2 reading commands, 3 reading frames, 4 sending, 5 bus status, 6 passing frames on, 7 waiting to write, 8 LEDs); `count=` warm starts since power-up (opening the port counts); `flags=` the chip's reset flags when known (P power-on, E reset pin, B brown-out, W watchdog). 0.1.0 sends no report |
 
 Every command gets exactly one reply, so replies match commands in order. Malformed or unknown lines get BEL and are counted in `#H`. Bytes outside printable ASCII are ignored (the Uno's USB chip can send one when the port opens), as are line feeds.
 
@@ -168,7 +169,7 @@ Threads:
 - The app never touches the serial port; it sends `Command`s (connect, live list, reads, health check, clear with consent, record, mark) and draws from `Update`s.
 - Every wait has a timeout. Every error reaches the app as a plain-English message.
 - A panic in the worker is caught: the connection resets and the app shows a message (`session.rs`, `guarded`).
-- The worker recovers by itself: a pulled cable or bridge reset reconnects every 2 s; a silent car (key off, three missed replies in a row, or an unacknowledged frame) is looked for again every 5 s.
+- The worker recovers by itself: a pulled cable or bridge reset reconnects every 2 s; a silent car (key off, three missed replies in a row, or an unacknowledged frame) is looked for again every 5 s. A bridge that refuses a frame or answers out of turn mid-session has restarted (its bus is closed): before dropping the link the client reads the bridge's waiting `#R` line, so its reset report reaches the events log, then the worker reconnects. Opening the port again resets the Uno once more, so that first report is the one that counts.
 
 ## 6. Protocol stack
 
@@ -191,7 +192,7 @@ Bus manners. These are hard rules:
 2. A quiet bus (common: many OBD ports carry no traffic until a tester asks) needs one request to find the rate. Follow ISO 15765-4: open normal at the confirmed rate, or each quiet one, send one functional `01 00` (11-bit, then 29-bit) and collect replies for 100 ms. Never transmit at a rate where listening heard errors.
 3. A frame nobody acknowledges (`#e TXERR` or `TXARB`, one-shot) ends that rate at once, without trying 29-bit there. On the desk with no car this is the whole story: 2 frames sent in total, then "No car answered" with what was tried (tested 2026-10-16).
 4. Once replies arrive, store the protocol, the replying ECU IDs and the supported PIDs (PIDs 00, 20, 40, 60, 80, A0, C0) in the session.
-5. Watch for **other testers**: requests on 0x7DF or 0x7E0-0x7E7 that Scana did not send, for example a dash display sharing the port through an OBD splitter at about 20 requests a second. Scana then lowers its own rate and matches replies to its own requests only. Simple dash displays often read only single-frame mode 01 replies, and may stop asking for a PID after a refusal (`7F 01`): so Scana only asks for mode 01 PIDs the ECU lists as supported. While another tester is active, warn before multi-frame requests (two testers sending flow control can confuse an ECU).
+5. Watch for **other testers**: requests on 0x7DF or 0x7E0-0x7E7 that Scana did not send, for example a dash display sharing the port through an OBD splitter at about 20 requests a second. Scana then lowers its own rate and matches replies to its own requests only. A reply to a request for several PIDs must hold all of them: a dash display asking for the first PID alone gets an answer that would otherwise pass for Scana's (a partial answer is used only if no full one comes). While the other tester is active, Scana packs only as many PIDs as fit a one-frame reply. The Hijet's engine computer answers the dash in the middle of a longer reply and sometimes drops the longer one (about 7 % of four-PID replies on the 2026-10-16 drives); a single frame can't be cut off. Scana's ISO-TP receiver keeps a long reply going when a single frame arrives in its middle, which ISO 15765-2 doesn't expect but this ECU does. Simple dash displays often read only single-frame mode 01 replies, and may stop asking for a PID after a refusal (`7F 01`): so Scana only asks for mode 01 PIDs the ECU lists as supported. While another tester is active, warn before multi-frame requests (two testers sending flow control can confuse an ECU).
 6. If TEC rises above 96 (error warning) or the bus goes bus-off, drop to listen-only and tell the user.
 
 ## 7a. Finding and reading modules
@@ -241,14 +242,16 @@ PID formulas and the mode 06 tables are protocol facts, so they live in code (`s
 - `dtc/advice.toml`: what common codes usually mean and what to check first (general guidance).
 - `learn/pids.toml`, `glossary.toml` (about 160 words), `jobs.toml`, `pages.toml`, `lesson.toml`: the Learn content. The Learn page looks up any code, word or tool.
 - `diag/*.toml` and `diag/tools.toml`: the diagnosis guides (section 15).
-- `vehicles/*.toml`: profiles. A profile matches when the engine ECU's live PID list equals its `match_pids`. The Hijet's has ECU names, notes, warning limits (coolant 107/112 °C, charging 12.8-15.2 V running) and the 2026-10-10 scan values.
+- `vehicles/*.toml`: profiles. A profile matches when the engine ECU's live PID list equals its `match_pids`, or is within 2 PIDs of it (the closest wins): a software update, or a list first copied from a handheld tool, can be a PID or two out. The Hijet's list was corrected from its own support masks on the 2026-10-16 drives (4F and 50 added, 41 removed). The Hijet's has ECU names, notes, warning limits (coolant 107/112 °C, charging 12.8-15.2 V running) and the 2026-10-10 scan values.
 - Later: vehicle history keyed by VIN, where the car reports one.
 
 ## 10. Sessions, logs and reports
 
 - One folder per session: `$XDG_DATA_HOME/scana/sessions/<YYYY-MM-DD_HHMMSS>_<vehicle>/`, else `~/.local/share/scana/sessions/`.
   - `frames.log`: every frame in candump log format (`(1760580000.123456) can0 7E8#04410C1D4C000000`: engine speed 1875 rpm). Frames Scana sent end in ` T`. can-utils and SavvyCAN read it.
-  - `values.csv`: `time_s,ecu,pid,name,value,unit,text`, one row per decoded value; markers are rows with `pid` `MARK`.
+  - `values.csv`: `time_s,ecu,pid,name,value,unit,text`, one row per decoded value; markers are rows with `pid` `MARK`. `time_s` counts from the session's start.
+  - `events.log`: one line per event: local time, seconds since the start, and what happened in words: recording started, bus events, bridge restarts with the bridge's reset report, failed sends, errors, the link opened again, the car found again.
+  - Each new link's clock starts at 0. After a reconnect the recorder rebases its clock on the wall clock (and does so itself if a link time jumps back over a second), so times in every file keep going forward through a bridge restart.
   - `session.toml`: started, ended, vehicle, link, bit rate, addressing, ECUs, profile, counts, codes found, app version. Written when the session ends; a folder without it was cut short.
   - `report.html`: the health report, one self-contained page.
 - Recording is on when the user turns it on (or always, in Settings). A health check run while not recording records a short session of its own, so every report has a folder with its frames.

@@ -2,7 +2,7 @@
 //! the demo car and the command line's `--sim`.
 //!
 //! [`VirtualCar::hijet`] copies the 2024 Hijet Jumbo's scan of 2026-10-10: 500 kbit/s,
-//! 11-bit IDs, one engine ECU on 0x7E0/0x7E8, the same 30 live PIDs, readiness monitors and
+//! 11-bit IDs, one engine ECU on 0x7E0/0x7E8, the same 31 live PIDs, readiness monitors and
 //! no codes. Values move over time (idle, revs, warming up) so screens and graphs have
 //! something to show. Time is passed in as milliseconds; nothing here reads a clock.
 //!
@@ -171,6 +171,8 @@ impl Ecu {
             0x4A => vec![pct(7.5 + (e.throttle - 18.0) * 0.4)],
             0x4C => vec![pct((e.throttle - 8.0).max(0.0))],
             0x4E => u16c(45_060.0 + (t_ms / 60_000) as f64),
+            // Scaling limits. The real truck's are not known yet: 0 is a guess.
+            0x4F | 0x50 => vec![0, 0, 0, 0],
             // Any other PID in the list: a plain number that changes slowly.
             _ => vec![u8c(100.0 + 20.0 * (t_ms as f64 / 4000.0).sin())],
         }
@@ -296,11 +298,12 @@ pub struct VirtualCar {
 }
 
 impl VirtualCar {
-    /// The 2024 Hijet Jumbo, from its scan of 2026-10-10.
+    /// The 2024 Hijet Jumbo, from its scan of 2026-10-10 and its PID list from the drives of
+    /// 2026-10-16.
     pub fn hijet() -> Self {
         let pids = vec![
             0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x13, 0x14, 0x15, 0x1C, 0x1F,
-            0x21, 0x2E, 0x33, 0x41, 0x42, 0x45, 0x47, 0x49, 0x4A, 0x4C, 0x4D, 0x4E,
+            0x21, 0x2E, 0x33, 0x42, 0x45, 0x47, 0x49, 0x4A, 0x4C, 0x4D, 0x4E, 0x4F, 0x50,
         ];
         let mut ecm = Ecu::new("Engine (simulated Hijet KF)", CanId::Standard(0x7E0), CanId::Standard(0x7E8), pids);
         // A made-up VIN, clearly not a real one. Whether the real Hijet reports a VIN is unknown.
@@ -690,7 +693,7 @@ mod tests {
     }
 
     #[test]
-    fn hijet_answers_rpm_and_lists_30_pids() {
+    fn hijet_answers_rpm_and_lists_31_pids() {
         let mut car = VirtualCar::hijet();
         car.receive(&req(0x7DF, &[0x02, 0x01, 0x0C, 0, 0, 0, 0, 0]), 0);
         assert!(car.poll(1).is_empty());
@@ -706,7 +709,7 @@ mod tests {
             supported.extend(obd::supported_pids(base, &f[0].data()[3..7]));
         }
         let live: Vec<u8> = supported.into_iter().filter(|p| p % 0x20 != 0).collect();
-        assert_eq!(live.len(), 30);
+        assert_eq!(live.len(), 31);
     }
 
     #[test]

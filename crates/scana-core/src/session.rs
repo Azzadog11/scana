@@ -268,6 +268,15 @@ impl Shared {
         let _ = self.ui.send(u);
         (self.wake)();
     }
+
+    /// One line in the session's `events.log`, if recording.
+    fn note(&self, text: &str) {
+        if let Ok(mut r) = self.rec.lock()
+            && let Some(r) = r.as_mut()
+        {
+            r.event(text);
+        }
+    }
 }
 
 struct WorkerSink(Arc<Shared>);
@@ -281,6 +290,10 @@ impl FrameSink for WorkerSink {
         }
         self.0.frames.fetch_add(1, Ordering::Relaxed);
         self.0.send(Update::Frame { frame: *frame, at_ms, outgoing });
+    }
+
+    fn event(&mut self, text: &str, _at_ms: u64) {
+        self.0.note(text);
     }
 }
 
@@ -767,10 +780,23 @@ impl Worker {
                 return;
             }
             Err(e) => {
-                self.on_error(e, true);
+                self.on_error(e, first);
+                // Keep trying after an error the handler doesn't retry by itself.
+                if !first && self.lost.is_some_and(|(_, at)| at <= Instant::now()) {
+                    self.lost = Some((Lost::Car, Instant::now() + Duration::from_secs(5)));
+                }
                 return;
             }
         };
+        if !first {
+            self.shared.note(&format!(
+                "found the car again: {}, {} ECU{}{}",
+                info.vehicle,
+                info.ecus.len(),
+                if info.ecus.len() == 1 { "" } else { "s" },
+                if info.other_tester { ", another tester is on the bus" } else { "" }
+            ));
+        }
         self.lost = None;
         self.misses = 0;
         if first || self.live.is_empty() {
@@ -842,6 +868,7 @@ impl Worker {
     }
 
     fn on_error(&mut self, e: CoreError, during_connect: bool) {
+        self.shared.note(&format!("error: {e}"));
         match e {
             CoreError::Link(LinkError::Disconnected | LinkError::NoAnswer(_) | LinkError::Io(_))
             | CoreError::BridgeReset => {
@@ -849,6 +876,15 @@ impl Worker {
                 self.lost = Some((Lost::Link, Instant::now() + Duration::from_secs(2)));
                 self.send(Update::State(LinkState::Lost(
                     "The bridge was unplugged or restarted. Reconnecting every 2 s.".into(),
+                )));
+            }
+            // Mid-session, a bridge that refuses frames or answers out of turn has almost
+            // certainly restarted (its bus is closed). Open it again rather than keep failing.
+            CoreError::Link(LinkError::Refused(_) | LinkError::Unexpected(_)) if !during_connect => {
+                self.client = None;
+                self.lost = Some((Lost::Link, Instant::now() + Duration::from_secs(2)));
+                self.send(Update::State(LinkState::Lost(
+                    "The bridge stopped taking frames (it probably restarted). Reconnecting every 2 s.".into(),
                 )));
             }
             CoreError::NotAcknowledged | CoreError::WatchdogClosed => {
@@ -889,6 +925,13 @@ impl Worker {
                     client.set_sink(Box::new(WorkerSink(self.shared.clone())));
                     client.options.min_gap_ms = self.gaps.0;
                     client.options.shared_gap_ms = self.gaps.1;
+                    // The new link's clock starts at 0: keep the recording's times going forward.
+                    if let Ok(mut r) = self.shared.rec.lock()
+                        && let Some(r) = r.as_mut()
+                    {
+                        r.rebase(client.now_ms());
+                        r.event(&format!("opened the link again: {}", client.link().describe()));
+                    }
                     self.client = Some(client);
                 }
                 Err(_) => {
@@ -921,6 +964,7 @@ impl Worker {
         self.watch_turn = true;
         let Some(client) = self.client.as_mut() else { return };
         let now = client.now_ms();
+        self.poller.one_frame = client.other_tester_active();
         let result = match self.poller.next_batch(now) {
             Some((ecu, pids)) => readers::read_pids(client, ecu, &pids).map(|r| Some((ecu, pids, r))),
             None => {
@@ -1067,6 +1111,14 @@ impl Worker {
                     profile: conn.profile_id.clone(),
                     ..r.summary.clone()
                 };
+                r.event(&format!(
+                    "recording started: {}, {}, {} {}{}",
+                    conn.vehicle,
+                    conn.link,
+                    conn.bitrate,
+                    conn.addressing.name(),
+                    if conn.other_tester { ", another tester is on the bus" } else { "" }
+                ));
                 let dir = r.dir().to_path_buf();
                 *guard = Some(r);
                 drop(guard);
@@ -1231,6 +1283,22 @@ mod tests {
         let values = std::fs::read_to_string(rec.join("values.csv")).unwrap();
         assert!(values.lines().count() > 6 && values.contains(",MARK,test"));
         assert!(rec.join("session.toml").exists());
+        let events = std::fs::read_to_string(rec.join("events.log")).unwrap();
+        assert!(events.contains("recording started: 2024 Daihatsu Hijet Jumbo"), "{events}");
+        assert!(events.contains("another tester is on the bus"), "{events}");
+        // With the demo's dash display on the bus, every live data reply fits one frame.
+        let frames = std::fs::read_to_string(rec.join("frames.log")).unwrap();
+        let mut asked = 0;
+        for line in frames.lines().filter(|l| l.ends_with(" T") && l.contains(" 7E0#")) {
+            let hex = line.split('#').nth(1).unwrap().split_whitespace().next().unwrap();
+            let bytes: Vec<u8> =
+                (0..hex.len()).step_by(2).map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap()).collect();
+            if bytes[0] & 0xF0 == 0 && bytes.get(1) == Some(&obd::CURRENT_DATA) {
+                asked += 1;
+                assert!(obd::reply_fits_one_frame(&bytes[2..=usize::from(bytes[0])]), "{line}");
+            }
+        }
+        assert!(asked > 3);
         h.send(Command::Disconnect);
         wait_for(&h, 5, |u| matches!(u, Update::State(LinkState::Disconnected)).then_some(()));
         drop(h);

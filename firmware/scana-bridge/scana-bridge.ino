@@ -5,6 +5,7 @@
 // Build:  arduino-cli compile --fqbn arduino:avr:uno firmware/scana-bridge
 // Upload: arduino-cli upload --fqbn arduino:avr:uno -p /dev/ttyACM0 firmware/scana-bridge
 #include <SPI.h>
+#include <avr/interrupt.h>
 #include <avr/wdt.h>
 
 #include "bittiming.h"
@@ -19,6 +20,95 @@ const uint8_t PIN_LED_STATE = 8; // off closed, on normal, slow blink listen, fa
 const unsigned long BAUD = 1000000;
 
 Mcp2515 can;
+
+// ---- Why the bridge started: the reset report in the "#R" line ----
+//
+// These live in .noinit, which start-up doesn't clear: they survive a reset that keeps the
+// power on (the reset pin, the watchdog, usually a brown-out), and hold random bytes after
+// the power was off. The magic number tells the two apart.
+const uint16_t WARM_MAGIC = 0x5CA1;
+const uint8_t WATCHDOG_MAGIC = 0xA5;
+uint16_t warmMagic __attribute__((section(".noinit")));
+uint8_t warmCount __attribute__((section(".noinit")));       // warm starts since power-up
+uint8_t watchdogFired __attribute__((section(".noinit")));   // WATCHDOG_MAGIC: the watchdog reset us
+uint8_t watchdogStep __attribute__((section(".noinit")));    // the Step that stopped
+volatile uint8_t bridgeStep __attribute__((section(".noinit")));
+uint8_t savedMcusr __attribute__((section(".noinit")));
+uint8_t savedR2 __attribute__((section(".noinit")));
+
+// Runs before the C runtime starts. Keeps the reset flags before anything clears them, and
+// stops the watchdog: after a watchdog reset it stays on at 15 ms and would reset again.
+// The Uno's stock boot loader clears MCUSR first (so it often reads 0 here); newer optiboot
+// versions leave a copy in r2.
+void saveResetFlags() __attribute__((naked, used, section(".init3")));
+void saveResetFlags() {
+  uint8_t r2;
+  __asm__ __volatile__("mov %0, r2" : "=r"(r2));
+  savedR2 = r2;
+  savedMcusr = MCUSR;
+  MCUSR = 0;
+  wdt_disable();
+}
+
+// The watchdog runs in interrupt-then-reset mode: if loop() stops for 250 ms this notes where,
+// and 250 ms later the watchdog resets the bridge.
+ISR(WDT_vect) {
+  watchdogFired = WATCHDOG_MAGIC;
+  watchdogStep = bridgeStep;
+}
+
+static char* putText(char* p, const char* s) {
+  while (*s) *p++ = *s++;
+  return p;
+}
+
+static char* putNumber(char* p, uint8_t v) {
+  if (v >= 100) *p++ = (char)('0' + v / 100);
+  if (v >= 10) *p++ = (char)('0' + v / 10 % 10);
+  *p++ = (char)('0' + v % 10);
+  return p;
+}
+
+// Writes the report, for example "reset=watchdog step=7 count=2 flags=W", into `out` (40 bytes).
+//   reset=cold      the power was off: the bridge lost its supply.
+//   reset=warm      the power stayed on: the reset pin (the port opening pulses it), a short
+//                   brown-out, or noise. Mid-session, with the port open, not the port.
+//   reset=watchdog  the firmware stopped for 250 ms; step= says where.
+//   count=          warm starts since the power came on (opening the port counts too).
+//   flags=          the chip's reset flags when the boot loader left them: P power-on,
+//                   E reset pin, B brown-out, W watchdog.
+static void resetReport(char* out) {
+  bool warm = warmMagic == WARM_MAGIC;
+  char* p = out;
+  if (!warm) {
+    p = putText(p, "reset=cold");
+    warmCount = 0;
+  } else {
+    if (warmCount < 255) warmCount++;
+    if (watchdogFired == WATCHDOG_MAGIC) {
+      p = putText(p, "reset=watchdog step=");
+      p = putNumber(p, watchdogStep);
+    } else {
+      p = putText(p, "reset=warm step=");
+      p = putNumber(p, bridgeStep);
+    }
+    p = putText(p, " count=");
+    p = putNumber(p, warmCount);
+  }
+  // r2 only counts if it looks like reset flags (old boot loaders leave anything there).
+  uint8_t flags = savedMcusr | ((savedR2 && !(savedR2 & 0xF0)) ? savedR2 : 0);
+  if (flags & 0x0F) {
+    p = putText(p, " flags=");
+    if (flags & _BV(PORF)) *p++ = 'P';
+    if (flags & _BV(EXTRF)) *p++ = 'E';
+    if (flags & _BV(BORF)) *p++ = 'B';
+    if (flags & _BV(WDRF)) *p++ = 'W';
+  }
+  *p = 0;
+  warmMagic = WARM_MAGIC;
+  watchdogFired = 0;
+  bridgeStep = 0;
+}
 
 struct UnoHal {
   unsigned long activityUntil = 0;
@@ -54,6 +144,7 @@ struct UnoHal {
     mode = m;
     bus = b;
   }
+  void step(uint8_t s) { bridgeStep = s; }
   void updateLeds() {
     unsigned long now = millis();
     if (activityUntil && (long)(now - activityUntil) >= 0) {
@@ -74,8 +165,8 @@ UnoHal hal;
 Bridge<UnoHal> bridge(hal);
 
 void setup() {
-  MCUSR = 0;
-  wdt_disable();
+  char report[40];
+  resetReport(report);
   pinMode(PIN_SD_CS, OUTPUT);
   digitalWrite(PIN_SD_CS, HIGH);
   pinMode(PIN_LED_RXTX, OUTPUT);
@@ -83,12 +174,20 @@ void setup() {
   Serial.begin(BAUD);
   // At power-up the MCP2515's oscillator may not be running yet: try for about 100 ms.
   for (uint8_t i = 0; i < 10 && !can.begin(PIN_CAN_CS, PIN_CAN_INT); i++) delay(10);
-  bridge.begin();
+  bridge.begin(report);
   wdt_enable(WDTO_250MS);  // a hang resets the bridge, and it comes back closed
+  WDTCSR |= _BV(WDIE);     // ... after the interrupt notes where it stopped
 }
 
 void loop() {
   wdt_reset();
+  // A stall that ended before the reset: forget it, and arm the interrupt again.
+  if (!(WDTCSR & _BV(WDIE))) {
+    watchdogFired = 0;
+    WDTCSR |= _BV(WDIE);
+  }
+  bridgeStep = STEP_LOOP;
   bridge.poll();
+  bridgeStep = STEP_LEDS;
   hal.updateLeds();
 }

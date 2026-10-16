@@ -12,7 +12,7 @@
 #include "frame.h"
 #include "slcan.h"
 
-#define SCANA_BRIDGE_VERSION "0.1.0"
+#define SCANA_BRIDGE_VERSION "0.1.1"
 
 enum BusMode : uint8_t { MODE_CLOSED = 0, MODE_NORMAL = 1, MODE_LISTEN = 2, MODE_LOOPBACK = 3 };
 
@@ -24,6 +24,19 @@ const uint8_t EFLG_RX1OVR = 0x80, EFLG_RX0OVR = 0x40, EFLG_TXBO = 0x20, EFLG_TXE
               EFLG_RXEP = 0x08, EFLG_EWARN = 0x01;
 
 enum BusState : uint8_t { BUS_ACTIVE = 0, BUS_WARNING = 1, BUS_PASSIVE = 2, BUS_OFF = 3 };
+
+// Where the bridge is, kept for the reset report: after a watchdog reset the "#R" line says
+// which step stopped. 1 (the top of loop) and 8 (the LEDs) are set by the sketch.
+enum Step : uint8_t {
+  STEP_LOOP = 1,
+  STEP_SERIAL_IN = 2,
+  STEP_CAN_RX = 3,
+  STEP_CAN_TX = 4,
+  STEP_STATUS = 5,
+  STEP_SERIAL_OUT = 6,
+  STEP_WRITE_WAIT = 7,
+  STEP_LEDS = 8,
+};
 
 inline BusState busStateOf(uint8_t eflg) {
   if (eflg & EFLG_TXBO) return BUS_OFF;
@@ -49,6 +62,7 @@ inline BusState busStateOf(uint8_t eflg) {
 //   void     serialWrite(const char* s, uint8_t n);
 //   void     ledActivity();
 //   void     ledState(uint8_t mode, uint8_t busState);
+//   void     step(uint8_t s);               // a Step, kept for the reset report
 template <class Hal>
 class Bridge {
  public:
@@ -58,12 +72,15 @@ class Bridge {
 
   explicit Bridge(Hal& hal) : hal_(hal) {}
 
-  void begin() {
+  // `reset` is the reset report ("reset=warm flags=B step=3 count=2"), added to the "#R" line.
+  void begin(const char* reset = "") {
     startMs_ = hal_.nowMs();
-    char out[48];
+    char out[96];
     uint8_t n = 0;
     n = put(out, n, "#R scana-bridge " SCANA_BRIDGE_VERSION " mcp2515=");
     n = put(out, n, hal_.chipOk() ? "ok" : "missing");
+    if (*reset) out[n++] = ' ';
+    for (uint8_t k = 0; reset[k] && k < 56; k++) out[n++] = reset[k];
     out[n++] = '\r';
     writeAll(out, n);
     hal_.ledState(mode_, BUS_ACTIVE);
@@ -72,12 +89,16 @@ class Bridge {
   // Call as often as possible.
   void poll() {
     uint32_t now = hal_.nowMs();
+    hal_.step(STEP_SERIAL_IN);
     readSerial(now);
     if (mode_ != MODE_CLOSED) {
+      hal_.step(STEP_CAN_RX);
       receiveFrames();
+      hal_.step(STEP_CAN_TX);
       transmit();
       if ((uint32_t)(now - lastStatusMs_) >= 10) {
         lastStatusMs_ = now;
+        hal_.step(STEP_STATUS);
         checkStatus();
       }
       // Read the clock again: handling a command (opening the bus takes about 5 ms) may have
@@ -88,6 +109,7 @@ class Bridge {
         event("HOSTWD");
       }
     }
+    hal_.step(STEP_SERIAL_OUT);
     sendFrames();
   }
 
@@ -141,7 +163,10 @@ class Bridge {
   void writeAll(const char* s, uint8_t n) {
     while (n) {
       uint8_t room = hal_.serialSpace();
-      if (!room) continue;
+      if (!room) {
+        hal_.step(STEP_WRITE_WAIT);
+        continue;
+      }
       uint8_t k = room < n ? room : n;
       hal_.serialWrite(s, k);
       s += k;

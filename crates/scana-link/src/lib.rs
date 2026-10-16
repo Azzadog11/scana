@@ -58,6 +58,8 @@ pub enum LinkEvent {
     BridgeReady {
         version: String,
         chip_ok: bool,
+        /// The bridge's reset report (firmware 0.1.1 and later), else empty.
+        reset: String,
     },
 }
 

@@ -130,6 +130,70 @@ pub enum Event {
     Other(String),
 }
 
+impl Event {
+    /// The event in plain words, for logs.
+    pub fn describe(&self) -> String {
+        match self {
+            Event::BusOff => "bus-off: the CAN controller stopped after too many errors".into(),
+            Event::ErrorPassive => "error-passive: many bus errors".into(),
+            Event::ErrorWarning => "error warning: bus errors are building up".into(),
+            Event::Active => "back to error-active (errors cleared)".into(),
+            Event::RxOverrun(n) => format!("the CAN chip lost received frames ({n} so far)"),
+            Event::TxError => "a frame wasn't acknowledged or hit a bus error".into(),
+            Event::TxArbitration => "a frame lost arbitration and wasn't retried".into(),
+            Event::HostWatchdog => "the bridge's host watchdog closed the bus".into(),
+            Event::Other(s) => format!("bridge event: {s}"),
+        }
+    }
+}
+
+/// The bridge's reset report (the end of its `#R` line, firmware 0.1.1 and later) in plain
+/// words: why it started.
+pub fn describe_reset(report: &str) -> String {
+    let field = |name: &str| report.split_whitespace().find_map(|w| w.strip_prefix(name)).map(str::to_string);
+    let step_name = |s: &str| match s {
+        "1" => "between tasks",
+        "2" => "reading commands from the laptop",
+        "3" => "reading frames from the CAN chip",
+        "4" => "sending a frame",
+        "5" => "checking the bus status",
+        "6" => "passing frames to the laptop",
+        "7" => "waiting to write to the laptop",
+        "8" => "updating the lights",
+        _ => "unknown",
+    };
+    let mut out = match field("reset=").as_deref() {
+        None if report.trim().is_empty() => return "no reset report (firmware before 0.1.1)".into(),
+        None => return report.to_string(),
+        Some("cold") => "it lost power and started from cold: its supply was cut, or dipped very low".to_string(),
+        Some("watchdog") => {
+            let at = field("step=").map_or_else(String::new, |s| format!(", while {}", step_name(&s)));
+            format!("its watchdog restarted it: the firmware stopped for 250 ms{at}")
+        }
+        Some("warm") => "it restarted with its power kept on: its reset pin, a short dip in its supply \
+                         (a brown-out), or electrical noise. Mid-session the port stays open, so not \
+                         the laptop"
+            .to_string(),
+        Some(other) => format!("reset {other}"),
+    };
+    if let Some(flags) = field("flags=") {
+        let named: Vec<&str> = flags
+            .chars()
+            .filter_map(|c| match c {
+                'P' => Some("power-on"),
+                'E' => Some("reset pin"),
+                'B' => Some("brown-out"),
+                'W' => Some("watchdog"),
+                _ => None,
+            })
+            .collect();
+        if !named.is_empty() {
+            out.push_str(&format!("; the chip flagged: {}", named.join(", ")));
+        }
+    }
+    out
+}
+
 /// One thing read from the bridge.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Line {
@@ -148,6 +212,9 @@ pub enum Line {
     Ready {
         version: String,
         chip_ok: bool,
+        /// Why the bridge last reset, as it reports it from firmware 0.1.1
+        /// ("reset=warm step=3 count=1 flags=B"); empty from older firmware.
+        reset: String,
     },
     Identity(String),
     Health(Health),
@@ -302,12 +369,14 @@ fn parse_extension(s: &str) -> Option<Line> {
     };
     match tag {
         "R" => {
-            // "scana-bridge 0.1.0 mcp2515=ok"
+            // "scana-bridge 0.1.0 mcp2515=ok", and from 0.1.1 a reset report after it.
             let mut parts = rest.split_whitespace();
             let _name = parts.next()?;
             let version = parts.next()?.to_string();
-            let chip_ok = parts.any(|p| p == "mcp2515=ok");
-            Some(Line::Ready { version, chip_ok })
+            let others: Vec<&str> = parts.collect();
+            let chip_ok = others.contains(&"mcp2515=ok");
+            let reset = others.iter().filter(|p| !p.starts_with("mcp2515=")).copied().collect::<Vec<_>>().join(" ");
+            Some(Line::Ready { version, chip_ok, reset })
         }
         "I" => Some(Line::Identity(rest.into())),
         "P" => Some(Line::Pong),
@@ -426,7 +495,7 @@ mod tests {
         assert_eq!(parse_line("#T FAIL 4"), Line::SelfTest(Err((4, 0))));
         assert_eq!(
             parse_line("#R scana-bridge 0.1.0 mcp2515=missing"),
-            Line::Ready { version: "0.1.0".into(), chip_ok: false }
+            Line::Ready { version: "0.1.0".into(), chip_ok: false, reset: String::new() }
         );
         assert_eq!(parse_line("#e RXOVR 3"), Line::Event(Event::RxOverrun(3)));
         assert_eq!(parse_line("#e HOSTWD"), Line::Event(Event::HostWatchdog));
@@ -448,7 +517,11 @@ mod tests {
         let mut r = LineReader::new();
         // 0xFF is the byte an Uno sends while it resets.
         let lines = r.push(b"\xff#R scana-bridge 0.1.0 mcp2515=ok\r#I scana");
-        assert_eq!(lines, vec![Line::Ready { version: "0.1.0".into(), chip_ok: true }]);
+        assert_eq!(lines, vec![Line::Ready { version: "0.1.0".into(), chip_ok: true, reset: String::new() }]);
+        assert_eq!(
+            parse_line("#R scana-bridge 0.1.1 mcp2515=ok reset=warm step=3 count=2 flags=B"),
+            Line::Ready { version: "0.1.1".into(), chip_ok: true, reset: "reset=warm step=3 count=2 flags=B".into() }
+        );
         assert_eq!(r.discarded(), 1);
         let lines = r.push(b"-bridge 0.1.0 mcp2515 16MHz\r\x07z\r\r");
         assert_eq!(
@@ -469,5 +542,16 @@ mod tests {
             let parsed = parse_line(line.trim_end_matches('\r'));
             assert_eq!(parsed, Line::Frame { frame: f, bridge_time: None });
         }
+    }
+
+    #[test]
+    fn reset_reports_in_words() {
+        assert!(describe_reset("").contains("before 0.1.1"));
+        assert!(describe_reset("reset=cold").contains("lost power"));
+        let w = describe_reset("reset=watchdog step=7 count=2");
+        assert!(w.contains("watchdog") && w.contains("waiting to write to the laptop"), "{w}");
+        let b = describe_reset("reset=warm step=1 count=3 flags=B");
+        assert!(b.contains("power kept on") && b.ends_with("the chip flagged: brown-out"), "{b}");
+        assert_eq!(describe_reset("something new"), "something new");
     }
 }

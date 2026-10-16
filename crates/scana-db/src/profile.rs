@@ -113,16 +113,24 @@ pub fn builtin() -> &'static [Profile] {
     &BUILTIN
 }
 
-/// The profile whose PID list matches the engine ECU's live PIDs exactly (support masks ignored).
+/// Most PIDs a car's list may differ from a profile's and still match it. A software update,
+/// or a profile first written from a handheld tool's list, can be a PID or two out.
+pub const MATCH_TOLERANCE: usize = 2;
+
+/// The profile whose PID list best matches the engine ECU's live PIDs (support masks ignored):
+/// an exact match, else the closest within [`MATCH_TOLERANCE`] PIDs added or missing.
 pub fn find_match(live_pids: &[u8]) -> Option<&'static Profile> {
-    let mut have: Vec<u8> = live_pids.iter().copied().filter(|p| !p.is_multiple_of(0x20)).collect();
-    have.sort_unstable();
-    have.dedup();
-    BUILTIN.iter().find(|p| {
-        let mut want = p.match_pids.clone();
-        want.sort_unstable();
-        want == have
-    })
+    let have: std::collections::BTreeSet<u8> = live_pids.iter().copied().filter(|p| !p.is_multiple_of(0x20)).collect();
+    BUILTIN
+        .iter()
+        .filter(|p| p.match_pids.len() > 4 * MATCH_TOLERANCE)
+        .map(|p| {
+            let want: std::collections::BTreeSet<u8> = p.match_pids.iter().copied().collect();
+            (want.symmetric_difference(&have).count(), p)
+        })
+        .filter(|(diff, _)| *diff <= MATCH_TOLERANCE)
+        .min_by_key(|(diff, _)| *diff)
+        .map(|(_, p)| p)
 }
 
 #[cfg(test)]
@@ -133,12 +141,18 @@ mod tests {
     fn the_hijet_profile_parses_and_matches() {
         assert_eq!(builtin().len(), 1);
         let p = &builtin()[0];
-        assert_eq!(p.match_pids.len(), 30);
+        assert_eq!(p.match_pids.len(), 31);
         assert_eq!(p.bitrate, 500_000);
         let mut pids = p.match_pids.clone();
         pids.extend([0x00, 0x20, 0x40]);
         assert_eq!(find_match(&pids).map(|x| x.id.as_str()), Some("daihatsu-hijet-s510p-2024"));
         assert!(find_match(&[0x01, 0x0C]).is_none());
+        // Up to two PIDs out still match: the handheld's list (41 extra, 4F and 50 missing) is three.
+        let near: Vec<u8> = p.match_pids.iter().copied().filter(|&x| x != 0x50).chain([0x41]).collect();
+        assert!(find_match(&near).is_some());
+        let handheld: Vec<u8> =
+            p.match_pids.iter().copied().filter(|&x| x != 0x50 && x != 0x4F).chain([0x41]).collect();
+        assert!(find_match(&handheld).is_none());
         assert!(p.note(0x05).unwrap().contains("101"));
         assert_eq!(p.baseline(0x0C), Some("1874 rpm"));
         assert_eq!(p.ecu_name(0x7E8), Some("Engine (ECM)"));

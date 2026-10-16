@@ -300,8 +300,11 @@ impl Receiver {
     pub fn on_frame(&mut self, data: &[u8], now_ms: u64) -> Received {
         match kind_of(data) {
             Some(FrameKind::Single) => {
+                // A single frame doesn't end a long message that is still arriving. ISO 15765-2
+                // says it should, but some ECUs (the Hijet's engine computer, for one) slip a
+                // short answer to another tester (a dash display) into the middle of a long one
+                // on the same ID, then carry on. A long message that really stopped times out.
                 let len = usize::from(data[0] & 0x0F);
-                self.active = false;
                 if len == 0 || len >= self.frame_len || data.len() < 1 + len {
                     return Received::Failed(IsoTpError::Malformed);
                 }
@@ -403,6 +406,23 @@ mod tests {
         assert_eq!(r.on_frame(&frames[1], 1), Received::InProgress);
         assert_eq!(r.on_frame(&frames[2], 2), Received::Complete(msg));
         assert!(!r.is_active());
+    }
+
+    #[test]
+    fn a_short_answer_in_the_middle_does_not_end_a_long_one() {
+        // From a drive: the engine computer answers a dash display's rpm request (04 41 0C ..)
+        // between the first and the consecutive frame of Scana's four-value reply.
+        let mut r = Receiver::new(FlowControl::default(), PAD);
+        assert!(matches!(
+            r.on_frame(&[0x10, 0x0A, 0x41, 0x0C, 0x1D, 0x15, 0x0D, 0x00], 0),
+            Received::SendFlowControl(_)
+        ));
+        assert_eq!(r.on_frame(&[0x03, 0x41, 0x0D, 0x00, 0, 0, 0, 0], 3), Received::Complete(vec![0x41, 0x0D, 0x00]));
+        assert!(r.is_active());
+        assert_eq!(
+            r.on_frame(&[0x21, 0x04, 0x4C, 0x11, 0x30, 0, 0, 0], 4),
+            Received::Complete(vec![0x41, 0x0C, 0x1D, 0x15, 0x0D, 0x00, 0x04, 0x4C, 0x11, 0x30])
+        );
     }
 
     #[test]

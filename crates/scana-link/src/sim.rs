@@ -61,6 +61,14 @@ impl SimLink {
     }
 }
 
+impl SimLink {
+    /// Acts out a bridge restart, for tests: the bus closes and the restart line is waiting.
+    pub fn restart_bridge(&mut self, reset: &str) {
+        self.mode = None;
+        self.queue.push_back(LinkEvent::BridgeReady { version: "0.1.1".into(), chip_ok: true, reset: reset.into() });
+    }
+}
+
 impl Link for SimLink {
     fn describe(&self) -> String {
         format!(

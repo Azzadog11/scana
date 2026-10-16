@@ -128,7 +128,7 @@ impl SlcanLink {
         let deadline = Instant::now() + Duration::from_millis(3000);
         while Instant::now() < deadline {
             match link.events.recv_timeout(Duration::from_millis(50)) {
-                Ok(LinkEvent::BridgeReady { version, chip_ok }) => {
+                Ok(LinkEvent::BridgeReady { version, chip_ok, .. }) => {
                     link.info.version = version;
                     link.info.chip_ok = chip_ok;
                     break;
@@ -347,8 +347,8 @@ fn read_loop(
                             }))
                             .is_ok(),
                         Line::Event(e) => events.send(LinkEvent::Bus(e)).is_ok(),
-                        Line::Ready { version, chip_ok } => {
-                            events.send(LinkEvent::BridgeReady { version, chip_ok }).is_ok()
+                        Line::Ready { version, chip_ok, reset } => {
+                            events.send(LinkEvent::BridgeReady { version, chip_ok, reset }).is_ok()
                         }
                         Line::Unknown(_) => true,
                         reply => replies.send(reply).is_ok(),

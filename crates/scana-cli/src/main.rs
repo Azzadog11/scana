@@ -1012,7 +1012,9 @@ fn monitor(client: &mut Client, bitrate: &str, seconds: Option<u64>) -> Result<(
                 );
             }
             Some(LinkEvent::Bus(e)) => println!("           bus event: {e:?}"),
-            Some(LinkEvent::BridgeReady { .. }) => bail!("the bridge restarted"),
+            Some(LinkEvent::BridgeReady { version, reset, .. }) => {
+                bail!("the bridge restarted, scana-bridge {version}: {}", scana_proto::slcan::describe_reset(&reset))
+            }
             None => {}
         }
     }

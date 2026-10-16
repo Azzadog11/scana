@@ -53,7 +53,19 @@ impl PidReading {
 pub fn read_pids(client: &mut Client, ecu: CanId, wanted: &[u8]) -> Result<Vec<PidReading>, CoreError> {
     let (known, unknown): (Vec<u8>, Vec<u8>) =
         wanted.iter().copied().filter(|p| !pids::is_support_pid(*p)).partition(|p| pids::def(*p).is_some());
-    let mut groups: Vec<Vec<u8>> = known.chunks(obd::MAX_PIDS_PER_REQUEST).map(|c| c.to_vec()).collect();
+    let mut groups: Vec<Vec<u8>> = if client.other_tester_active() {
+        // Another tester is on the bus: keep each reply to one frame, which it can't cut off.
+        let mut groups: Vec<Vec<u8>> = Vec::new();
+        for p in known {
+            match groups.last_mut() {
+                Some(g) if obd::reply_fits_one_frame(&[g.as_slice(), &[p]].concat()) => g.push(p),
+                _ => groups.push(vec![p]),
+            }
+        }
+        groups
+    } else {
+        known.chunks(obd::MAX_PIDS_PER_REQUEST).map(|c| c.to_vec()).collect()
+    };
     groups.extend(unknown.into_iter().map(|p| vec![p]));
     let mut out = Vec::new();
     for group in groups {
@@ -229,15 +241,15 @@ mod tests {
         let (mut c, ecus) = connected(VirtualCar::hijet());
         let pids = supported_pids(&mut c, ecus[0]).unwrap();
         let live: Vec<u8> = pids.iter().copied().filter(|p| !pids::is_support_pid(*p)).collect();
-        assert_eq!(live.len(), 30);
+        assert_eq!(live.len(), 31);
         let readings = read_pids(&mut c, ecus[0], &live).unwrap();
-        assert_eq!(readings.len(), 30);
+        assert_eq!(readings.len(), 31);
         let rpm = readings.iter().find(|r| r.pid == 0x0C).unwrap();
         let v = rpm.decoded.as_ref().unwrap().main().unwrap().value;
         assert!((700.0..2600.0).contains(&v));
         let volts = readings.iter().find(|r| r.pid == 0x42).unwrap();
         assert!((volts.decoded.as_ref().unwrap().main().unwrap().value - 14.28).abs() < 0.1);
-        // 30 PIDs in requests of up to 6 (several PIDs are 2-4 bytes, but all fit in one reply).
+        // 31 PIDs in requests of up to 6 (several PIDs are 2-4 bytes, but all fit in one reply).
         assert!(c.requests_sent < 20);
     }
 

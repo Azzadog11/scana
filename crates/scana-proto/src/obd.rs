@@ -15,6 +15,19 @@ pub const PERMANENT_CODES: u8 = 0x0A;
 /// Most PIDs one service 01 request may ask for on CAN (ISO 15031-5).
 pub const MAX_PIDS_PER_REQUEST: usize = 6;
 
+/// True if the service 01 reply to these PIDs fits in one CAN frame (7 bytes: 0x41, then
+/// each PID and its data). A reply that needs several frames can be cut off by the ECU
+/// when another tester asks something in the middle; a single frame can't. Unknown PIDs
+/// don't fit, as their length is unknown.
+pub fn reply_fits_one_frame(pids: &[u8]) -> bool {
+    let mut bytes = 1;
+    for p in pids {
+        let Some(d) = pids::def(*p) else { return false };
+        bytes += 1 + usize::from(d.len);
+    }
+    bytes <= 7
+}
+
 pub fn service_name(service: u8) -> &'static str {
     match service {
         CURRENT_DATA => "live data",
@@ -129,6 +142,18 @@ pub fn reply_matches(request: &[u8], reply: &Reply) -> bool {
     }
 }
 
+/// True if `reply` (which [`reply_matches`] `request`) holds everything asked for. For a
+/// service 01 request for several PIDs, every PID must be there: a dash display asking for
+/// the first PID alone gets an answer that would otherwise pass for ours.
+pub fn reply_complete(request: &[u8], reply: &Reply) -> bool {
+    match (request, reply) {
+        ([CURRENT_DATA, _, _, ..], Reply::Positive { data, .. }) => {
+            split_current_data(data).is_ok_and(|got| request[1..].iter().all(|p| got.iter().any(|(q, _)| q == p)))
+        }
+        _ => true,
+    }
+}
+
 /// Splits a service 01 reply (after 0x41) into (PID, data) pairs. Needs every PID's
 /// length, so only ask several PIDs at once when all are known (see [`pids::def`]).
 pub fn split_current_data(data: &[u8]) -> Result<Vec<(u8, Vec<u8>)>, ObdError> {
@@ -239,6 +264,18 @@ mod tests {
         let n = parse_reply(&[0x7F, 0x01, 0x31]).unwrap();
         assert_eq!(n, Reply::Negative { service: 0x01, code: 0x31 });
         assert!(reply_matches(&[0x01, 0x64], &n));
+        // A dash display's answer for rpm alone matches a request for rpm and speed, but isn't complete.
+        let several = [0x01, 0x0C, 0x0D];
+        assert!(reply_matches(&several, &r) && !reply_complete(&several, &r));
+        let both = parse_reply(&[0x41, 0x0C, 0x1A, 0xF8, 0x0D, 0x32]).unwrap();
+        assert!(reply_complete(&several, &both));
+        assert!(reply_complete(&[0x01, 0x0C], &r));
+        assert!(reply_complete(&several, &n)); // a refusal answers the whole request
+        assert!(reply_fits_one_frame(&[0x0C, 0x0D])); // 41 0C a b 0D c: 6 bytes
+        assert!(reply_fits_one_frame(&[0x05, 0x0D, 0x04])); // 7 bytes
+        assert!(!reply_fits_one_frame(&[0x0C, 0x0D, 0x05])); // 8 bytes
+        assert!(!reply_fits_one_frame(&[0x0C, 0x4F])); // 4F has 4 bytes: 41 0C a b 4F a b c d is 9
+        assert!(!reply_fits_one_frame(&[0xFE]));
         assert!(reply_matches(&[0x03], &parse_reply(&[0x43, 0x00]).unwrap()));
         assert_eq!(parse_reply(&[]), Err(ObdError::Empty));
         assert!(parse_reply(&[0x7F, 0x01]).is_err());

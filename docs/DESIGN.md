@@ -1,6 +1,6 @@
 # Scana design
 
-How Scana works, as built in version 0.1.0 (stages 1, 2 and 3). Parts marked (draft) are still plans.
+How Scana works, as built in version 0.2.0 (stages 1, 2 and 3, and the diagnosis guides; bridge firmware 0.1.0). Parts marked (draft) are still plans.
 
 | Section | |
 |---|---|

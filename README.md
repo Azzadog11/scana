@@ -11,7 +11,7 @@ It is tuned first for the 2024 Daihatsu Hijet Jumbo (S510P), and works with any 
 
 ## Status
 
-Version 0.1.0. The firmware runs on an Uno R3 with the shield; the app and the command line work end to end on built-in demo cars and talk to the real bridge. Module discovery, module codes and the data explorer (stage 3) work on the simulated modules. Not yet proven on a car: expect rough edges.
+Version 0.2.0 (bridge firmware 0.1.0). The firmware runs on an Uno R3 with the shield; the app and the command line work end to end on built-in demo cars and talk to the real bridge. Module discovery, module codes and the data explorer (stage 3) work on the simulated modules. There are 42 diagnosis guides and about 2,000 code descriptions. Not yet proven on a car: expect rough edges.
 
 ## Hardware
 

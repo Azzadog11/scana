@@ -170,9 +170,8 @@ pub fn describe_reset(report: &str) -> String {
             let at = field("step=").map_or_else(String::new, |s| format!(", while {}", step_name(&s)));
             format!("its watchdog restarted it: the firmware stopped for 250 ms{at}")
         }
-        Some("warm") => "it restarted with its power kept on: its reset pin, a short dip in its supply \
-                         (a brown-out), or electrical noise. Mid-session the port stays open, so not \
-                         the laptop"
+        Some("warm") => "it restarted with its power kept on: its reset pin (opening the port pulses it), a short \
+             dip in its supply (a brown-out), or electrical noise"
             .to_string(),
         Some(other) => format!("reset {other}"),
     };

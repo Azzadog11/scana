@@ -34,17 +34,14 @@ uint8_t watchdogFired __attribute__((section(".noinit")));   // WATCHDOG_MAGIC: 
 uint8_t watchdogStep __attribute__((section(".noinit")));    // the Step that stopped
 volatile uint8_t bridgeStep __attribute__((section(".noinit")));
 uint8_t savedMcusr __attribute__((section(".noinit")));
-uint8_t savedR2 __attribute__((section(".noinit")));
 
 // Runs before the C runtime starts. Keeps the reset flags before anything clears them, and
 // stops the watchdog: after a watchdog reset it stays on at 15 ms and would reset again.
-// The Uno's stock boot loader clears MCUSR first (so it often reads 0 here); newer optiboot
-// versions leave a copy in r2.
+// The Uno's stock boot loader clears MCUSR before the sketch runs, so on a stock Uno this
+// reads 0 and the report has no flags (checked 2026-10-16; r2 held no flags either). The
+// warm magic and the watchdog interrupt below don't depend on it.
 void saveResetFlags() __attribute__((naked, used, section(".init3")));
 void saveResetFlags() {
-  uint8_t r2;
-  __asm__ __volatile__("mov %0, r2" : "=r"(r2));
-  savedR2 = r2;
   savedMcusr = MCUSR;
   MCUSR = 0;
   wdt_disable();
@@ -75,8 +72,8 @@ static char* putNumber(char* p, uint8_t v) {
 //                   brown-out, or noise. Mid-session, with the port open, not the port.
 //   reset=watchdog  the firmware stopped for 250 ms; step= says where.
 //   count=          warm starts since the power came on (opening the port counts too).
-//   flags=          the chip's reset flags when the boot loader left them: P power-on,
-//                   E reset pin, B brown-out, W watchdog.
+//   flags=          the chip's reset flags, only if the boot loader left them (the stock
+//                   Uno's doesn't): P power-on, E reset pin, B brown-out, W watchdog.
 static void resetReport(char* out) {
   bool warm = warmMagic == WARM_MAGIC;
   char* p = out;
@@ -95,8 +92,7 @@ static void resetReport(char* out) {
     p = putText(p, " count=");
     p = putNumber(p, warmCount);
   }
-  // r2 only counts if it looks like reset flags (old boot loaders leave anything there).
-  uint8_t flags = savedMcusr | ((savedR2 && !(savedR2 & 0xF0)) ? savedR2 : 0);
+  uint8_t flags = savedMcusr;
   if (flags & 0x0F) {
     p = putText(p, " flags=");
     if (flags & _BV(PORF)) *p++ = 'P';

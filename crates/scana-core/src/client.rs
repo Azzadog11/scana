@@ -330,8 +330,10 @@ impl Client {
     /// Logs a bridge restart (with its reset report) and returns the error for it.
     pub(crate) fn bridge_restarted(&mut self, version: &str, reset: &str) -> CoreError {
         let why = scana_proto::slcan::describe_reset(reset);
+        // Scana keeps the port open, so a warm restart now didn't come from opening it.
+        let note = if reset.contains("reset=warm") { ". Not the port opening: it was already open" } else { "" };
         let raw = if reset.is_empty() { String::new() } else { format!(" (report: {reset})") };
-        self.note_event(&format!("the bridge restarted, scana-bridge {version}: {why}{raw}"));
+        self.note_event(&format!("the bridge restarted, scana-bridge {version}: {why}{note}{raw}"));
         CoreError::BridgeReset
     }
 

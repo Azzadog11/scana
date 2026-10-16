@@ -48,7 +48,7 @@ The bridge is deliberately simple. The ATmega328P has 2 KB of RAM: enough to buf
 
 ## 3. Bridge firmware
 
-Folder `firmware/scana-bridge/`, version 0.1.1. Arduino sketch, built with arduino-cli for `arduino:avr:uno`: 10,664 bytes of flash (33%), 1,117 bytes of RAM (54%).
+Folder `firmware/scana-bridge/`, version 0.1.1. Arduino sketch, built with arduino-cli for `arduino:avr:uno`: 10,634 bytes of flash (32%), 1,116 bytes of RAM (54%).
 
 | File | Holds |
 |---|---|
@@ -83,7 +83,7 @@ Responsibilities:
 - Self-test on request: SPI register read-back and an internal loopback frame.
 - Host watchdog: when the host enables it, close the bus if no command arrives within the set time. A crashed or unplugged app then leaves the car's bus alone.
 - AVR watchdog at 250 ms: a hung sketch resets, and resets always come back closed. It runs in interrupt-then-reset mode: the interrupt notes which step of the loop stopped, for the reset report.
-- Reset report (0.1.1): the `#R` line says why the bridge started. A few bytes in `.noinit` survive a reset that keeps the power on, so the sketch can tell cold (the power was off) from warm (the reset pin, a brown-out, noise) from the watchdog, and counts warm starts. A function in `.init3` keeps MCUSR before anything clears it; the Uno's stock boot loader clears it first, so the flags are often missing, while newer optiboot versions leave a copy in r2, which the sketch uses when it looks like reset flags.
+- Reset report (0.1.1): the `#R` line says why the bridge started. A few bytes in `.noinit` survive a reset that keeps the power on, so the sketch can tell cold (the power was off) from warm (the reset pin, a brown-out, noise) from the watchdog, and counts warm starts. A function in `.init3` keeps MCUSR before anything clears it, but the Uno's stock boot loader clears it first: on a stock Uno it reads 0 and the report has no flags (checked on a genuine Uno R3, 2026-10-16; r2 held no flags either, so it isn't used). Checked on the same Uno: a hang made on purpose came back as `reset=watchdog step=2`.
 - At power-up, look for the MCP2515 for up to 100 ms (its oscillator starts after the Uno's), and again whenever the host asks to open.
 - Never send a frame on its own. Every frame on the bus comes from a host command.
 
@@ -140,7 +140,7 @@ Scana extensions start with `#`, which Lawicel does not use, so `slcand` never s
 | `#U1`, `#U0` | Microsecond timestamps on received frames (`:` and 8 hex after the data) |
 | `#E1`, `#E0` | Push events: `#e ERRWARN`, `ERRPASSIVE`, `BUSOFF`, `ACTIVE`, `RXOVR n`, `TXERR`, `TXARB`, `HOSTWD` |
 | `#Mmmm,fff` | Standard-ID acceptance filter, only while closed; `#M` accepts everything |
-| `#R` | Ready line, sent once after reset: `#R scana-bridge 0.1.1 mcp2515=ok reset=warm step=1 count=2 flags=B` (`mcp2515=missing` if the chip didn't answer). The reset report: `reset=cold`, `warm` or `watchdog`; `step=` where the loop was (1 between tasks, 2 reading commands, 3 reading frames, 4 sending, 5 bus status, 6 passing frames on, 7 waiting to write, 8 LEDs); `count=` warm starts since power-up (opening the port counts); `flags=` the chip's reset flags when known (P power-on, E reset pin, B brown-out, W watchdog). 0.1.0 sends no report |
+| `#R` | Ready line, sent once after reset: `#R scana-bridge 0.1.1 mcp2515=ok reset=warm step=1 count=2 flags=B` (`mcp2515=missing` if the chip didn't answer). The reset report: `reset=cold`, `warm` or `watchdog`; `step=` where the loop was (1 between tasks, 2 reading commands, 3 reading frames, 4 sending, 5 bus status, 6 passing frames on, 7 waiting to write, 8 LEDs); `count=` warm starts since power-up (opening the port counts); `flags=` the chip's reset flags, only if the boot loader left them, which the stock Uno's doesn't (P power-on, E reset pin, B brown-out, W watchdog). 0.1.0 sends no report |
 
 Every command gets exactly one reply, so replies match commands in order. Malformed or unknown lines get BEL and are counted in `#H`. Bytes outside printable ASCII are ignored (the Uno's USB chip can send one when the port opens), as are line feeds.
 

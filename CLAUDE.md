@@ -62,7 +62,7 @@ Work is done when the gate passes and the screenshots look right.
 - Another tester on the bus (a dash display): the Hijet's engine computer slips single-frame answers to it into Scana's multi-frame replies on the same ID, and sometimes drops Scana's reply. A multi-PID reply must hold every PID asked for, the ISO-TP receiver keeps a long reply going through a single frame, and while another tester is active the poller asks only for what fits a one-frame reply.
 - Each link's clock starts at 0: the recorder rebases after a reconnect, or times in the logs overlap.
 - A bridge restart mid-session shows first as a refused send (BEL: its bus is closed), before the `#R` line is read. The client looks for that line when a send fails, so the reset report gets logged.
-- The Uno's stock boot loader clears MCUSR. Firmware 0.1.1 tells watchdog resets apart with the watchdog interrupt and warm from cold with `.noinit` bytes, not with MCUSR alone.
+- The Uno's stock boot loader clears MCUSR, and r2 holds leftovers, not reset flags (both checked on the Uno). Firmware 0.1.1 tells watchdog resets apart with the watchdog interrupt and warm from cold with `.noinit` bytes.
 - Toyota-family facts come from openpilot's opendbc (MIT) and the toyota-diagnostics README: addresses only, no data copied. Name sources in `addresses.toml`.
 
 ## Style

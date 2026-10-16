@@ -56,6 +56,7 @@ Work is done when the gate passes and the screenshots look right.
 - The MCP2515's oscillator may not run yet when the sketch starts at power-up: look for the chip for up to 100 ms.
 - Detection must log frames it hears while listening (it goes through `Client::note_frame`).
 - egui 0.37 changed its API: the app implements `fn ui(&mut self, ui, frame)`, panels are `egui::Panel::left/right/top/bottom("id").show(ui, ...)`, screenshots are `ViewportCommand::Screenshot(ScreenshotCallback)`. Read the egui source before guessing.
+- Never call a `ctx` method inside a `ctx.input(|i| ...)` closure (or `memory`, `data`, `style`): `input` holds egui's lock, and a second lock freezes the app. Ask first, then read input. The M shortcut did this, and typing "m" anywhere froze 0.3.0.
 - egui_plot 0.37 is built for egui 0.36 (two eguis in the tree, type errors). Scana draws its own charts (`scana-app/src/chart.rs`). Check `cargo tree -i egui` after adding any egui add-on.
 - Inside `horizontal_wrapped` a `Frame`'s contents lay out sideways: give each tile its own `allocate_ui_with_layout(..., Layout::top_down(...))`. Long text in `ui.horizontal` doesn't wrap and widens the page: put it on its own line.
 - Commands that save sessions (`health`, `clear`, `record`) write to the real sessions folder: test them with `XDG_DATA_HOME` (or `record --dir`) pointing at a temporary folder. Screenshot mode keeps its sessions inside its folder and never saves settings.

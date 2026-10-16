@@ -420,12 +420,15 @@ impl ScanaApp {
     }
 
     fn keys(&mut self, ctx: &egui::Context) {
+        // Asked before `input`, never inside it: `input` holds egui's lock, so asking there froze
+        // the app on the first M typed.
+        let typing = ctx.egui_wants_keyboard_input();
         let (f1, rec, health, mark) = ctx.input(|i| {
             (
                 i.key_pressed(egui::Key::F1),
                 i.modifiers.ctrl && i.key_pressed(egui::Key::R),
                 i.modifiers.ctrl && i.key_pressed(egui::Key::H),
-                !i.modifiers.any() && i.key_pressed(egui::Key::M) && !ctx.egui_wants_keyboard_input(),
+                !typing && !i.modifiers.any() && i.key_pressed(egui::Key::M),
             )
         });
         if f1 {
@@ -834,5 +837,53 @@ impl eframe::App for ScanaApp {
         if self.model.connected() || self.model.busy.is_some() || self.shot.is_some() || self.diag_measure.is_some() {
             ctx.request_repaint_after(Duration::from_millis(200));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scana_core::session::WorkerSettings;
+    use std::sync::mpsc;
+
+    /// Typing "m" in the search box froze the app: the M (mark) shortcut asked egui a question
+    /// while holding its lock. Runs on a thread, so a freeze fails the test instead of hanging it.
+    #[test]
+    fn typing_m_in_a_text_box_does_not_freeze() {
+        let (done, wait) = mpsc::channel();
+        std::thread::spawn(move || {
+            let dir = std::env::temp_dir().join(format!("scana-keys-test-{}", std::process::id()));
+            let worker = WorkerSettings { sessions_dir: dir.join("sessions"), auto_record: false };
+            let session = SessionHandle::spawn(worker, || {}).expect("session thread");
+            let mut app = ScanaApp::new(session, Settings::default(), false, dir.join("sessions"), None);
+            app.search_text = "intake ".into();
+            let ctx = egui::Context::default();
+            let key = |pressed| egui::Event::Key {
+                key: egui::Key::M,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            };
+            let frames = [vec![], vec![key(true), egui::Event::Text("m".into()), key(false)], vec![]];
+            for (n, events) in frames.into_iter().enumerate() {
+                let input = egui::RawInput { events, ..Default::default() };
+                let mut out = ctx.run_ui(input, |ui| {
+                    app.keys(ui.ctx());
+                    let r = ui.add(egui::TextEdit::singleline(&mut app.search_text));
+                    if n == 0 {
+                        r.request_focus();
+                    }
+                });
+                out.textures_delta.clear();
+            }
+            // And with nothing focused: the key is a shortcut, still no freeze.
+            ctx.memory_mut(|m| m.stop_text_input());
+            let input = egui::RawInput { events: vec![key(true), key(false)], ..Default::default() };
+            ctx.run_ui(input, |ui| app.keys(ui.ctx())).textures_delta.clear();
+            let _ = done.send(app.search_text.clone());
+        });
+        let typed = wait.recv_timeout(Duration::from_secs(20)).expect("the app froze on the M key");
+        assert_eq!(typed, "intake m");
     }
 }

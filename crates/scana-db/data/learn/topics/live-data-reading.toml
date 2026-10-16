@@ -332,9 +332,12 @@ body = [
   "Relative throttle (PID 45) is shown from the learned closed position, so it reads 0 % when closed. Absolute throttle (PID 11, 47) is the raw sensor reading on its own scale, so it reads above 0 % when closed.",
 ]
 how_to_read = [
-  "Closed throttle at warm idle: older guides say about 0 %. Modern electronic throttles usually do not show 0 %: one guide gives about 3 to 10 %, and another lists 0 to 5 % for relative throttle. The raw sensor value on its own scale is often higher.",
-  "Wide open: about 90 to 100 % on the percent reading.",
-  "The pedal has two sensors that agree in a fixed way. On many designs sensor 2 reads about half of sensor 1 (in volts), but makers differ, so scan tools usually show both as matching percent of pedal travel.",
+  "Absolute throttle and pedal readings (PIDs 11, 47, 49, 4A) are a percent of the sensor's 5 V supply, not of the throttle's travel. A sensor never sends 0 V or 5 V, so these readings never run from 0 to 100 %.",
+  "Closed throttle: usually about 10 to 20 %. Toyota gives 10 to 22 % for its first throttle sensor. The engine computer sets the idle speed with the throttle, so the idle reading is a little higher on a cold engine.",
+  "Wide open: usually well under 100 %. Toyota gives 64 to 96 % on one engine and 66 to 98 % on another; a scan app maker says 80 to 90 % is common. Some guides call less than 90 % a fault: that rule is for a learned reading on some scan tools, not for these values.",
+  "Relative throttle (PID 45) starts from the learned closed position, so it reads about 0 % at idle. Fully open it can still read well under 100 %: Toyota's own learned opening reads 50 to 80 % fully open.",
+  "Your own car is the best guide. Note its closed and wide-open readings while it runs well (Scana's recordings keep them), and look for a change.",
+  "The pedal has two sensors that agree in a fixed way. Released, Toyota's first pedal sensor reads 10 to 22 % and its second 24 to 40 %; on other designs one reads about half the other. Makers differ, so watch that a pair moves together, not that the numbers match.",
   "Commanded throttle and actual throttle should track each other within a few percent. A gap means a sticking or dirty throttle body or a motor fault.",
   "Move the pedal slowly through its range: readings should rise smoothly with no jumps or dropouts. A jump is a worn track.",
   "If the two sensors of a pair stop agreeing, the computer sets a code and usually goes into limp mode.",
@@ -346,6 +349,9 @@ sources = [
   "Skanyx, 'OBD2 Live Data: Parameters, Normal Ranges, Reading Guide' (read 2026-10-16)",
   "Wikipedia, 'Throttle position sensor' (read 2026-10-16)",
   "Wikipedia, 'OBD-II PIDs', PIDs 11, 45, 47 to 4C (read 2026-10-16; no formulas for 48 to 4C)",
+  "Dauntless Devices, 'Why Doesn't Throttle Position Sensor (TPS) Show Full 0-100%?' (2023; read 2026-10-16)",
+  "Toyota repair manual, 1GR-FE EFI system (from August 2004), DTC P0120, page 05-266: throttle sensor 10 to 20 % closed, 64 to 96 % fully open (read 2026-10-16)",
+  "Toyota RAV4 repair manual, 2AZ-FE SFI system data list, pages ES-48 and ES-49: throttle and pedal sensor ranges, and the learned opening (read 2026-10-16)",
 ]
 
 [[topic]]

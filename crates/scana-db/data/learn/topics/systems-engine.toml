@@ -252,9 +252,9 @@ body = [
   "If the sensors disagree, or the motor fails, the computer sets a code. It cuts the motor signal, and springs hold the throttle at a fast idle. It may also light a throttle warning lamp.",
 ]
 how_to_read = [
-  "Throttle position and pedal position are in Live data. At idle the throttle should read 0 percent or a couple of degrees. More than 5 percent open at idle suggests a problem. Some cars hold a learned idle opening, so check the maker's figure.",
-  "At wide open throttle the reading should reach close to 100 percent. Less than about 90 percent suggests a problem.",
-  "Pedal percent and throttle percent should rise together. A big difference can mean a sticky throttle or a limited power mode.",
+  "Throttle position and pedal position are in Live data. Most readings are a percent of the sensor's 5 V supply, so they don't run from 0 to 100 %: a closed throttle often reads 10 to 20 %, and wide open well under 100 % (Toyota gives 64 to 98 %).",
+  "The computer sets the idle speed with the throttle itself, so the idle reading moves a little: higher on a cold engine's fast idle.",
+  "Pedal and throttle should rise together, but not by the same amount: the computer shapes the response. To find a sticking throttle, compare commanded throttle (PID 4C) with the actual throttle reading.",
 ]
 parts = [
   "Pedal assembly: two position sensors that track the foot.",
@@ -276,6 +276,8 @@ related = ["position-sensors", "air-intake", "actuators", "throttle-pedal", "eng
 sources = [
   "Wikipedia, 'Electronic throttle control' (read 2026-10-16)",
   "aa1car.com, 'Basics of Engine Throttle Position Sensors' (read 2026-10-16)",
+  "Toyota repair manual, 1GR-FE EFI system (from August 2004), DTC P0120, page 05-266: throttle sensor 10 to 20 % closed, 64 to 96 % fully open (read 2026-10-16)",
+  "Toyota RAV4 repair manual, 2AZ-FE SFI system data list, pages ES-48 and ES-49: throttle and pedal sensor ranges, and the learned opening (read 2026-10-16)",
 ]
 
 [[topic]]
@@ -677,8 +679,8 @@ body = [
   "Drive-by-wire cars use two sensors or tracks for the pedal and for the throttle. The computer compares them, so a single fault is spotted.",
 ]
 how_to_read = [
-  "Throttle position at idle should read 0 percent or a couple of degrees. More than 5 percent open at idle suggests a problem.",
-  "At wide open throttle the reading should reach 100 percent. Less than about 90 percent suggests a problem.",
+  "The sensor never sends 0 V or the full 5 V, so a reading shown as a percent of 5 V never runs from 0 to 100 %. Toyota gives 10 to 22 % closed and 64 to 98 % fully open for its throttle sensor; other makes are similar.",
+  "What shows a fault is how the reading moves, not its end values: a jump, a dead spot, or a change from your car's usual closed and wide-open readings.",
   "If Scana shows two pedal values (D and E, or A and B), they should rise together as you move the pedal, smoothly and with no jumps.",
 ]
 parts = [
@@ -701,6 +703,9 @@ sources = [
   "aa1car.com, 'Basics of Engine Throttle Position Sensors' (read 2026-10-16)",
   "Wikipedia, 'Electronic throttle control' (read 2026-10-16)",
   "Wikipedia, 'Hall-effect sensor' (read 2026-10-16)",
+  "Dauntless Devices, 'Why Doesn't Throttle Position Sensor (TPS) Show Full 0-100%?' (2023; read 2026-10-16)",
+  "Toyota repair manual, 1GR-FE EFI system (from August 2004), DTC P0120, page 05-266: throttle sensor 10 to 20 % closed, 64 to 96 % fully open (read 2026-10-16)",
+  "Toyota RAV4 repair manual, 2AZ-FE SFI system data list, pages ES-48 and ES-49: throttle and pedal sensor ranges, and the learned opening (read 2026-10-16)",
 ]
 
 [[topic]]

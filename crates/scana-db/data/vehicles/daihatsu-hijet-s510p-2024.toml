@@ -38,7 +38,7 @@ text = "About 815 rpm at a warm idle (three drives, 2026-10-16); higher for the 
 
 [[note]]
 pid = 0x11
-text = "Reads about 18 % with the throttle closed (2026-10-10 scan)."
+text = "About 14.5 % at a warm idle and about 16 % on a cold fast idle (three drives, 2026-10-16); 18 % at the cold 2026-10-10 scan. Highest 80.8 %: it rises to that and holds flat as the revs climb, so that is as far as this truck's throttle opens. Normal for a reading on the sensor's 5 V scale."
 
 [[note]]
 pid = 0x10

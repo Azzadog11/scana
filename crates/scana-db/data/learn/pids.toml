@@ -17,7 +17,7 @@ read_with = "Fuel trims only correct the mixture in closed loop."
 [[pid]]
 id = 0x04
 what = "How hard the engine is working, as a share of the most air it could take in at this speed."
-normal = "About 20-35 % at a warm idle on a small engine; near 100 % at full throttle."
+normal = "About 20-35 % at a warm idle on a small engine; about 75-100 % at full throttle."
 read_with = "Engine speed and throttle position."
 
 [[pid]]
@@ -75,7 +75,7 @@ read_with = "Engine load. A dirty MAF sensor reads low and makes the engine run 
 [[pid]]
 id = 0x11
 what = "Throttle opening as the throttle sensor reads it."
-normal = "A closed throttle doesn't read 0 %: many engines read 10-20 % at idle."
+normal = "A percent of the sensor's 5 V supply, so it never runs from 0 to 100 %. Many engines read 10-20 % closed and well under 100 % wide open (Toyota: 64-98 %). Learn your car's own figures."
 
 [[pid]]
 id = 0x13
@@ -133,7 +133,7 @@ read_with = "Engine speed: low voltage at idle that rises with revs points to a 
 [[pid]]
 id = 0x45
 what = "Throttle position relative to its learned closed position."
-normal = "Near 0 % at idle."
+normal = "Near 0 % at idle. Wide open can still read well under 100 %."
 
 [[pid]]
 id = 0x46
@@ -142,16 +142,19 @@ what = "Outside air temperature."
 [[pid]]
 id = 0x47
 what = "The second throttle position sensor. Electronic throttles have two, so the engine computer can check one against the other."
+normal = "Reads differently from the first sensor on purpose. Toyota's second throttle sensor reads 42-62 % closed and 92-100 % fully open."
 read_with = "Throttle position (PID 11): the two move together."
 
 [[pid]]
 id = 0x49
 what = "Accelerator pedal position, first sensor (D)."
-read_with = "Pedal position E: the two pedal sensors move together, often one at half the other's value."
+normal = "Above 0 % with the foot off. Toyota's first pedal sensor reads 10-22 % released and 52-90 % pressed to the floor (key on, engine off)."
+read_with = "Pedal position E: the two pedal sensors move together by a fixed rule (one higher than the other, or one at half the other, depending on the maker)."
 
 [[pid]]
 id = 0x4A
 what = "Accelerator pedal position, second sensor (E)."
+normal = "Toyota's second pedal sensor reads 24-40 % released and 68-100 % pressed to the floor (key on, engine off)."
 read_with = "Pedal position D."
 
 [[pid]]

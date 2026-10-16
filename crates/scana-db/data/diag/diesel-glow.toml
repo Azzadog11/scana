@@ -1,0 +1,122 @@
+# Diagnosis guide: diesel glow plugs (P0380 to P0384, P0670 to P0684). Written for Scana
+# (2026-10-16). General guidance: check the maker's workshop manual.
+
+id = "diesel-glow"
+title = "Diesel glow plug fault"
+codes = ["P0380-P0384", "P0670-P0684"]
+summary = "The engine computer found a fault in a diesel engine's glow plug system: P0670 the glow plug module's control circuit, P0671 to P0682 a glow plug for one cylinder (P0671 is cylinder 1), P0380 to P0384 the glow plug circuit and its indicator, P0683 and P0684 the module's communication. Expect hard starting in cold weather and white smoke until it warms up."
+how_it_works = [
+  "A diesel ignites its fuel by compression heat alone. In cold weather, glow plugs heat each cylinder before and just after starting.",
+  "A glow plug relay or control module powers the plugs; the computer controls it and often checks each plug's current.",
+  "A burnt-out plug, a failed module or a loose wire on a plug leaves that cylinder cold.",
+]
+terms = ["ECU"]
+safety = [
+  "Glow plugs get red hot and draw a lot of current: engine off and the key out before touching them or their wires.",
+  "Glow plugs can seize in the head: removing them is a careful job (a snapped plug means removing the head on some engines).",
+]
+sources = [
+  "SAE J2012 code structure: P0380 to P0384 glow plug/heater circuit and indicator; P0670 glow plug module control circuit; P0671 to P0682 cylinder 1 to 12 glow plug circuits; P0683, P0684 module communication (descriptions in Scana's own words)",
+]
+
+[[cause]]
+id = "plug"
+name = "A burnt-out glow plug"
+detail = "Glow plugs wear out and go open circuit, one at a time."
+weight = 45
+fix = "Replace the faulty glow plug (often all of them, if they are old). Take care: they can seize."
+cost = "medium"
+
+[[cause]]
+id = "module"
+name = "A failed glow plug relay or control module"
+detail = "The relay's contacts burn, or the module fails: all plugs stay cold."
+weight = 25
+fix = "Replace the relay or module."
+cost = "medium"
+
+[[cause]]
+id = "wiring"
+name = "A loose wire or a bad plug"
+detail = "The wire or the bus bar on a glow plug loosens or corrodes."
+weight = 25
+fix = "Clean and tighten the connection; repair the wiring."
+cost = "low"
+
+[[cause]]
+id = "computer"
+name = "The engine computer's control"
+detail = "Rare."
+weight = 5
+fix = "Check after everything else."
+cost = "high"
+
+[[test]]
+id = "how-many"
+title = "One cylinder, or the whole system?"
+why = "One cylinder points to that plug or its wire; the module code or all cylinders to the module."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0670", "P0380-P0384", "P0683", "P0684"]
+result = "system"
+[[test.auto.group]]
+patterns = ["P0671-P0682"]
+result = "one"
+[[test.result]]
+id = "one"
+text = "A cylinder's glow plug circuit (P0671 to P0682)"
+effect = { plug = 2, wiring = 1, module = -1 }
+[[test.result]]
+id = "system"
+text = "The module or the whole system"
+effect = { module = 3, wiring = 1 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "cold-start"
+title = "How does it start in the cold?"
+why = "Hard cold starts with white smoke mean cylinders aren't being heated."
+steps = ["After a cold night, note how long it cranks and whether it runs rough with white smoke at first."]
+[[test.result]]
+id = "hard"
+text = "Hard to start, rough, white smoke when cold"
+effect = { module = 1, plug = 1 }
+[[test.result]]
+id = "fine"
+text = "Starts normally"
+effect = { plug = 1, module = -1 }
+
+[[test]]
+id = "connections"
+title = "Look at the glow plug connections"
+why = "A loose nut or a corroded bus bar on a plug is cheap to fix."
+steps = ["Engine off, key out. Look at the wire or bus bar on each glow plug for looseness and corrosion."]
+[[test.result]]
+id = "bad"
+text = "Loose or corroded"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All tight and clean"
+effect = { wiring = -1 }
+
+[[test]]
+id = "ohms"
+title = "Measure each glow plug"
+why = "An open plug reads no continuity; good ones read a low resistance, often under about 2 ohms (check the workshop manual)."
+needs = ["multimeter"]
+steps = ["Engine off, key out. Disconnect each plug's wire and measure from the plug's terminal to the engine block."]
+[[test.result]]
+id = "open"
+text = "One or more read open"
+effect = { plug = 4 }
+[[test.result]]
+id = "ok"
+text = "All read alike and low"
+effect = { plug = -2, module = 1, wiring = 1 }

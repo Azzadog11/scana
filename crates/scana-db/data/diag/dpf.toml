@@ -1,0 +1,156 @@
+# Diagnosis guide: diesel particulate filter (P2002, P2003, P242F, P2452 to P2459, P2463).
+# Written for Scana (2026-10-16) from the sources below.
+
+id = "dpf"
+title = "Diesel particulate filter (DPF) blocked or faulty"
+codes = ["P2002", "P2003", "P242F", "P2452-P2459", "P2463"]
+summary = "A diesel's particulate filter has filled with soot (P2463), isn't filtering well (P2002), or its pressure sensor has a fault (P2452 to P2455). P2458 and P2459 are about regeneration. The most common cause is driving that never gets the exhaust hot enough to burn the soot off: short trips and town driving. Check the pressure sensor and its hoses before blaming the filter."
+how_it_works = [
+  "The filter in the exhaust traps soot. To clear it, the engine computer burns the soot off now and then (regeneration): the exhaust must reach about 600 °C for several minutes, which needs a steady drive at highway speed.",
+  "A pressure sensor measures the pressure drop across the filter. A high drop means a full filter; a very low one with lots of soot calculated means a cracked filter or a sensor fault.",
+  "Short trips, idling, or turning the engine off during a regeneration leave soot behind. Ash from engine oil builds up over years and can't be burnt off.",
+  "Engine faults that make extra soot (EGR, turbo, injectors) fill the filter faster.",
+]
+terms = ["EGR", "Turbocharger"]
+safety = [
+  "During regeneration the exhaust gets extremely hot: don't park over dry grass or leaves, and don't touch the exhaust.",
+  "A forced regeneration needs a capable tool and an outdoor, clear space. Follow the maker's procedure.",
+  "Removing or emptying a particulate filter is illegal on road vehicles in Australia and many other places.",
+]
+sources = [
+  "'P2463 Code: DPF Soot Accumulation', foxwelldiag.com, and go-parts.com model guides (regeneration needs about 600 °C at highway speed; short trips cause build-up) (read 2026-10-16)",
+  "'OBD-II Code P2002: Diesel Particulate Filter Efficiency Below Threshold', go-parts.com (cracked filter: high soot mass with very low pressure difference) (read 2026-10-16)",
+  "'P2453: DPF Pressure Sensor A Circuit Range/Performance', carfaultcodes.co.uk, and 'DPF Pressure Sensors Explained', finishlineremaps.co.uk (check the sensor and hoses first; key on engine off reads near zero) (read 2026-10-16)",
+]
+related = ["egr", "boost"]
+
+[[cause]]
+id = "driving"
+name = "Short trips: the filter never gets hot enough to clear"
+detail = "Town driving, short trips and idling fill the filter faster than regeneration can clear it."
+weight = 35
+fix = "Drive for 20 to 30 minutes at a steady highway speed (as the owner's manual says) to let it regenerate; a workshop can force a regeneration."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "The pressure sensor or its hoses"
+detail = "A cracked, blocked or swapped sensor hose, or a faulty sensor, gives a wrong reading."
+weight = 25
+fix = "Replace cracked or blocked hoses, check they are on the right pipes, or replace the sensor (some need a reset after)."
+cost = "low"
+
+[[cause]]
+id = "extra-soot"
+name = "An engine fault making extra soot"
+detail = "A faulty EGR valve, a boost leak, a worn injector or a blocked air filter makes much more soot."
+weight = 20
+fix = "Fix the engine fault first (check for other codes)."
+cost = "medium"
+
+[[cause]]
+id = "ash"
+name = "The filter is full of ash, or cracked"
+detail = "Ash builds up over many years and can't be burnt off; a filter can crack from overheating."
+weight = 20
+fix = "Have the filter professionally cleaned, or replaced."
+cost = "high"
+
+[[test]]
+id = "code-type"
+title = "Soot, efficiency, or sensor?"
+why = "Sensor codes point to the sensor and hoses; soot codes to driving or extra soot; efficiency to a cracked filter or a sensor."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0400-P0409", "P0299", "P0087", "P0201-P0212"]
+result = "engine"
+[[test.auto.group]]
+patterns = ["P2452-P2457"]
+result = "sensor"
+[[test.auto.group]]
+patterns = ["P2463", "P242F", "P2458", "P2459"]
+result = "soot"
+[[test.auto.group]]
+patterns = ["P2002", "P2003"]
+result = "efficiency"
+[[test.result]]
+id = "soot"
+text = "Soot build-up or regeneration codes (P2463, P242F, P2458, P2459)"
+effect = { driving = 2, extra-soot = 1 }
+[[test.result]]
+id = "efficiency"
+text = "Filter efficiency (P2002, P2003)"
+effect = { ash = 2, sensor = 2, driving = -1 }
+[[test.result]]
+id = "sensor"
+text = "Pressure sensor codes (P2452 to P2457)"
+effect = { sensor = 4 }
+[[test.result]]
+id = "engine"
+text = "EGR, boost, fuel or injector codes too"
+effect = { extra-soot = 4 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "trips"
+title = "How is the car usually driven?"
+why = "Short trips are the main cause of a full filter."
+steps = ["Think about the last few weeks: mostly short trips and town driving, or regular highway runs?"]
+[[test.result]]
+id = "short"
+text = "Mostly short trips or town driving"
+effect = { driving = 3 }
+[[test.result]]
+id = "highway"
+text = "Regular highway drives"
+effect = { driving = -2, extra-soot = 1, sensor = 1 }
+
+[[test]]
+id = "hoses"
+title = "Look at the pressure sensor's hoses"
+why = "Cracked, blocked or swapped hoses give false readings."
+steps = ["Engine cool. Follow the two small hoses from the pressure sensor to the pipes before and after the filter: cracks, splits, melted spots, soot plugs, or loose ends?"]
+safety = ["The exhaust stays hot a long time: let it cool."]
+[[test.result]]
+id = "bad"
+text = "Cracked, blocked, loose or swapped"
+effect = { sensor = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { sensor = -1 }
+
+[[test]]
+id = "tailpipe"
+title = "Look inside the tailpipe"
+why = "A tailpipe black with soot on a car with a particulate filter suggests a cracked filter."
+steps = ["Wipe a finger inside the tailpipe (cold)."]
+[[test.result]]
+id = "black"
+text = "Heavy black soot"
+effect = { ash = 3 }
+[[test.result]]
+id = "clean"
+text = "Fairly clean"
+effect = { ash = -1 }
+
+[[test]]
+id = "drive-test"
+title = "Try a regeneration drive"
+why = "If a long steady drive clears it, the driving pattern was the cause."
+steps = ["Drive for 20 to 30 minutes at a steady highway speed in a suitable gear (as the owner's manual says), without stopping the engine. Then read the codes again."]
+safety = ["Drive legally and safely; don't stop the engine part way if a regeneration light shows."]
+[[test.result]]
+id = "cleared"
+text = "The light went out or the code stayed away"
+effect = { driving = 4 }
+[[test.result]]
+id = "stays"
+text = "No change"
+effect = { driving = -2, ash = 1, sensor = 1 }

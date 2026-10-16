@@ -38,7 +38,29 @@ pub enum DiagWait {
 impl ScanaApp {
     /// Starts a diagnosis for a code (from the Codes page, the Learn panel, or typed).
     pub fn start_diagnosis(&mut self, code: Dtc) {
-        match Diagnosis::for_code(code) {
+        let make = self.model.profile().and_then(|p| p.make.as_deref());
+        let found = match Diagnosis::for_code_make(code, make) {
+            Some(d) => Some(d),
+            None => {
+                // A maker-specific number: offer the guide it means on the makes that use it.
+                let hints = diag::maker_hints(code);
+                if let Some((_, g)) = hints.first() {
+                    let makes: Vec<&str> = hints.iter().map(|(m, _)| *m).collect();
+                    self.model.banner(
+                        format!(
+                            "{code} is a maker-specific number. On {} it means: {}. Check it means the same on this car.",
+                            makes.join(", "),
+                            g.title
+                        ),
+                        false,
+                    );
+                    Some(Diagnosis::new(g, Some(code)))
+                } else {
+                    None
+                }
+            }
+        };
+        match found {
             Some(d) => {
                 self.cancel_measure();
                 self.diag = Some(d);
@@ -245,8 +267,9 @@ impl ScanaApp {
                 if !codes.is_empty() {
                     ui.add_space(10.0);
                     ui.label(RichText::new("This car:").color(pal.dim));
+                    let make = self.model.profile().and_then(|p| p.make.as_deref());
                     for c in codes {
-                        let has = diag::guide_for(c).is_some();
+                        let has = diag::guide_for_make(c, make).is_some() || !diag::maker_hints(c).is_empty();
                         let b = egui::Button::new(RichText::new(c.to_string()).monospace());
                         if ui.add_enabled(has, b).on_disabled_hover_text("No guide for this code yet").clicked() {
                             start = Some(c);

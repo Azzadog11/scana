@@ -74,7 +74,15 @@ pub fn family_of_vin(vin: &str) -> Option<&'static str> {
     let wmi: String = vin.chars().take(3).collect::<String>().to_ascii_uppercase();
     // Toyota (JT, 2T, 4T, 5T, MR0, NMT, SB1, VNK), Lexus (JTH, 2T2), Daihatsu (JDA, MHK).
     let toyota = ["JT", "2T", "4T", "5T", "MR0", "NMT", "SB1", "VNK", "JDA", "MHK"];
-    toyota.iter().any(|p| wmi.starts_with(p)).then_some("toyota")
+    // GM brands, including Holden (6G1, 6H8).
+    let gm = ["1G", "2G", "3G", "KL", "6G1", "6H8"];
+    if toyota.iter().any(|p| wmi.starts_with(p)) {
+        Some("toyota")
+    } else if gm.iter().any(|p| wmi.starts_with(p)) {
+        Some("gm")
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

@@ -99,7 +99,8 @@ impl ScanaApp {
                     if ui.link("What's a freeze frame?").clicked() {
                         self.topic = Some(Topic::Term("Freeze frame".into()));
                     }
-                    if let Some(g) = scana_db::diag::guide_for(code) {
+                    let make = self.model.profile().and_then(|p| p.make.as_deref());
+                    if let Some(g) = scana_db::diag::guide_for_make(code, make) {
                         ui.add_space(4.0);
                         if ui
                             .button(RichText::new(format!("Diagnose {code} step by step")).strong())
@@ -107,6 +108,14 @@ impl ScanaApp {
                             .clicked()
                         {
                             self.start_diagnosis(code);
+                        }
+                    } else {
+                        for (m, g) in scana_db::diag::maker_hints(code) {
+                            ui.add_space(4.0);
+                            ui.label(RichText::new(format!("On {m}, {code} means: {}.", g.title)).color(pal.note));
+                            if ui.button("Open that guide").clicked() {
+                                self.start_diagnosis(code);
+                            }
                         }
                     }
                 }

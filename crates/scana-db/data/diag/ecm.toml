@@ -1,0 +1,167 @@
+# Diagnosis guide: engine computer internal faults and sensor supply circuits (P0600 to
+# P0610, P060A to P062F, P0630, P0641 to P0699). Written for Scana (2026-10-16).
+
+id = "ecm"
+title = "Engine computer internal fault or sensor supply fault"
+codes = ["P0600-P0610", "P060A-P062F", "P0630", "P0641-P0699"]
+summary = "The engine computer reported a fault inside itself (memory, processor, programming: P0601 to P0607, P060A to P062F), lost contact with a part of itself (P0600), has no VIN programmed (P0630), or found a fault on a supply it gives to sensors (the 5 V references, P0641 to P0653; P0697 to P0699). Most often the real cause is outside the computer: low battery voltage, a poor ground, water in a plug, or a sensor shorting the shared 5 V supply. Replacing the computer is the last resort."
+how_it_works = [
+  "The engine computer checks its own memory and processor as it runs. A fault there, or a battery that dropped too low while it was writing to memory, sets an internal code.",
+  "It also feeds several sensors from one regulated 5 V supply (reference A, B, C...). If one sensor or its wire shorts to ground, the supply drops and every sensor on it reads wrongly.",
+  "P0603 (memory reset) often follows a battery disconnection and may not come back.",
+  "A new or second-hand computer usually needs programming to the car (VIN, immobiliser, options) by a dealer or specialist.",
+]
+terms = ["ECU", "Reflash"]
+fix_first = ["P0560-P0563"]
+safety = [
+  "Disconnect the battery before unplugging the engine computer, as the workshop manual says.",
+  "Never jump start with the cables reversed or let the voltage spike: it can damage computers.",
+]
+sources = [
+  "SAE J2012 code structure: P0600 to P0610 and P060A to P062F control module internal; P0630 VIN not programmed; P0641 to P0653 sensor reference voltages; P0697 to P0699 (descriptions in Scana's own words)",
+  "Low voltage and grounds as causes of module codes: charging and network guide sources (obd-codes.com P0562; apextechnation.com U0100) (read 2026-10-16)",
+]
+related = ["charging", "network"]
+
+[[cause]]
+id = "power"
+name = "Low battery voltage or a poor ground"
+detail = "A weak battery, a voltage dip during cranking, or a poor engine computer ground upsets the computer and sets internal codes."
+weight = 30
+fix = "Load-test the battery; clean the computer's grounds and the battery terminals; clear the codes and see if they return."
+cost = "low"
+
+[[cause]]
+id = "sensor-short"
+name = "A sensor or wire shorting the 5 V supply"
+detail = "For reference voltage codes (P0641 to P0653, P0697 to P0699): one shorted sensor or chafed wire pulls the shared supply down."
+weight = 25
+fix = "Unplug the sensors on that supply one at a time (key on, watching the supply voltage or the codes) to find the one shorting it; repair it."
+cost = "low"
+
+[[cause]]
+id = "water"
+name = "Water or corrosion in the computer's plug"
+detail = "Water from a leaking seal or a flood corrodes the computer's plugs or gets inside."
+weight = 15
+fix = "Dry and clean the plugs; fix the water leak; replace the computer if water got inside."
+cost = "medium"
+
+[[cause]]
+id = "software"
+name = "Software that needs an update or reprogramming"
+detail = "Some internal codes are cured by new software from the maker, or appear after a failed update."
+weight = 15
+fix = "Ask a dealer whether an update or bulletin exists; have it reprogrammed."
+cost = "medium"
+
+[[cause]]
+id = "computer"
+name = "A failed engine computer"
+detail = "The computer itself fails, often after water, heat or a voltage spike."
+weight = 15
+fix = "Repair or replace the computer, programmed to the car by a dealer or specialist."
+cost = "high"
+
+[[test]]
+id = "code-type"
+title = "Internal code, or a sensor supply code?"
+why = "Sensor supply codes usually mean a shorted sensor or wire, not the computer."
+needs = ["scan-tool"]
+steps = ["Read all stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0562", "P0563"]
+result = "voltage"
+[[test.auto.group]]
+patterns = ["P0641-P0653", "P0697-P0699"]
+result = "reference"
+[[test.auto.group]]
+patterns = ["P0603"]
+result = "reset"
+[[test.auto.group]]
+patterns = ["P0600-P0610", "P060A-P062F", "P0630"]
+result = "internal"
+[[test.result]]
+id = "reference"
+text = "Sensor supply codes (P0641 to P0653, P0697 to P0699)"
+effect = { sensor-short = 4, computer = -1 }
+[[test.result]]
+id = "reset"
+text = "Memory reset (P0603), often after the battery was disconnected"
+effect = { power = 3 }
+note = "Clear it and see if it returns. If the battery was just disconnected, it often won't."
+[[test.result]]
+id = "internal"
+text = "Other internal codes"
+effect = { computer = 1, software = 1, power = 1 }
+[[test.result]]
+id = "voltage"
+text = "System voltage codes too"
+effect = { power = 4 }
+goto = "charging"
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "battery"
+title = "Check the battery and recent battery work"
+why = "Low voltage and battery disconnections cause many of these codes."
+steps = ["Has the battery been flat, jump started, disconnected or replaced recently? Does it crank strongly?"]
+[[test.result]]
+id = "yes"
+text = "Yes, or it is weak"
+effect = { power = 3 }
+[[test.result]]
+id = "no"
+text = "No, and it is strong"
+effect = { power = -2 }
+
+[[test]]
+id = "several-sensors"
+title = "Do several sensors read wrongly at once?"
+why = "Several sensors wrong at the same moment point to their shared 5 V supply."
+needs = ["scan-tool"]
+steps = ["Key on, engine off: look at throttle position, manifold pressure, and other sensor values. Are several stuck at odd values together?"]
+[[test.result]]
+id = "yes"
+text = "Several are wrong together"
+effect = { sensor-short = 3 }
+[[test.result]]
+id = "no"
+text = "They all look sensible"
+effect = { sensor-short = -1 }
+
+[[test]]
+id = "water"
+title = "Any sign of water near the computer?"
+why = "Water in the computer's plugs is a common cause after leaks or floods."
+steps = ["Find the engine computer (the workshop manual shows where). Look for water marks, a wet floor or carpet nearby, or green corrosion at its plugs."]
+[[test.result]]
+id = "wet"
+text = "Water marks or corrosion"
+effect = { water = 4 }
+[[test.result]]
+id = "dry"
+text = "Dry and clean"
+effect = { water = -2 }
+
+[[test]]
+id = "dealer"
+title = "Ask about software updates"
+why = "Some internal codes are fixed by new software."
+steps = ["Ask a dealer for the brand to check the VIN for engine computer updates or bulletins."]
+[[test.result]]
+id = "yes"
+text = "An update exists"
+effect = { software = 4 }
+[[test.result]]
+id = "no"
+text = "None"
+effect = { software = -2 }
+[[test.result]]
+id = "unknown"
+text = "Not asked"

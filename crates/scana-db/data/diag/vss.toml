@@ -1,0 +1,138 @@
+# Diagnosis guide: vehicle speed sensor (P0500 to P0503). Written for Scana (2026-10-16).
+
+id = "vss"
+title = "Vehicle speed signal fault"
+codes = ["P0500-P0503"]
+summary = "The engine computer isn't getting a believable road speed signal. P0500 means no or a wrong signal; P0501 a reading that doesn't fit; P0502 a low signal; P0503 an intermittent or erratic one. The speedometer may stop or jump, the gearbox may shift oddly, and cruise control may not work. On many newer cars the speed comes from the ABS wheel sensors."
+how_it_works = [
+  "Older cars have a speed sensor on the gearbox output; newer ones work out road speed from the ABS wheel speed sensors and share it over the network.",
+  "The engine computer uses road speed for idle control, fuel cut-off, the radiator fan and gear shifting.",
+  "If the speed stays at zero while the engine works hard, or jumps about, the computer stores a code.",
+]
+terms = ["CAN"]
+fix_first = ["U0121", "U0122", "U0129"]
+safety = [
+  "A speedometer that reads wrong or zero makes it easy to speed: drive with extra care until it is fixed.",
+  "Raise the car only on stands, never on a jack alone, if you need to look under it.",
+]
+sources = [
+  "SAE J2012 code structure: P0500 vehicle speed sensor, P0501 range/performance, P0502 circuit low, P0503 intermittent or erratic (descriptions in Scana's own words)",
+  "Wheel speed sensors feed road speed on many newer cars: 'Wheel Speed Sensors', brakeandfrontend.com (read 2026-10-16)",
+]
+related = ["abs-wheel-speed", "network"]
+
+[[cause]]
+id = "sensor"
+name = "A failed speed sensor"
+detail = "The gearbox speed sensor (or a wheel speed sensor, where road speed comes from the ABS) fails or reads weakly."
+weight = 30
+fix = "Replace the sensor; check its tip for metal dust and its air gap."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "The sensor's plug near the gearbox or wheel gets wet, corrodes or is damaged."
+weight = 30
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "abs"
+name = "An ABS fault, where road speed comes from the ABS"
+detail = "A wheel speed sensor fault or an ABS module fault leaves the engine computer without road speed. Check for ABS codes and the ABS light."
+weight = 20
+fix = "Fix the ABS fault first (see the ABS wheel speed guide)."
+cost = "medium"
+
+[[cause]]
+id = "drive"
+name = "A damaged drive gear or trigger ring"
+detail = "On gearbox sensors driven by a gear, the plastic gear can strip; a damaged trigger ring gives a missing or erratic signal."
+weight = 10
+fix = "Replace the drive gear or the trigger ring."
+cost = "medium"
+
+[[cause]]
+id = "network"
+name = "A network fault between modules"
+detail = "Where the speed is shared over the network, a lost-communication fault cuts it off."
+weight = 10
+fix = "Follow the network guide."
+cost = "medium"
+
+[[test]]
+id = "other-codes"
+title = "Look for ABS and network codes"
+why = "If road speed comes from the ABS, ABS or network codes point to the cause."
+needs = ["scan-tool"]
+steps = ["Read codes from the engine computer, the ABS and the other modules (Scana's Modules page finds them)."]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["U0100-U0199"]
+result = "network"
+[[test.result]]
+id = "none"
+text = "No ABS or network codes"
+effect = { abs = -2, network = -2 }
+[[test.result]]
+id = "abs"
+text = "ABS or wheel speed codes, or the ABS light is on"
+effect = { abs = 4 }
+goto = "abs-wheel-speed"
+[[test.result]]
+id = "network"
+text = "Network (U-) codes"
+effect = { network = 4 }
+goto = "network"
+
+[[test]]
+id = "speedo"
+title = "What does the speedometer do?"
+why = "A dead speedometer points to the sensor or its signal; a jumping one to wiring or the trigger ring."
+steps = ["Drive slowly where safe and watch the speedometer."]
+[[test.result]]
+id = "dead"
+text = "Stays at zero"
+effect = { sensor = 2, wiring = 2, drive = 1 }
+[[test.result]]
+id = "jumps"
+text = "Jumps about or drops out"
+effect = { wiring = 2, drive = 2 }
+[[test.result]]
+id = "fine"
+text = "Works normally"
+effect = { sensor = -1, network = 1 }
+
+[[test]]
+id = "live-speed"
+title = "Watch road speed on the scan tool while driving"
+why = "Shows whether the engine computer's speed reading drops out or is wrong compared with the speedometer."
+needs = ["scan-tool"]
+steps = ["With a passenger reading the laptop, drive at steady speeds and compare the scan tool's vehicle speed with the speedometer."]
+safety = ["The driver doesn't read the laptop: a passenger does."]
+[[test.result]]
+id = "drops"
+text = "It drops to zero or jumps"
+effect = { wiring = 2, sensor = 2 }
+[[test.result]]
+id = "matches"
+text = "It matches the speedometer"
+effect = { sensor = -2, wiring = -1 }
+
+[[test]]
+id = "plug"
+title = "Look at the speed sensor's plug"
+why = "Plugs near the gearbox and wheels get road spray and corrode."
+steps = ["Find the speed sensor (on the gearbox, or at a wheel) and check its plug and wiring for corrosion, damage and a firm lock."]
+safety = ["Support the car on stands if you go underneath."]
+[[test.result]]
+id = "bad"
+text = "Corroded, loose or damaged"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }

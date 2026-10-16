@@ -98,7 +98,7 @@ impl ScanaApp {
             }
             let kind = if info.manufacturer_specific { "maker-specific" } else { "generic" };
             ui.label(RichText::new(kind).small().color(self.pal().dim));
-            if scana_db::diag::guide_for(code).is_some()
+            if scana_db::diag::guide_for_make(code, self.model.profile().and_then(|p| p.make.as_deref())).is_some()
                 && ui.small_button("Diagnose").on_hover_text("Work through the likely causes step by step").clicked()
             {
                 diagnose = true;

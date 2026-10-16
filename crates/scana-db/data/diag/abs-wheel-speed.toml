@@ -1,0 +1,196 @@
+# Diagnosis guide: ABS wheel speed sensors. Their code numbers differ by make, so this guide
+# lists them per make (maker_codes) instead of as generic codes. Written for Scana
+# (2026-10-16) from the sources below.
+
+id = "abs-wheel-speed"
+title = "ABS wheel speed sensor fault"
+codes = []
+summary = "The brake computer (ABS) lost or doubts the speed signal from a wheel. The ABS and traction control lights come on and those systems switch off; normal braking still works. The code numbers depend on the make: on Toyotas C0200 to C0215 (C1235 to C1239 for dirt on the sensor tip); on cars using GM's numbering C0035 to C0050. The usual causes are a damaged wire or plug at the wheel, dirt or rust on the sensor, a damaged tone ring, or a failed sensor."
+how_it_works = [
+  "Each wheel has a sensor facing a toothed ring (the tone ring) that turns with the wheel. The ABS computer counts the teeth to work out each wheel's speed.",
+  "Older sensors make their own small AC voltage (two wires, often about 1,000 to 2,500 ohms); newer active sensors get power from the ABS and send pulses.",
+  "The sensors live behind the wheels in water, mud and heat, and their wires flex with the suspension, so wires and plugs fail often.",
+  "The gap between the sensor and the ring matters: rust building up under the sensor, or metal dust on its magnetic tip, weakens the signal.",
+]
+terms = ["ECU"]
+safety = [
+  "With the ABS light on, normal brakes still work but the wheels can lock in a hard stop: leave more distance, especially in the wet.",
+  "If the red brake warning light is on too, check the brake fluid and get the brakes checked before driving.",
+  "Support the car on stands, never a jack alone, when working at a wheel.",
+]
+sources = [
+  "Toyota C0200 to C0215 (right front, left front, right rear, left rear) and C1235 to C1239 (foreign matter on the sensor tip), with the detection conditions: Toyota repair manual extracts (toyotamanuals.gitlab.io, tsienna.net) and go-parts.com 'C0200' (read 2026-10-16)",
+  "GM-numbered C0035 to C0050 wheel speed circuits, and that SAE generic definitions differ: repairpal.com 'C0040', go-parts.com 'C0040', repairsadvisor.com C-code list (read 2026-10-16)",
+  "Air gap about 0.4 to 1.3 mm, passive sensors about 1,000 to 2,500 ohms and 50 to 700 mV AC when turned by hand: 'Wheel Speed Sensors', brakeandfrontend.com, and autodtcs.com wheel speed sensor test guide (read 2026-10-16)",
+]
+related = ["vss"]
+
+[[maker_codes]]
+make = "Toyota"
+codes = ["C0200-C0215", "C1235-C1239", "C1272-C1278"]
+
+[[maker_codes]]
+make = "GM numbering"
+codes = ["C0035-C0050"]
+
+[[cause]]
+id = "wiring"
+name = "A damaged wire or plug at the wheel"
+detail = "The sensor wire flexes with the suspension, gets hit by stones and corrodes at the plug."
+weight = 35
+fix = "Repair the wire or plug, and clip the wire back into its holders."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "A failed wheel speed sensor"
+detail = "The sensor fails inside, or cracks from rust lifting it."
+weight = 30
+fix = "Replace the sensor; clean its mounting hole first."
+cost = "low"
+
+[[cause]]
+id = "dirt-gap"
+name = "Dirt, metal dust or rust on the sensor or under it"
+detail = "Metal dust stuck to the magnetic tip, or rust pushing the sensor away from the ring, weakens the signal (Toyota C1235 to C1239)."
+weight = 15
+fix = "Remove the sensor, clean its tip and its hole, and refit it."
+cost = "low"
+
+[[cause]]
+id = "tone-ring"
+name = "A damaged or rusted tone ring, or a worn wheel bearing"
+detail = "A cracked or rust-swollen ring, or a worn bearing that lets the ring wobble, gives an erratic signal. On some cars the ring is part of the bearing or the drive shaft."
+weight = 15
+fix = "Replace the tone ring, the bearing or the drive shaft it is part of."
+cost = "medium"
+
+[[cause]]
+id = "abs-unit"
+name = "The ABS computer, or its power supply"
+detail = "Codes for several wheels at once point to the ABS computer's power or ground, or the unit itself."
+weight = 5
+fix = "Check the ABS fuses and grounds; repair or replace the ABS unit after that."
+cost = "high"
+
+[[test]]
+id = "how-many"
+title = "One wheel, or several?"
+why = "One wheel points to that wheel's sensor, wire or ring; several at once to the ABS computer's power or ground."
+needs = ["scan-tool"]
+steps = ["Read the ABS computer's codes (Scana: Find modules, then the brake module). Note which wheels they name."]
+[[test.result]]
+id = "one"
+text = "One wheel"
+effect = { abs-unit = -2 }
+[[test.result]]
+id = "several"
+text = "Several wheels at once"
+effect = { abs-unit = 4, wiring = -1, sensor = -2 }
+
+[[test]]
+id = "kind"
+title = "Signal missing, or signal erratic?"
+why = "A missing signal points to the wire, plug or sensor; an erratic one to the ring, the gap or the bearing."
+steps = ["Read the code's description (or its failure type): open, short or no signal, versus erratic, noise or foreign matter."]
+[[test.result]]
+id = "missing"
+text = "Open, short, or no signal"
+effect = { wiring = 2, sensor = 2, tone-ring = -1 }
+[[test.result]]
+id = "erratic"
+text = "Erratic, noisy, or foreign matter on the tip"
+effect = { dirt-gap = 3, tone-ring = 2 }
+[[test.result]]
+id = "unknown"
+text = "Not clear"
+
+[[test]]
+id = "wire-look"
+title = "Look at the sensor's wire and plug at the wheel"
+why = "Damaged wires and corroded plugs are the most common cause."
+steps = [
+  "Turn the steering to full lock (for a front wheel) or look behind the rear wheel.",
+  "Follow the sensor wire from the sensor to its plug: cuts, chafing, a wire hanging loose, a corroded or loose plug.",
+]
+safety = ["Support the car on stands if you raise it."]
+[[test.result]]
+id = "damaged"
+text = "Damaged wire or a bad plug"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "Looks good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "recent-work"
+title = "Any recent work at that wheel?"
+why = "Brake, bearing or suspension work often leaves a sensor wire pinched, a plug loose or the sensor damaged."
+steps = ["Think back: new brakes, a wheel bearing, suspension parts or a drive shaft at that wheel?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { wiring = 2, sensor = 1, tone-ring = 1 }
+[[test.result]]
+id = "no"
+text = "No"
+
+[[test]]
+id = "swap"
+title = "Swap the front sensors left and right (where they are the same part)"
+why = "If the code moves to the other side, the sensor is faulty."
+steps = ["On cars where the left and right sensors are the same part, swap them. Clear the codes, drive above about 20 km/h, and read the codes again."]
+[[test.result]]
+id = "follows"
+text = "The code moved to the other side"
+effect = { sensor = 4 }
+[[test.result]]
+id = "stays"
+text = "It stayed on the same wheel"
+effect = { sensor = -3, wiring = 1, tone-ring = 1, dirt-gap = 1 }
+[[test.result]]
+id = "na"
+text = "Not possible on this car"
+
+[[test]]
+id = "clean"
+title = "Remove and clean the sensor"
+why = "Metal dust on the tip or rust under the sensor is a cheap fix."
+steps = [
+  "Remove the sensor's bolt and ease the sensor out (rust can make it stick: don't force it).",
+  "Wipe the tip, clean rust from its hole, look at the tone ring for cracks, rust or missing teeth, and refit.",
+]
+[[test.result]]
+id = "dirty"
+text = "Metal dust or rust found, and cleaned"
+effect = { dirt-gap = 4 }
+[[test.result]]
+id = "ring"
+text = "The tone ring is cracked, rusty or damaged"
+effect = { tone-ring = 4 }
+[[test.result]]
+id = "clean"
+text = "Clean, ring good"
+effect = { dirt-gap = -2, tone-ring = -2 }
+
+[[test]]
+id = "ohms"
+title = "Measure a two-wire sensor"
+why = "A passive sensor reads a few thousand ohms; open or near zero means it has failed."
+needs = ["multimeter"]
+steps = [
+  "Unplug the sensor and measure across its two pins (two-wire sensors only).",
+  "Compare with the workshop manual (often about 1,000 to 2,500 ohms) and with the same sensor on the other side.",
+]
+[[test.result]]
+id = "bad"
+text = "Open, near zero, or very different from the other side"
+effect = { sensor = 4 }
+[[test.result]]
+id = "ok"
+text = "Like the other side"
+effect = { sensor = -2, wiring = 1 }
+[[test.result]]
+id = "active"
+text = "It is a three-wire (active) sensor: this test doesn't apply"

@@ -42,6 +42,18 @@ pub struct Guide {
     /// What is known for particular makes and models.
     #[serde(default)]
     pub note: Vec<MakeNote>,
+    /// Maker-specific code numbers this guide covers on particular makes (for example a
+    /// Toyota's C0200 is a wheel speed sensor; the same number means something else elsewhere).
+    #[serde(default)]
+    pub maker_codes: Vec<MakerCodes>,
+}
+
+/// Code numbers that mean this guide's fault on one make (and its diagnostic family).
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct MakerCodes {
+    /// "Toyota", or "GM numbering" for the many makes that use GM's chassis numbers.
+    pub make: String,
+    pub codes: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
@@ -255,6 +267,17 @@ const FILES: &[(&str, &str)] = &[
     ("boost", include_str!("../data/diag/boost.toml")),
     ("transmission", include_str!("../data/diag/transmission.toml")),
     ("network", include_str!("../data/diag/network.toml")),
+    ("vss", include_str!("../data/diag/vss.toml")),
+    ("fuel-level", include_str!("../data/diag/fuel-level.toml")),
+    ("fan", include_str!("../data/diag/fan.toml")),
+    ("ecm", include_str!("../data/diag/ecm.toml")),
+    ("oil-pressure", include_str!("../data/diag/oil-pressure.toml")),
+    ("brake-switch", include_str!("../data/diag/brake-switch.toml")),
+    ("ac-pressure", include_str!("../data/diag/ac-pressure.toml")),
+    ("diesel-glow", include_str!("../data/diag/diesel-glow.toml")),
+    ("dpf", include_str!("../data/diag/dpf.toml")),
+    ("abs-wheel-speed", include_str!("../data/diag/abs-wheel-speed.toml")),
+    ("airbag", include_str!("../data/diag/airbag.toml")),
 ];
 
 static GUIDES: LazyLock<Vec<Guide>> =
@@ -293,6 +316,42 @@ pub fn code_matches(pattern: &str, code: Dtc) -> bool {
 /// The guide for a code, if Scana has one.
 pub fn guide_for(code: Dtc) -> Option<&'static Guide> {
     GUIDES.iter().find(|g| g.codes.iter().any(|p| code_matches(p, code)))
+}
+
+/// True if a guide's maker entry applies to a make: the same name, or the same diagnostic
+/// family ("Daihatsu" and "Toyota").
+fn make_applies(entry: &str, make: &str) -> bool {
+    if entry.eq_ignore_ascii_case(make) {
+        return true;
+    }
+    match (crate::modules::family_of_make(entry), crate::modules::family_of_make(make)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
+}
+
+/// The guide for a code on a known make: the generic guide, or a guide that lists the code
+/// as that make's own.
+pub fn guide_for_make(code: Dtc, make: Option<&str>) -> Option<&'static Guide> {
+    guide_for(code).or_else(|| {
+        let make = make?;
+        GUIDES.iter().find(|g| {
+            g.maker_codes.iter().any(|m| make_applies(&m.make, make) && m.codes.iter().any(|p| code_matches(p, code)))
+        })
+    })
+}
+
+/// Guides that cover a code on some make: (make, guide), for "on a Toyota this code means...".
+pub fn maker_hints(code: Dtc) -> Vec<(&'static str, &'static Guide)> {
+    let mut out = Vec::new();
+    for g in GUIDES.iter() {
+        for m in &g.maker_codes {
+            if m.codes.iter().any(|p| code_matches(p, code)) {
+                out.push((m.make.as_str(), g));
+            }
+        }
+    }
+    out
 }
 
 /// Guides whose title, codes or summary contain every word of `query` (any case).
@@ -405,6 +464,11 @@ mod tests {
             for rel in &g.related {
                 assert!(guide(rel).is_some(), "{}: related guide {rel} missing", g.id);
             }
+            for m in &g.maker_codes {
+                for c in &m.codes {
+                    assert!(Dtc::parse(c.split('-').next().unwrap_or("")).is_some(), "{}: bad maker code {c}", g.id);
+                }
+            }
             let all_text = format!("{g:?}");
             assert!(no_dashes(&all_text), "{}: has an em or en dash", g.id);
         }
@@ -421,6 +485,22 @@ mod tests {
         assert!(code_matches("P0420", Dtc(0x0420)));
         assert_eq!(guide_for(Dtc(0x0420)).map(|g| g.id.as_str()), Some("catalyst"));
         assert_eq!(search("P0420").len(), 1);
+        // Maker-specific numbers: a Toyota's C0200 is a wheel speed sensor; on an unknown
+        // make Scana only hints.
+        assert_eq!(guide_for(Dtc::parse("C0200").unwrap()), None);
+        let abs = guide_for_make(Dtc::parse("C0200").unwrap(), Some("Toyota")).map(|g| g.id.as_str());
+        assert_eq!(abs, Some("abs-wheel-speed"));
+        assert_eq!(
+            guide_for_make(Dtc::parse("C0200").unwrap(), Some("Daihatsu")).map(|g| g.id.as_str()),
+            Some("abs-wheel-speed")
+        );
+        assert_eq!(guide_for_make(Dtc::parse("C0200").unwrap(), Some("Holden")), None);
+        assert_eq!(
+            guide_for_make(Dtc::parse("C0040").unwrap(), Some("Holden")).map(|g| g.id.as_str()),
+            Some("abs-wheel-speed")
+        );
+        assert_eq!(maker_hints(Dtc::parse("C0040").unwrap()).len(), 1);
+        assert!(!search("wheel speed").is_empty());
         assert!(!search("catalytic").is_empty());
         assert!(search("").is_empty());
     }

@@ -1,0 +1,153 @@
+# Diagnosis guide: airbag (SRS) warning light. Mostly safety and checks without tools: airbag
+# circuits must not be probed. Written for Scana (2026-10-16). General guidance only.
+
+id = "airbag"
+title = "Airbag (SRS) warning light"
+codes = ["B0001-B0099"]
+summary = "The airbag computer found a fault in the airbags, seat belt pretensioners or their sensors, and switched on the airbag (SRS) light. While it is on, an airbag may not deploy in a crash. B0001 to B0099 are the generic restraint codes; most makers also use their own B1xxx codes. Common causes are a loose plug under a front seat, the clock spring in the steering wheel, a seat belt buckle sensor, or low battery voltage. Airbag work is dangerous: this guide only uses checks that don't touch airbag circuits."
+how_it_works = [
+  "The airbag computer checks every airbag, pretensioner and crash sensor circuit each time the car starts.",
+  "If a circuit's resistance is wrong (a loose plug, a broken wire), it stores a code and turns on the light. The system may then not deploy that airbag, or any.",
+  "The steering wheel's airbag connects through a clock spring: a coiled ribbon cable that can wear and break. Horn, cruise or audio buttons on the wheel that stop working are a sign.",
+  "Plugs under the front seats (seat airbags, belt pretensioners, seat sensors) are often knocked loose when seats are moved, cleaned or removed.",
+]
+terms = ["ECU"]
+safety = [
+  "Never probe, measure or test airbag circuits or connectors with a meter or test light: it can set off an airbag and cause serious injury.",
+  "Before any airbag work, a technician disconnects the battery and waits the time the workshop manual gives (often several minutes) for the system to discharge.",
+  "Never put anything over the airbag covers, and keep the steering wheel airbag pointing away from you when it is out of the car.",
+  "Airbag repairs and replacement are a job for a qualified technician.",
+]
+sources = [
+  "SAE J2012 code structure: B0001 to B0099 are generic restraint system codes (descriptions in Scana's own words); makers add B1xxx codes",
+  "Airbag safety practice (disconnect the battery and wait; never probe airbag circuits): general workshop practice and the multimeter and test light tool notes in Scana's tool list",
+]
+
+[[cause]]
+id = "seat-plug"
+name = "A loose plug under a front seat"
+detail = "Seat airbag, pretensioner and occupant sensor plugs under the seats get knocked or pulled when seats move or are cleaned."
+weight = 30
+fix = "With the battery disconnected and the waiting time passed, a technician reseats the plug firmly and clears the code."
+cost = "low"
+
+[[cause]]
+id = "clock-spring"
+name = "A worn clock spring in the steering wheel"
+detail = "The coiled cable that connects the steering wheel airbag and buttons wears and breaks."
+weight = 25
+fix = "A technician replaces the clock spring (centred correctly)."
+cost = "medium"
+
+[[cause]]
+id = "buckle"
+name = "A seat belt buckle or pretensioner fault"
+detail = "Buckle switches and pretensioner circuits fail or their wiring breaks."
+weight = 15
+fix = "A technician replaces the buckle or pretensioner."
+cost = "medium"
+
+[[cause]]
+id = "voltage"
+name = "Low battery voltage, or an old code after battery work"
+detail = "A weak battery or battery work can leave an airbag code behind."
+weight = 10
+fix = "Charge or replace the battery; a technician clears the code (many airbag computers need a scan tool to clear)."
+cost = "low"
+
+[[cause]]
+id = "occupant"
+name = "The passenger seat occupant sensor"
+detail = "The sensor that tells the computer whether the passenger seat is occupied fails, or reads wrongly with objects on the seat."
+weight = 10
+fix = "A technician checks and replaces the occupant sensor."
+cost = "medium"
+
+[[cause]]
+id = "crash"
+name = "Crash damage, or a module that stored a crash"
+detail = "After a crash (even without deployment), the computer may store a crash code and need replacing or resetting."
+weight = 10
+fix = "A technician inspects the system and replaces what the workshop manual requires."
+cost = "high"
+
+[[test]]
+id = "codes"
+title = "Read the airbag computer's codes"
+why = "The code names the circuit."
+needs = ["scan-tool"]
+steps = ["Read codes from the airbag computer (Scana: Find modules, then the airbag module). Write them down with their status."]
+[[test.result]]
+id = "seat"
+text = "A seat airbag, pretensioner or seat sensor circuit"
+effect = { seat-plug = 3, buckle = 1, occupant = 1 }
+[[test.result]]
+id = "driver"
+text = "The driver's (steering wheel) airbag circuit"
+effect = { clock-spring = 4 }
+[[test.result]]
+id = "voltage"
+text = "A voltage code"
+effect = { voltage = 4 }
+[[test.result]]
+id = "crash"
+text = "A crash recorded"
+effect = { crash = 4 }
+[[test.result]]
+id = "other"
+text = "Something else, or can't read it"
+
+[[test]]
+id = "wheel-buttons"
+title = "Do the steering wheel buttons and horn work?"
+why = "Buttons that stopped working point to the clock spring."
+steps = ["Try the horn, and the cruise and audio buttons on the steering wheel."]
+[[test.result]]
+id = "dead"
+text = "Some stopped working"
+effect = { clock-spring = 4 }
+[[test.result]]
+id = "fine"
+text = "All work"
+effect = { clock-spring = -1 }
+
+[[test]]
+id = "seats-moved"
+title = "Were the front seats moved, removed or cleaned under?"
+why = "Plugs under the seats get knocked loose."
+steps = ["Think back: seats removed, carpets cleaned, things stored under the seats, seats slid fully back or forward?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { seat-plug = 3 }
+[[test.result]]
+id = "no"
+text = "No"
+effect = { seat-plug = -1 }
+
+[[test]]
+id = "battery"
+title = "Battery trouble recently?"
+why = "Low voltage or battery work can leave an airbag code behind."
+steps = ["Has the battery been flat, jump started, disconnected or replaced recently?"]
+[[test.result]]
+id = "yes"
+text = "Yes"
+effect = { voltage = 3 }
+[[test.result]]
+id = "no"
+text = "No"
+effect = { voltage = -1 }
+
+[[test]]
+id = "passenger-seat"
+title = "Anything on the passenger seat?"
+why = "Bags or child seats on the passenger seat can confuse the occupant sensor."
+steps = ["Note whether the light comes on with something on the passenger seat, and whether the passenger airbag indicator behaves oddly."]
+[[test.result]]
+id = "yes"
+text = "It changes with what is on the seat"
+effect = { occupant = 3 }
+[[test.result]]
+id = "no"
+text = "No link"

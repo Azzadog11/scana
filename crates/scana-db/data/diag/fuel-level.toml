@@ -1,0 +1,117 @@
+# Diagnosis guide: fuel level sensor (P0460 to P0464). Written for Scana (2026-10-16).
+
+id = "fuel-level"
+title = "Fuel level sensor fault"
+codes = ["P0460-P0464"]
+summary = "The engine computer doesn't trust the fuel level reading. P0461 means it doesn't fit (for example it doesn't drop as fuel is used), P0462 a low signal, P0463 a high signal, P0464 an erratic one. The fuel gauge may stick, jump or read empty. It matters to the computer because some tests (for example the fuel vapour leak test) only run at certain fuel levels."
+how_it_works = [
+  "A float in the tank moves a sliding contact along a resistor (the sender), usually part of the fuel pump module.",
+  "The resistance changes with the level; the instrument cluster or the computer reads it.",
+  "Worn tracks on the sender give jumps and dead spots; a broken wire reads empty or full.",
+]
+terms = ["Fuel pump", "EVAP"]
+safety = [
+  "Fuel vapour burns easily: no sparks or flames when working near the tank or the pump module.",
+  "Getting to the sender usually means opening the fuel tank: a workshop job on most cars.",
+]
+sources = [
+  "SAE J2012 code structure: P0460 fuel level sensor circuit, P0461 range/performance, P0462 low, P0463 high, P0464 intermittent (descriptions in Scana's own words)",
+  "Fuel level matters to the EVAP monitor: EVAP guide sources (apextechnation.com) (read 2026-10-16)",
+]
+related = ["evap-leak"]
+
+[[cause]]
+id = "sender"
+name = "A worn fuel level sender"
+detail = "The sliding contact wears the resistor track: the gauge sticks, jumps or reads wrongly at certain levels."
+weight = 45
+fix = "Replace the sender (often with the fuel pump module)."
+cost = "medium"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "The plug on top of the tank or the wiring to it corrodes or breaks."
+weight = 30
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "float"
+name = "A stuck or damaged float"
+detail = "The float arm sticks, bends, or the float fills with fuel and sinks."
+weight = 15
+fix = "Replace the sender assembly."
+cost = "medium"
+
+[[cause]]
+id = "cluster"
+name = "The instrument cluster or a module reading it"
+detail = "Rare: the cluster or module that reads the sender."
+weight = 10
+fix = "Check after the sender and wiring tests pass."
+cost = "high"
+
+[[test]]
+id = "code-type"
+title = "Which code?"
+why = "High and low point to an open or a short; performance and erratic to a worn sender."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0462", "P0463"]
+result = "circuit"
+[[test.auto.group]]
+patterns = ["P0461", "P0464"]
+result = "erratic"
+[[test.result]]
+id = "circuit"
+text = "Low or high signal (P0462, P0463)"
+effect = { wiring = 2, sender = 1 }
+[[test.result]]
+id = "erratic"
+text = "Performance or erratic (P0461, P0464)"
+effect = { sender = 2, float = 1 }
+[[test.result]]
+id = "other"
+text = "P0460 or none of these"
+
+[[test]]
+id = "gauge"
+title = "What does the fuel gauge do?"
+why = "A gauge that sticks at one place points to the float; one that jumps to a worn track; one stuck empty or full to wiring."
+steps = ["Watch the gauge over a few days and after filling up."]
+[[test.result]]
+id = "stuck"
+text = "Sticks at one level, even after filling"
+effect = { float = 3, sender = 1 }
+[[test.result]]
+id = "jumps"
+text = "Jumps about, or wrong at some levels"
+effect = { sender = 3 }
+[[test.result]]
+id = "extreme"
+text = "Always empty, or always full"
+effect = { wiring = 3 }
+[[test.result]]
+id = "fine"
+text = "Works normally"
+effect = { cluster = 1, wiring = 1 }
+
+[[test]]
+id = "plug"
+title = "Look at the plug on the tank"
+why = "The plug on top of the tank or pump module sits under the car or under a seat and can corrode."
+steps = ["Find the fuel pump module's plug (under the rear seat or the car, per the workshop manual) and check it for corrosion and a firm lock."]
+safety = ["No sparks or flames near the tank."]
+[[test.result]]
+id = "bad"
+text = "Corroded or loose"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }

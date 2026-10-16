@@ -71,6 +71,11 @@ impl Diagnosis {
         diag::guide_for(code).map(|g| Diagnosis::new(g, Some(code)))
     }
 
+    /// The guide for a code on a known make: generic, or the make's own code numbers.
+    pub fn for_code_make(code: Dtc, make: Option<&str>) -> Option<Self> {
+        diag::guide_for_make(code, make).map(|g| Diagnosis::new(g, Some(code)))
+    }
+
     pub fn test(&self, id: &str) -> Option<&'static Test> {
         self.guide.test.iter().find(|t| t.id == id)
     }

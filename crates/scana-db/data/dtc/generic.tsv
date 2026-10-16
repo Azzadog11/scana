@@ -348,10 +348,10 @@ P2237	Oxygen sensor positive current control circuit open (bank 1 sensor 1)
 P2270	Oxygen sensor stuck lean (bank 1 sensor 2)
 P2271	Oxygen sensor stuck rich (bank 1 sensor 2)
 P2610	Engine computer internal engine-off timer performance
-C0035	Left front wheel speed sensor circuit
-C0040	Right front wheel speed sensor circuit
-C0045	Left rear wheel speed sensor circuit
-C0050	Right rear wheel speed sensor circuit
+C0035	On cars that use GM's chassis numbers: left front wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
+C0040	On cars that use GM's chassis numbers: right front wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
+C0045	On cars that use GM's chassis numbers: left rear wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
+C0050	On cars that use GM's chassis numbers: right rear wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
 U0001	High-speed CAN communication bus
 U0073	Module communication bus A off
 U0100	Lost communication with the engine computer (ECM/PCM A)

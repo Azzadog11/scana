@@ -1,0 +1,107 @@
+# Diagnosis guide: brake pedal switch (P0571 to P0573, P0504). Written for Scana (2026-10-16).
+
+id = "brake-switch"
+title = "Brake pedal switch fault"
+codes = ["P0571-P0573", "P0504"]
+summary = "The engine computer doesn't trust the brake pedal switch. P0504 means the switch's two signals disagree; P0571 to P0573 that its circuit doesn't make sense, reads low or reads high. Signs: brake lights stuck on or not working, cruise control that won't set, or a car that won't shift out of park. Check the brake lights first: they matter for safety."
+how_it_works = [
+  "A switch at the top of the brake pedal turns on the brake lights and tells the computers the brake is pressed.",
+  "Many switches have two circuits: one for the lights, one for the computers. The engine computer checks they agree.",
+  "The engine computer uses it to cancel cruise control, and the gearbox uses it for the shift lock.",
+]
+terms = ["ECU"]
+safety = [
+  "Check the brake lights work before driving: other drivers rely on them.",
+  "Brake light bulbs and their fuse are part of this circuit: a blown fuse can also stop the horn or other items on the same fuse.",
+]
+sources = [
+  "SAE J2012 code structure: P0504 brake switch A/B correlation; P0571 brake switch A circuit; P0572 low; P0573 high (descriptions in Scana's own words)",
+]
+
+[[cause]]
+id = "switch"
+name = "A worn or misadjusted brake pedal switch"
+detail = "The switch wears, or its plunger no longer meets the pedal properly (a broken plastic stop is common)."
+weight = 45
+fix = "Adjust or replace the switch; replace a broken pedal stop pad."
+cost = "low"
+
+[[cause]]
+id = "bulbs-fuse"
+name = "A blown fuse or failed brake light bulbs"
+detail = "On some cars the computer watches the brake light circuit, so a blown bulb or fuse sets the code."
+weight = 25
+fix = "Replace the bulbs or fuse; find what blew the fuse."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "The switch's plug under the dash loosens or breaks."
+weight = 25
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "computer"
+name = "A module fault"
+detail = "Rare: a module reading the switch."
+weight = 5
+fix = "Check after everything else."
+cost = "high"
+
+[[test]]
+id = "lights"
+title = "Do the brake lights work?"
+why = "Stuck on, off, or one side out points to the switch, bulbs or fuse."
+steps = ["Press the brake with someone watching the rear (or against a wall or window at night). Release it: do they go off?"]
+[[test.result]]
+id = "stuck-on"
+text = "They stay on when released"
+effect = { switch = 4 }
+[[test.result]]
+id = "none"
+text = "None light up"
+effect = { bulbs-fuse = 2, switch = 2, wiring = 1 }
+[[test.result]]
+id = "some"
+text = "Some light up, some don't"
+effect = { bulbs-fuse = 4 }
+[[test.result]]
+id = "fine"
+text = "All work normally"
+effect = { bulbs-fuse = -2, wiring = 1, switch = 1 }
+
+[[test]]
+id = "pedal-stop"
+title = "Look at the switch and the pedal stop"
+why = "A broken plastic stop pad lets the switch miss the pedal."
+steps = ["With a torch, look under the dash at the top of the brake pedal: the switch, its plug, and the small stop pad it presses against."]
+[[test.result]]
+id = "broken"
+text = "A missing or broken stop pad, or the switch is loose"
+effect = { switch = 4 }
+[[test.result]]
+id = "plug"
+text = "The plug is loose or damaged"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All in place"
+effect = { switch = -1, wiring = -1 }
+
+[[test]]
+id = "cruise"
+title = "Does cruise control work?"
+why = "Cruise control that won't set often comes with this code."
+steps = ["Try to set cruise control on a suitable road, where safe."]
+[[test.result]]
+id = "no"
+text = "It won't set"
+effect = { switch = 2 }
+[[test.result]]
+id = "yes"
+text = "It works"
+[[test.result]]
+id = "na"
+text = "No cruise control"

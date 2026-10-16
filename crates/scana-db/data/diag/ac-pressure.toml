@@ -1,0 +1,133 @@
+# Diagnosis guide: air conditioning refrigerant pressure sensor and compressor clutch
+# (P0530 to P0534, P0645 to P0647). Written for Scana (2026-10-16).
+
+id = "ac-pressure"
+title = "Air conditioning pressure sensor or compressor clutch fault"
+codes = ["P0530-P0534", "P0645-P0647"]
+summary = "The engine computer saw a fault with the air conditioning's refrigerant pressure sensor (P0530 to P0533) or a low refrigerant charge (P0534), or with the compressor clutch relay circuit (P0645 to P0647). The air conditioning usually stops cooling. The most common causes are a refrigerant leak and the sensor's plug or wiring."
+how_it_works = [
+  "The air conditioning compressor, driven by a belt through an electric clutch, pumps refrigerant round a sealed system.",
+  "A pressure sensor tells the engine computer the refrigerant pressure. The computer only engages the compressor when the pressure is safe, and runs the radiator fan to suit.",
+  "Too little refrigerant (a leak) gives low pressure, so the computer keeps the compressor off to protect it.",
+]
+terms = []
+safety = [
+  "Refrigerant is under high pressure and can freeze skin and eyes. Don't open the system: leave it to a licensed air conditioning technician (in Australia a refrigerant licence is required).",
+  "Keep clear of the belts and the fan with the engine running.",
+]
+sources = [
+  "SAE J2012 code structure: P0530 to P0533 refrigerant pressure sensor A circuit, range, low, high; P0534 refrigerant charge loss; P0645 to P0647 A/C clutch relay control circuit, low, high (descriptions in Scana's own words)",
+  "Refrigerant handling licences in Australia: Australian Refrigeration Council (arctick.org) requirement for anyone handling refrigerant (general knowledge; unverified detail for each case)",
+]
+
+[[cause]]
+id = "leak"
+name = "Low refrigerant from a leak"
+detail = "Refrigerant slowly leaks from seals, hoses, the condenser at the front, or the compressor."
+weight = 35
+fix = "A licensed technician finds the leak (dye or a detector), repairs it, and recharges the system."
+cost = "medium"
+
+[[cause]]
+id = "wiring"
+name = "The pressure sensor's plug or wiring"
+detail = "The sensor's plug sits at the front of the engine bay, in the weather."
+weight = 25
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "A failed pressure sensor"
+detail = "The sensor fails and reads wrongly."
+weight = 20
+fix = "Replace the sensor (on many cars it can be changed without losing refrigerant: a technician will know)."
+cost = "low"
+
+[[cause]]
+id = "clutch"
+name = "The compressor clutch, its relay or its fuse"
+detail = "For P0645 to P0647: the clutch relay, fuse, wiring or the clutch coil."
+weight = 20
+fix = "Check the fuse and relay; repair the wiring; replace the clutch coil."
+cost = "medium"
+
+[[test]]
+id = "code-type"
+title = "Pressure sensor, refrigerant, or clutch circuit?"
+why = "Each points to a different part."
+needs = ["scan-tool"]
+steps = ["Read the codes."]
+[test.auto]
+kind = "codes"
+absent = "other"
+[[test.auto.group]]
+patterns = ["P0534"]
+result = "charge"
+[[test.auto.group]]
+patterns = ["P0645-P0647"]
+result = "clutch"
+[[test.auto.group]]
+patterns = ["P0530-P0533"]
+result = "sensor"
+[[test.result]]
+id = "sensor"
+text = "Pressure sensor codes (P0530 to P0533)"
+effect = { wiring = 2, sensor = 2, leak = 1 }
+[[test.result]]
+id = "charge"
+text = "Refrigerant charge low (P0534)"
+effect = { leak = 4 }
+[[test.result]]
+id = "clutch"
+text = "Compressor clutch relay codes (P0645 to P0647)"
+effect = { clutch = 4 }
+[[test.result]]
+id = "other"
+text = "None of these"
+
+[[test]]
+id = "clutch-look"
+title = "Does the compressor clutch engage?"
+why = "If the clutch never clicks in, the computer is holding it off (low pressure, a sensor fault) or its circuit has failed."
+steps = ["Engine idling, air conditioning on: look at the front of the compressor. The centre plate should click and spin with the pulley."]
+safety = ["Keep clear of the belts and fan."]
+[[test.result]]
+id = "engages"
+text = "It clicks in and spins"
+effect = { clutch = -2 }
+[[test.result]]
+id = "never"
+text = "It never engages"
+effect = { leak = 1, clutch = 1, sensor = 1 }
+[[test.result]]
+id = "cycles"
+text = "It clicks in and out every few seconds"
+effect = { leak = 3 }
+
+[[test]]
+id = "plug"
+title = "Look at the pressure sensor's plug"
+why = "The plug lives in the weather at the front."
+steps = ["Find the pressure sensor (on a metal refrigerant pipe, often near the front). Check its plug and wiring."]
+[[test.result]]
+id = "bad"
+text = "Corroded, loose or damaged"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }
+
+[[test]]
+id = "oily"
+title = "Look for oily patches on the air conditioning parts"
+why = "Refrigerant carries oil; a leak leaves an oily, dusty patch."
+steps = ["Look at the pipes' joints, the condenser in front of the radiator, and the compressor for oily, dusty patches."]
+[[test.result]]
+id = "found"
+text = "An oily patch"
+effect = { leak = 3 }
+[[test.result]]
+id = "clean"
+text = "Clean"

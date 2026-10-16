@@ -164,6 +164,9 @@ enum Cmd {
         /// Only list the guide's tests and the current ranking; ask nothing.
         #[arg(long)]
         list: bool,
+        /// The car's make, for maker-specific code numbers (for example Toyota).
+        #[arg(long)]
+        make: Option<String>,
     },
     /// Explain a fault code, a word, or a tool: Scana's knowledge base.
     Explain {
@@ -191,14 +194,14 @@ fn run(cli: Cli) -> Result<()> {
     if let Cmd::Explain { what } = &cli.cmd {
         return explain(&what.join(" "));
     }
-    if let Cmd::Diagnose { code, car, answers, list } = &cli.cmd {
+    if let Cmd::Diagnose { code, car, answers, list, make } = &cli.cmd {
         let client = if *car {
             let link = open_link(&cli)?;
             Some(Client::new(link))
         } else {
             None
         };
-        return diagnose(code, client, answers.as_deref(), *list);
+        return diagnose(code, client, answers.as_deref(), *list, make.as_deref());
     }
     if let Cmd::Record { minutes, pids, dir } = &cli.cmd {
         // The session worker opens its own link.
@@ -280,6 +283,10 @@ fn explain(what: &str) -> Result<()> {
         if let Some(g) = diag::guide_for(code) {
             println!("\nScana has a step-by-step guide: {}.", g.title);
             println!("  Run: scana diagnose {code}");
+        }
+        for (m, g) in diag::maker_hints(code) {
+            println!("\nOn {m}, {code} means: {}.", g.title);
+            println!("  Run: scana diagnose {code} --make \"{m}\"");
         }
         return Ok(());
     }
@@ -389,12 +396,27 @@ fn measure_live(
     Ok(diagnose::evaluate_live(auto, &samples))
 }
 
-fn diagnose(code_text: &str, client: Option<Client>, answers: Option<&str>, list: bool) -> Result<()> {
+fn diagnose(
+    code_text: &str,
+    client: Option<Client>,
+    answers: Option<&str>,
+    list: bool,
+    make: Option<&str>,
+) -> Result<()> {
     use scana_core::diagnose::{self, Diagnosis};
     use scana_db::diag;
     let code =
         scana_proto::Dtc::parse(code_text).with_context(|| format!("{code_text} is not a fault code like P0420"))?;
-    let Some(mut d) = Diagnosis::for_code(code) else {
+    let hints = diag::maker_hints(code);
+    let found = Diagnosis::for_code_make(code, make).or_else(|| {
+        let (m, g) = hints.first()?;
+        println!(
+            "{code} is a maker-specific number. On {m} it means: {}. Check it means the same on this car (--make tells Scana the make).\n",
+            g.title
+        );
+        Some(Diagnosis::new(g, Some(code)))
+    });
+    let Some(mut d) = found else {
         println!("{code}: {}", dtcdb::lookup(code).summary());
         println!("Scana has no step-by-step guide for {code} yet. `scana explain {code}` shows what it knows.");
         return Ok(());

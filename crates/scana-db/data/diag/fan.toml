@@ -1,0 +1,112 @@
+# Diagnosis guide: radiator fan control (P0480 to P0485, P0691 to P0694). Written for Scana
+# (2026-10-16). General guidance: check the maker's workshop manual.
+
+id = "fan"
+title = "Radiator fan control fault"
+codes = ["P0480-P0485", "P0691-P0694"]
+summary = "The engine computer saw a fault in the radiator fan's control circuit: P0480 fan 1, P0481 fan 2, P0482 fan 3, P0483 a fan that doesn't do what it should, P0484 too much current, P0485 the fan's power or ground; P0691 to P0694 a control circuit reading low or high. A fan that doesn't run lets the engine overheat in traffic: watch the temperature gauge."
+how_it_works = [
+  "The engine computer switches the radiator fan through a relay (or a speed control module) when the coolant gets hot, and when the air conditioning is on.",
+  "It watches the control circuit, and on some cars the fan's current. A broken wire, a failed relay or a seized motor shows as a code.",
+]
+terms = ["Thermostat"]
+fix_first = ["P0115-P0119"]
+safety = [
+  "Keep hands away from the fan: it can start by itself with the engine off and the key out on some cars.",
+  "If the gauge rises in traffic, stop and turn the engine off before it overheats.",
+]
+sources = [
+  "SAE J2012 code structure: P0480 to P0482 cooling fan 1 to 3 control circuits; P0483 fan rationality; P0484 over current; P0485 power or ground; P0691 to P0694 fan control circuits low and high (descriptions in Scana's own words)",
+  "Fan checks with the air conditioning: the overheating guide's practice (read 2026-10-16)",
+]
+related = ["overheat"]
+
+[[cause]]
+id = "relay"
+name = "A failed fan relay or fuse"
+detail = "Relays wear out; fuses blow when a fan motor draws too much."
+weight = 30
+fix = "Replace the relay or fuse; if the fuse blows again, check the motor."
+cost = "low"
+
+[[cause]]
+id = "motor"
+name = "A worn or seized fan motor"
+detail = "The motor's brushes wear or its bearing seizes: it draws too much current or doesn't turn."
+weight = 30
+fix = "Replace the fan motor (often with its shroud)."
+cost = "medium"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "The fan's plug sits in the airflow and gets dirty and hot; wires break."
+weight = 25
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "control"
+name = "The fan speed control module or the engine computer"
+detail = "Cars with variable fan speed have a control module that can fail; rarely the computer's output."
+weight = 15
+fix = "Replace the fan control module; check the computer after everything else."
+cost = "medium"
+
+[[test]]
+id = "ac-on"
+title = "Does the fan run with the air conditioning on?"
+why = "On most cars the fan starts with the air conditioning. If it does, the motor works."
+steps = ["Start the engine and turn the air conditioning on. Look and listen for the radiator fan."]
+safety = ["Keep hands and clothing away from the fan."]
+[[test.result]]
+id = "runs"
+text = "It runs"
+effect = { motor = -2, relay = -1 }
+[[test.result]]
+id = "dead"
+text = "It doesn't run"
+effect = { relay = 2, motor = 2, wiring = 1 }
+
+[[test]]
+id = "spin"
+title = "Spin the fan by hand (engine off)"
+why = "A fan that is stiff or noisy to turn has a worn or seized motor."
+steps = ["Engine off and the key out. Turn the fan blades gently by hand."]
+safety = ["Key out first: the fan can start by itself."]
+[[test.result]]
+id = "stiff"
+text = "Stiff, rough or noisy"
+effect = { motor = 4 }
+[[test.result]]
+id = "free"
+text = "Turns freely and quietly"
+effect = { motor = -1 }
+
+[[test]]
+id = "fuse-relay"
+title = "Check the fan fuse and relay"
+why = "Cheap and common."
+steps = ["Find the fan fuse and relay in the fuse box chart. Check the fuse; swap the relay with an identical one."]
+[[test.result]]
+id = "fault"
+text = "Blown fuse, or the relay swap fixed it"
+effect = { relay = 4 }
+[[test.result]]
+id = "fine"
+text = "Both fine"
+effect = { relay = -2 }
+
+[[test]]
+id = "plug"
+title = "Look at the fan's plug"
+why = "The plug sits in hot, dirty airflow."
+steps = ["Engine off, key out. Check the fan motor's plug for melting, corrosion and a firm fit."]
+[[test.result]]
+id = "bad"
+text = "Melted, corroded or loose"
+effect = { wiring = 4 }
+[[test.result]]
+id = "good"
+text = "All good"
+effect = { wiring = -1 }

@@ -1,0 +1,122 @@
+# Diagnosis guide: engine oil pressure sensor and switch (P0520 to P0524). Written for
+# Scana (2026-10-16). General guidance: check the maker's workshop manual.
+
+id = "oil-pressure"
+title = "Oil pressure sensor or low oil pressure"
+codes = ["P0520-P0524"]
+summary = "The engine computer saw a fault with the oil pressure signal: P0520 the circuit, P0521 a reading that doesn't fit, P0522 low, P0523 high, P0524 oil pressure too low. Treat low oil pressure as serious until proven otherwise: an engine without oil pressure destroys its bearings in minutes. Check the oil level first; if the red oil light is on with the engine running, stop the engine."
+how_it_works = [
+  "The oil pump pushes oil through the engine to the bearings, the cams and (on many engines) the valve timing system.",
+  "A pressure switch turns on the red oil light when pressure is very low; some engines have a pressure sensor that reports the actual pressure to the computer.",
+  "Low oil, thin or wrong oil, a blocked pick-up, a worn pump or worn bearings lower the pressure. A faulty sensor or switch can also report a problem that isn't there.",
+]
+terms = ["Variable valve timing"]
+safety = [
+  "If the red oil pressure light comes on while the engine runs: stop safely and turn the engine off at once. Check the oil level before restarting.",
+  "Don't keep running an engine that knocks or has low oil pressure.",
+  "Hot oil burns: let the engine cool before checking or draining it.",
+]
+sources = [
+  "SAE J2012 code structure: P0520 oil pressure sensor or switch circuit, P0521 range/performance, P0522 low, P0523 high, P0524 oil pressure too low (descriptions in Scana's own words)",
+  "General engine lubrication practice (unverified for any one engine: the workshop manual gives the pressure specification)",
+]
+related = ["vvt"]
+
+[[cause]]
+id = "low-oil"
+name = "Low oil level"
+detail = "Leaks or oil burning drop the level until the pump draws air."
+weight = 30
+fix = "Top up with the right oil now; find and fix the leak or the oil burning."
+cost = "low"
+
+[[cause]]
+id = "sensor"
+name = "A faulty oil pressure sensor or switch"
+detail = "The sensor or switch leaks, fails or reads wrongly, so a healthy engine looks low."
+weight = 30
+fix = "Confirm the real pressure with a gauge, then replace the sensor or switch."
+cost = "low"
+
+[[cause]]
+id = "wiring"
+name = "A plug or wiring fault"
+detail = "The sensor's plug sits low on the engine, gets oily and corrodes."
+weight = 15
+fix = "Repair the plug or wire."
+cost = "low"
+
+[[cause]]
+id = "oil-condition"
+name = "Old, thin or wrong oil, or a blocked filter or pick-up"
+detail = "Very old or fuel-diluted oil thins out; sludge blocks the pump's pick-up screen; the wrong filter can starve the engine."
+weight = 15
+fix = "Change the oil and filter with the right grade; a workshop can check the pick-up if sludge is found."
+cost = "low"
+
+[[cause]]
+id = "wear"
+name = "A worn oil pump or worn engine bearings"
+detail = "Wear lets the oil escape too easily, so the pressure drops, worst when hot and at idle."
+weight = 10
+fix = "A workshop confirms with a gauge; repair the engine."
+cost = "high"
+
+[[test]]
+id = "level"
+title = "Check the oil level now"
+why = "Low oil is the most common cause, and the most urgent."
+steps = ["Engine off on level ground, after a few minutes: pull the dipstick, wipe it, push it fully in, pull it again and read the level."]
+safety = ["Hot oil and the exhaust burn."]
+[[test.result]]
+id = "low"
+text = "Low or not on the dipstick"
+effect = { low-oil = 4 }
+note = "Top up before running the engine again, then find where the oil went."
+[[test.result]]
+id = "ok"
+text = "Between the marks"
+effect = { low-oil = -3 }
+
+[[test]]
+id = "light"
+title = "Does the red oil light come on, or the engine knock?"
+why = "The light with the engine running, or a knock, means real low pressure: stop the engine."
+steps = ["Watch the oil light at a warm idle; listen for a knock or tapping from the engine."]
+[[test.result]]
+id = "yes"
+text = "The light comes on, or it knocks or taps"
+effect = { low-oil = 1, oil-condition = 1, wear = 3, sensor = -1 }
+note = "Stop running the engine and have the oil pressure measured with a gauge."
+[[test.result]]
+id = "no"
+text = "No light, no knock"
+effect = { sensor = 2, wiring = 1, wear = -2 }
+
+[[test]]
+id = "oil-age"
+title = "When was the oil last changed?"
+why = "Old or fuel-diluted oil thins and sludges."
+steps = ["Check the service sticker or history. Smell the dipstick for fuel."]
+[[test.result]]
+id = "old"
+text = "Overdue, sludgy, or smells of fuel"
+effect = { oil-condition = 3 }
+[[test.result]]
+id = "fresh"
+text = "Recent and clean"
+effect = { oil-condition = -2 }
+
+[[test]]
+id = "plug"
+title = "Look at the sensor and its plug"
+why = "An oily, corroded plug or a leaking sensor is common."
+steps = ["Find the oil pressure sensor or switch (low on the engine, near the oil filter). Look for oil leaking from it and check its plug."]
+[[test.result]]
+id = "bad"
+text = "Leaking, or a bad plug"
+effect = { sensor = 2, wiring = 2 }
+[[test.result]]
+id = "good"
+text = "Dry, plug good"
+effect = { wiring = -1 }

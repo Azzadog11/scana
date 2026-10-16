@@ -208,3 +208,28 @@ family = "toyota"
 [[make]]
 name = "Daihatsu"
 family = "toyota"
+
+# GM brands share GM's chassis code numbering (used by the ABS wheel speed guide).
+[[make]]
+name = "GM numbering"
+family = "gm"
+
+[[make]]
+name = "Chevrolet"
+family = "gm"
+
+[[make]]
+name = "Holden"
+family = "gm"
+
+[[make]]
+name = "GMC"
+family = "gm"
+
+[[make]]
+name = "Buick"
+family = "gm"
+
+[[make]]
+name = "Cadillac"
+family = "gm"

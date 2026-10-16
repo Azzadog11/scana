@@ -1,0 +1,292 @@
+# Diagnosis guide (symptom): the engine won't start. Written for Scana (2026-10-16).
+# General guidance: check the maker's workshop manual.
+
+id = "no-start"
+title = "Engine won't start"
+codes = []
+summary = "The engine won't start: either it doesn't turn over at all (no crank), or it turns over normally but doesn't fire (cranks, no start). The first answer splits the causes. No crank is usually the battery, its connections or the starter; cranks-no-start means something is missing among fuel, spark, the crank signal or the key (immobiliser)."
+how_it_works = [
+  "To crank, the battery must deliver a big current through clean connections to the starter motor, switched by the key or start button through a relay.",
+  "To start, the engine needs fuel at pressure, a spark at the right moment (which needs the crank sensor's signal), enough compression, and the immobiliser must recognise the key.",
+  "The engine computer only allows fuel and spark once it sees the crank signal and the immobiliser says yes.",
+]
+terms = ["Immobiliser", "Crankshaft position sensor", "Fuel pump", "Timing chain", "Relay", "Fuse"]
+fix_first = ["P0335-P0339", "P0230-P0233", "P0627-P0629", "P0562"]
+safety = [
+  "Don't crank for more than about 10 seconds at a time; wait a minute between tries so the starter cools.",
+  "If you smell fuel strongly, stop cranking and find the leak before trying again: no sparks or flames.",
+  "When jump starting, connect the clamps in the order the owner's manual gives and keep the cables away from belts and the fan.",
+  "If a timing belt may have broken, stop cranking: on many engines the valves can hit the pistons.",
+]
+sources = [
+  "Crank signal needed for fuel and spark; tachometer at zero while cranking means no crank signal: go-parts.com 'P0335' and apextechnation.com 'P0335 Code' (read 2026-10-16)",
+  "Fuel pump prime at key on, and fuel pump relay and fuse checks: autobarn.net 'P0230' and yourmechanic.com (read 2026-10-16)",
+  "Battery checks (about 12.4 V or more standing): charging guide sources (obd-codes.com P0562) (read 2026-10-16)",
+]
+related = ["crank-cam", "fuel-pressure", "charging", "flat-battery"]
+
+[[cause]]
+id = "battery"
+name = "A flat battery or poor battery connections"
+detail = "The most common cause of no crank, or of slow cranking that won't catch."
+weight = 30
+fix = "Clean and tighten the terminals; charge or jump start; load-test the battery and replace it if weak."
+cost = "low"
+
+[[cause]]
+id = "starter"
+name = "The starter motor, its relay or its wiring"
+detail = "A click but no crank with a good battery points to the starter, its relay or its cable."
+weight = 15
+fix = "Check the starter relay and fuse; repair the cable; replace the starter."
+cost = "medium"
+
+[[cause]]
+id = "immobiliser"
+name = "The immobiliser doesn't recognise the key"
+detail = "A key with a flat or damaged chip, a new key not programmed, or a security fault. The security light often flashes."
+weight = 12
+fix = "Try the spare key. A dealer or locksmith programs keys and checks the immobiliser."
+cost = "medium"
+
+[[cause]]
+id = "fuel"
+name = "No fuel: empty tank, pump, relay or fuse"
+detail = "A dead fuel pump, its relay or fuse, or simply an empty tank (a faulty gauge can hide it)."
+weight = 18
+fix = "Add fuel; check the pump fuse and relay; listen for the pump; test the pressure."
+cost = "medium"
+
+[[cause]]
+id = "crank-signal"
+name = "No crank signal (crank sensor or its wiring)"
+detail = "Without the crank signal the computer gives no fuel or spark. The tachometer stays at zero while cranking."
+weight = 12
+fix = "Check the crank sensor's plug and wiring; replace the sensor."
+cost = "low"
+
+[[cause]]
+id = "spark"
+name = "No spark: ignition fuse, relay or a shared ignition fault"
+detail = "A blown ignition fuse or a failed ignition relay can stop every coil."
+weight = 5
+fix = "Check the ignition fuses and relays."
+cost = "low"
+
+[[cause]]
+id = "mechanical"
+name = "A mechanical fault: broken timing belt, flooded engine, low compression"
+detail = "A broken timing belt (cranks fast and even, sounds different), a flooded engine (strong fuel smell), or very low compression."
+weight = 8
+fix = "Inspect the timing belt; for flooding, follow the owner's manual's clear-flood starting method; test compression."
+cost = "high"
+
+[[test]]
+id = "crank"
+title = "Does the engine turn over?"
+why = "Splits the causes in two: no crank (battery, starter, sometimes immobiliser) versus cranks but won't start (fuel, spark, crank signal, immobiliser, mechanical)."
+steps = ["Turn the key to start (or press start with the brake or clutch down) and listen."]
+[[test.result]]
+id = "nothing"
+text = "Nothing, or the dash lights go out"
+effect = { battery = 3, starter = 1, fuel = -3, crank-signal = -3, spark = -3, mechanical = -2 }
+[[test.result]]
+id = "click"
+text = "A single click, or rapid clicking"
+effect = { battery = 3, starter = 2, fuel = -3, crank-signal = -3, spark = -3, mechanical = -2 }
+[[test.result]]
+id = "slow"
+text = "It cranks slowly"
+effect = { battery = 3, starter = 1, crank-signal = -1 }
+[[test.result]]
+id = "normal"
+text = "It cranks at a normal speed but doesn't start"
+effect = { battery = -2, starter = -3, fuel = 1, crank-signal = 1, immobiliser = 1, mechanical = 1 }
+
+[[test]]
+id = "battery-volts"
+title = "Check the battery"
+why = "A battery below about 12.2 V standing, or one that drops below about 9.6 V while cranking, can't start the engine reliably."
+needs = ["scan-tool"]
+steps = [
+  "Key on, engine off: read the control module voltage (or measure across the battery with a meter).",
+  "Look at the terminals: crust, or a clamp that moves by hand.",
+]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["42"]
+seconds = 5
+hold = { pid = "0C", to = 50.0, text = "Key on, engine off" }
+[[test.auto.outcome]]
+below = 12.0
+result = "low"
+[[test.auto.outcome]]
+result = "ok"
+[[test.result]]
+id = "low"
+text = "Below about 12.0 V, or poor terminals"
+effect = { battery = 4 }
+[[test.result]]
+id = "ok"
+text = "About 12.0 V or more, clean terminals"
+effect = { battery = -2 }
+
+[[test]]
+id = "security-light"
+title = "Watch the security light"
+why = "A security or key light that flashes or stays on while trying to start points to the immobiliser."
+steps = ["Look at the dash for a key or padlock symbol while you try to start. Then try the spare key."]
+[[test.result]]
+id = "flashing"
+text = "It flashes or stays on, or the spare key works"
+effect = { immobiliser = 4 }
+[[test.result]]
+id = "normal"
+text = "It goes out as normal, and the spare key doesn't help"
+effect = { immobiliser = -2 }
+
+[[test]]
+id = "pump-hum"
+title = "Listen for the fuel pump at key on"
+why = "Most pumps run for about 2 seconds at key on. Silence points to the pump, its relay or fuse."
+steps = ["In a quiet place, open the fuel flap and turn the key to ON (don't start). Listen at the tank."]
+[[test.result]]
+id = "hums"
+text = "A hum for a second or two"
+effect = { fuel = -2 }
+[[test.result]]
+id = "silent"
+text = "Nothing"
+effect = { fuel = 3 }
+
+[[test]]
+id = "fuel-level"
+title = "Could the tank be empty?"
+why = "Obvious, but common, especially with a faulty fuel gauge or a car parked on a slope."
+steps = ["When was it last filled? Does the gauge work? Add a few litres if in doubt."]
+[[test.result]]
+id = "maybe"
+text = "Possibly empty, or the gauge is unreliable"
+effect = { fuel = 3 }
+[[test.result]]
+id = "no"
+text = "Definitely has fuel"
+effect = { fuel = -1 }
+
+[[test]]
+id = "tach"
+title = "Does the tachometer move while cranking?"
+why = "Most tachometers use the crank signal. No movement means the computer sees no crank signal, so it gives no fuel or spark."
+steps = ["Crank for 5 seconds and watch the tachometer needle (or engine speed on a scan tool)."]
+[[test.result]]
+id = "zero"
+text = "It stays at zero"
+effect = { crank-signal = 4 }
+goto = "crank-cam"
+[[test.result]]
+id = "moves"
+text = "It moves (about 200 to 300 rpm)"
+effect = { crank-signal = -3 }
+
+[[test]]
+id = "codes"
+title = "Read the codes"
+why = "Crank sensor, fuel pump and voltage codes point straight at the cause."
+needs = ["scan-tool"]
+steps = ["Key on: read the codes from the engine computer."]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["P0335-P0339", "P0340-P0349"]
+result = "crank"
+[[test.auto.group]]
+patterns = ["P0230-P0233", "P0627-P0629", "P0087"]
+result = "fuel"
+[[test.auto.group]]
+patterns = ["P0562", "P0563", "P0560"]
+result = "voltage"
+[[test.result]]
+id = "none"
+text = "No codes"
+[[test.result]]
+id = "crank"
+text = "Crank or cam sensor codes"
+effect = { crank-signal = 3 }
+goto = "crank-cam"
+[[test.result]]
+id = "fuel"
+text = "Fuel pump or fuel pressure codes"
+effect = { fuel = 3 }
+goto = "fuel-pressure"
+[[test.result]]
+id = "voltage"
+text = "Voltage codes"
+effect = { battery = 3 }
+goto = "charging"
+[[test.result]]
+id = "no-talk"
+text = "The scan tool can't talk to the engine computer"
+effect = { battery = 1, spark = 2 }
+note = "A computer that doesn't answer may have no power: check the engine computer's fuses and main relay."
+
+[[test]]
+id = "fuel-smell"
+title = "Smell at the exhaust after cranking"
+why = "A strong fuel smell means fuel is arriving (so look at spark or flooding); none means no fuel."
+steps = ["After cranking for 10 seconds, smell at the tailpipe."]
+safety = ["No flames or sparks; don't keep cranking if the smell is strong."]
+[[test.result]]
+id = "strong"
+text = "Strong fuel smell"
+effect = { fuel = -2, spark = 2, mechanical = 2 }
+[[test.result]]
+id = "none"
+text = "No fuel smell"
+effect = { fuel = 2 }
+
+[[test]]
+id = "cranking-sound"
+title = "How does it sound while cranking?"
+why = "Very fast, even cranking with a different sound can mean a broken timing belt (no compression)."
+steps = ["Listen to the cranking: normal rhythm, or noticeably faster and more even than usual?"]
+[[test.result]]
+id = "fast"
+text = "Faster and more even than usual"
+effect = { mechanical = 4 }
+note = "Stop cranking and check the timing belt: on many engines a broken belt damages valves."
+[[test.result]]
+id = "normal"
+text = "Normal"
+effect = { mechanical = -1 }
+
+[[test]]
+id = "fuses"
+title = "Check the main fuses and relays"
+why = "A blown engine, ignition or fuel pump fuse, or a failed main relay, stops the engine."
+steps = ["Look up the engine computer, ignition, injector and fuel pump fuses and relays in the fuse box chart. Check each fuse; swap relays with identical ones where the chart allows."]
+[[test.result]]
+id = "found"
+text = "A blown fuse or a relay swap fixed it"
+effect = { spark = 2, fuel = 2, starter = 1 }
+note = "If a fuse blows again, something is shorted: find it before replacing the fuse again."
+[[test.result]]
+id = "fine"
+text = "All fine"
+effect = { spark = -1 }
+
+[[test]]
+id = "crank-volts"
+title = "Battery voltage while cranking"
+why = "A battery that drops below about 9.6 V while cranking is weak, even if it showed good voltage standing."
+needs = ["multimeter"]
+steps = ["Connect the meter across the battery terminals and watch it while someone cranks for a few seconds."]
+[[test.result]]
+id = "drops"
+text = "It drops below about 9.6 V"
+effect = { battery = 4 }
+[[test.result]]
+id = "holds"
+text = "It stays above about 9.6 V"
+effect = { battery = -2, starter = 1 }

@@ -75,6 +75,14 @@ impl ScanaApp {
         }
     }
 
+    /// Opens a guide that starts from a symptom (no code).
+    pub fn start_guide(&mut self, g: &'static diag::Guide) {
+        self.cancel_measure();
+        self.diag = Some(Diagnosis::new(g, None));
+        self.diag_open = None;
+        self.go(Page::Diagnose);
+    }
+
     /// Sees every update first: collects live samples for a measurement, and answers tests
     /// whose reads have arrived.
     pub fn diag_hook(&mut self, u: &Update) {
@@ -283,15 +291,53 @@ impl ScanaApp {
         }
         if self.diag.is_none() {
             ui.add_space(6.0);
-            ui.label(RichText::new("Guides so far:").strong());
-            for g in diag::guides() {
-                ui.horizontal_wrapped(|ui| {
-                    if ui.link(&g.title).clicked()
-                        && let Some(c) = g.codes.first().and_then(|c| Dtc::parse(c.split('-').next().unwrap_or("")))
-                    {
-                        self.start_diagnosis(c);
+            ui.label(RichText::new("No code? Start from what you notice:").strong());
+            ui.horizontal_wrapped(|ui| {
+                for g in diag::symptoms() {
+                    if ui.button(&g.title).clicked() {
+                        self.start_guide(g);
                     }
-                    ui.label(RichText::new(g.codes.join(", ")).small().color(pal.dim));
+                }
+            });
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(format!("Guides by code ({}):", diag::guides().len() - diag::symptoms().len()))
+                        .strong(),
+                );
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.diag_filter)
+                        .hint_text("filter: misfire, P04, brake...")
+                        .desired_width(220.0),
+                );
+            });
+            let f = self.diag_filter.to_lowercase();
+            let mut list: Vec<&'static diag::Guide> = diag::guides()
+                .iter()
+                .filter(|g| !(g.codes.is_empty() && g.maker_codes.is_empty()))
+                .filter(|g| {
+                    f.is_empty()
+                        || g.title.to_lowercase().contains(&f)
+                        || g.codes.iter().any(|c| c.to_lowercase().contains(&f))
+                        || g.maker_codes.iter().any(|m| m.codes.iter().any(|c| c.to_lowercase().contains(&f)))
+                })
+                .collect();
+            list.sort_by(|a, b| a.title.cmp(&b.title));
+            for g in list {
+                ui.horizontal_wrapped(|ui| {
+                    if ui.link(&g.title).clicked() {
+                        self.start_guide(g);
+                    }
+                    let mut codes = g.codes.join(", ");
+                    for m in &g.maker_codes {
+                        codes.push_str(&format!(
+                            "{}{}: {}",
+                            if codes.is_empty() { "" } else { "; " },
+                            m.make,
+                            m.codes.join(", ")
+                        ));
+                    }
+                    ui.label(RichText::new(codes).small().color(pal.dim));
                 });
             }
             return;

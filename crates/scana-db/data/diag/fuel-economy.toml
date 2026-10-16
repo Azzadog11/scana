@@ -1,0 +1,200 @@
+# Diagnosis guide (symptom): high fuel use. Written for Scana (2026-10-16).
+
+id = "fuel-economy"
+title = "Uses more fuel than it should"
+codes = []
+summary = "The car uses noticeably more fuel than it used to. Check the simple things first: tyre pressures, how and where it is driven, a roof rack or load. Then the engine: a thermostat stuck open (a cool engine runs rich), a lazy oxygen sensor, rich running, a dirty air filter or dragging brakes."
+how_it_works = [
+  "Fuel use depends most on how the car is driven: short trips, idling, traffic, high speed and heavy loads all raise it.",
+  "A cold engine uses much more fuel. If the thermostat is stuck open, the engine never fully warms up and stays rich.",
+  "In closed loop the engine computer keeps the mixture right using the oxygen sensor. A slow sensor, a leaking injector or a stuck purge valve makes it run rich.",
+  "Anything that makes the car harder to push (low tyres, dragging brakes, a roof rack) costs fuel too.",
+]
+terms = ["Thermostat", "Fuel trim", "Oxygen sensor", "Closed loop", "Rich"]
+safety = [
+  "Check tyre pressures when cold, to the figure on the door pillar label.",
+  "A dragging brake gets very hot: don't touch the wheel after a drive.",
+]
+sources = [
+  "Cold engine and thermostat effects: thermostat guide sources (identifix.com, samarins.com) (read 2026-10-16)",
+  "Rich running causes: rich guide sources (samarins.com, apextechnation.com) (read 2026-10-16)",
+]
+related = ["thermostat", "rich", "o2-sensor"]
+
+[[cause]]
+id = "use"
+name = "How the car is used, or the weather"
+detail = "Short trips, idling, traffic, cold weather, high speeds and heavy loads all raise fuel use without any fault."
+weight = 30
+fix = "Compare like with like: the same route and conditions."
+cost = "low"
+
+[[cause]]
+id = "tyres-drag"
+name = "Low tyres, dragging brakes or extra drag"
+detail = "Underinflated tyres, a sticking brake, a roof rack or a heavy load make the engine work harder."
+weight = 20
+fix = "Set tyre pressures; fix a sticking brake; remove unused racks and loads."
+cost = "low"
+
+[[cause]]
+id = "thermostat"
+name = "A thermostat stuck open"
+detail = "The engine runs cool and rich, and the heater may be weak. Often with P0128."
+weight = 15
+fix = "Replace the thermostat (see the thermostat guide)."
+cost = "low"
+
+[[cause]]
+id = "rich"
+name = "The engine runs rich"
+detail = "A stuck purge valve, a leaking injector, high fuel pressure or a faulty coolant sensor adds fuel."
+weight = 15
+fix = "Follow the rich guide."
+cost = "medium"
+
+[[cause]]
+id = "sensor"
+name = "A slow oxygen sensor"
+detail = "An old front oxygen sensor responds slowly, so the mixture control works poorly."
+weight = 10
+fix = "Replace the sensor if tests show it slow (see the oxygen sensor guide)."
+cost = "medium"
+
+[[cause]]
+id = "maintenance"
+name = "Overdue servicing: air filter, spark plugs"
+detail = "A blocked air filter or worn plugs cost a little fuel each."
+weight = 10
+fix = "Service the car to the owner's manual."
+cost = "low"
+
+[[test]]
+id = "conditions"
+title = "Has the way the car is used changed?"
+why = "Most changes in fuel use come from driving, not faults."
+steps = ["Compare the same trips: more short trips, traffic, cold weather, a new load, a roof rack, or a different driver?"]
+[[test.result]]
+id = "changed"
+text = "Yes, use or conditions changed"
+effect = { use = 3 }
+[[test.result]]
+id = "same"
+text = "No, same trips and conditions"
+effect = { use = -2 }
+
+[[test]]
+id = "tyres"
+title = "Check tyres and brakes"
+why = "Low tyres and dragging brakes are common and cheap."
+steps = [
+  "Check all tyre pressures cold, against the door pillar label.",
+  "After a drive, carefully hold your hand near each wheel (don't touch): one much hotter than the others means a dragging brake.",
+]
+[[test.result]]
+id = "found"
+text = "Low tyres, or one wheel much hotter"
+effect = { tyres-drag = 4 }
+[[test.result]]
+id = "fine"
+text = "All fine"
+effect = { tyres-drag = -2 }
+
+[[test]]
+id = "warm-temp"
+title = "Coolant temperature after a drive"
+why = "An engine that stays below about 80 °C after 15 minutes runs rich: the thermostat is likely stuck open."
+needs = ["scan-tool"]
+steps = ["After at least 15 minutes of driving, read the coolant temperature."]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["05"]
+seconds = 10
+[[test.auto.outcome]]
+below = 78.0
+result = "cool"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "cool"
+text = "Below about 78 °C"
+effect = { thermostat = 4 }
+goto = "thermostat"
+[[test.result]]
+id = "normal"
+text = "About 80 °C or more"
+effect = { thermostat = -2 }
+
+[[test]]
+id = "trims"
+title = "Fuel trims when warm"
+why = "Trims well below zero mean the engine computer is taking fuel away from a rich mixture."
+needs = ["scan-tool"]
+steps = ["Warm the engine. At idle, add short and long term fuel trim."]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+below = -10.0
+result = "rich"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "rich"
+text = "Below about -10 %"
+effect = { rich = 4 }
+goto = "rich"
+[[test.result]]
+id = "normal"
+text = "Near zero"
+effect = { rich = -2 }
+
+[[test]]
+id = "o2-switch"
+title = "Watch the front oxygen sensor switch"
+why = "A slow front sensor controls the mixture poorly."
+needs = ["scan-tool"]
+steps = ["Warm the engine, hold about 2500 rpm, and watch the front oxygen sensor for 30 seconds (normal oxygen sensors only)."]
+[test.auto]
+kind = "live"
+measure = "switches"
+pids = ["14"]
+seconds = 30
+hold = { pid = "0C", from = 2200.0, to = 2800.0, text = "Hold the engine at about 2500 rpm" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 30.0
+result = "active"
+[[test.auto.outcome]]
+result = "slow"
+[[test.result]]
+id = "active"
+text = "It swings often (more than about 30 times a minute)"
+effect = { sensor = -2 }
+[[test.result]]
+id = "slow"
+text = "It swings slowly or barely"
+effect = { sensor = 3 }
+goto = "o2-sensor"
+[[test.result]]
+id = "af"
+text = "The car has an air-fuel ratio sensor in front (nothing to watch swing)"
+
+[[test]]
+id = "service"
+title = "Is a service overdue?"
+why = "A blocked air filter and worn plugs add a little fuel use."
+steps = ["Check the service history and look at the air filter."]
+[[test.result]]
+id = "overdue"
+text = "Overdue, or a very dirty air filter"
+effect = { maintenance = 3 }
+[[test.result]]
+id = "up-to-date"
+text = "Up to date"
+effect = { maintenance = -2 }

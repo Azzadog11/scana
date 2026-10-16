@@ -278,6 +278,10 @@ const FILES: &[(&str, &str)] = &[
     ("dpf", include_str!("../data/diag/dpf.toml")),
     ("abs-wheel-speed", include_str!("../data/diag/abs-wheel-speed.toml")),
     ("airbag", include_str!("../data/diag/airbag.toml")),
+    ("no-start", include_str!("../data/diag/no-start.toml")),
+    ("flat-battery", include_str!("../data/diag/flat-battery.toml")),
+    ("rough-running", include_str!("../data/diag/rough-running.toml")),
+    ("fuel-economy", include_str!("../data/diag/fuel-economy.toml")),
 ];
 
 static GUIDES: LazyLock<Vec<Guide>> =
@@ -352,6 +356,11 @@ pub fn maker_hints(code: Dtc) -> Vec<(&'static str, &'static Guide)> {
         }
     }
     out
+}
+
+/// Guides that start from a symptom rather than a code ("Engine won't start").
+pub fn symptoms() -> Vec<&'static Guide> {
+    GUIDES.iter().filter(|g| g.codes.is_empty() && g.maker_codes.is_empty()).collect()
 }
 
 /// Guides whose title, codes or summary contain every word of `query` (any case).
@@ -501,6 +510,8 @@ mod tests {
         );
         assert_eq!(maker_hints(Dtc::parse("C0040").unwrap()).len(), 1);
         assert!(!search("wheel speed").is_empty());
+        let s: Vec<&str> = symptoms().iter().map(|g| g.id.as_str()).collect();
+        assert!(s.contains(&"no-start") && s.contains(&"flat-battery") && !s.contains(&"abs-wheel-speed"));
         assert!(!search("catalytic").is_empty());
         assert!(search("").is_empty());
     }

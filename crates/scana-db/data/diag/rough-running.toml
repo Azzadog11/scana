@@ -1,0 +1,232 @@
+# Diagnosis guide (symptom): rough idle or hesitation with no codes. Written for Scana
+# (2026-10-16). General guidance: check the maker's workshop manual.
+
+id = "rough-running"
+title = "Rough idle, stumbling or hesitation (no codes)"
+codes = []
+summary = "The engine shakes at idle, stumbles, or hesitates when accelerating, but no code is stored (or only pending ones). Faults below the engine computer's limits don't set codes. The usual causes are worn spark plugs or a weak coil, an air leak, a dirty throttle body or air flow sensor, a fuel supply problem, or worn engine mounts making a normal idle feel rough."
+how_it_works = [
+  "The engine computer only stores a code when a fault passes its limits, often on two drives. A mild misfire or a small air leak can upset how the engine feels long before that.",
+  "Scana's live data shows what the computer sees: fuel trims (is it adding or taking fuel?), the idle speed, and misfire counts in the on-board test results.",
+  "Some causes aren't the engine at all: worn engine mounts pass a normal idle's shake into the car.",
+]
+terms = ["Misfire", "Fuel trim", "Total fuel trim", "Throttle body", "PCV valve"]
+fix_first = []
+safety = [
+  "Run the engine outdoors only, with the parking brake on, in park or neutral.",
+  "Keep hands and clothing away from the fan and belts.",
+  "If the check engine light flashes, drive gently: that is a severe misfire.",
+]
+sources = [
+  "Misfire counts and pending codes: misfire guide sources (tomorrowstechnician.com 'Mode $06 Misfire Diagnosis'; aa1car.com) (read 2026-10-16)",
+  "Fuel trim patterns: lean guide sources (kkrichardson.com; obdadvisor.com) (read 2026-10-16)",
+  "Throttle body carbon and idle: throttle and idle guide sources (motorverso.com; go-parts.com) (read 2026-10-16)",
+]
+related = ["misfire", "lean", "idle", "throttle"]
+
+[[cause]]
+id = "ignition"
+name = "Worn spark plugs or a weak ignition coil"
+detail = "A mild misfire, often under load or when damp, before it sets a code."
+weight = 25
+fix = "Replace plugs if due; swap coils to find a weak one (see the misfire guide)."
+cost = "low"
+
+[[cause]]
+id = "air-leak"
+name = "An air leak"
+detail = "A small vacuum leak makes the idle lean and uneven."
+weight = 20
+fix = "Find and fix the leak (see the lean guide)."
+cost = "low"
+
+[[cause]]
+id = "dirty"
+name = "A dirty throttle body or air flow sensor"
+detail = "Carbon round the throttle or dirt on the air flow sensor upsets the idle and the response."
+weight = 20
+fix = "Clean the throttle body and the air flow sensor with the right cleaners."
+cost = "low"
+
+[[cause]]
+id = "fuel"
+name = "A fuel supply problem"
+detail = "Weak fuel pressure, a blocked filter, a dirty injector or bad fuel gives hesitation, worst under load."
+weight = 15
+fix = "Check fuel pressure; replace the filter; clean the injectors; try fresh fuel."
+cost = "medium"
+
+[[cause]]
+id = "mounts"
+name = "Worn engine mounts"
+detail = "Worn mounts let the engine's normal shake into the car, so the idle feels rough though the engine is fine."
+weight = 10
+fix = "Replace the worn mounts."
+cost = "medium"
+
+[[cause]]
+id = "egr-purge"
+name = "An EGR or purge valve stuck open"
+detail = "Exhaust or fuel vapour let in at idle makes it rough."
+weight = 10
+fix = "Check and replace the stuck valve (see the EGR and EVAP purge guides)."
+cost = "low"
+
+[[test]]
+id = "pending"
+title = "Any pending codes?"
+why = "A pending code is a fault seen once: it may name the cause before the light comes on."
+needs = ["scan-tool"]
+steps = ["Read stored and pending codes."]
+[test.auto]
+kind = "codes"
+absent = "none"
+[[test.auto.group]]
+patterns = ["P0300-P0312"]
+result = "misfire"
+[[test.auto.group]]
+patterns = ["P0171", "P0174", "P0172", "P0175"]
+result = "mixture"
+[[test.result]]
+id = "none"
+text = "No codes at all"
+[[test.result]]
+id = "misfire"
+text = "Misfire codes"
+effect = { ignition = 3 }
+goto = "misfire"
+[[test.result]]
+id = "mixture"
+text = "Lean or rich codes"
+effect = { air-leak = 2, fuel = 1, egr-purge = 1 }
+goto = "lean"
+
+[[test]]
+id = "trims"
+title = "Fuel trims at idle"
+why = "Trims far above zero point to an air leak; far below to extra fuel or vapour (a stuck purge valve)."
+needs = ["scan-tool"]
+steps = ["Warm the engine. At idle, add short and long term fuel trim."]
+[test.auto]
+kind = "live"
+measure = "trim"
+pids = ["06", "07"]
+seconds = 20
+hold = { pid = "0C", to = 1200.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 10.0
+result = "lean"
+[[test.auto.outcome]]
+below = -10.0
+result = "rich"
+[[test.auto.outcome]]
+result = "normal"
+[[test.result]]
+id = "normal"
+text = "Within about 10 % of zero"
+effect = { air-leak = -1, egr-purge = -1 }
+[[test.result]]
+id = "lean"
+text = "Above about +10 %"
+effect = { air-leak = 3 }
+[[test.result]]
+id = "rich"
+text = "Below about -10 %"
+effect = { egr-purge = 2, fuel = 1 }
+
+[[test]]
+id = "idle-steady"
+title = "Is the idle speed steady?"
+why = "An idle that hunts points to air leaks, carbon or the idle control; a steady speed with a shake points to a misfire or mounts."
+needs = ["scan-tool"]
+steps = ["Warm idle with everything off: watch engine speed for 30 seconds."]
+[test.auto]
+kind = "live"
+measure = "spread"
+pids = ["0C"]
+seconds = 30
+hold = { pid = "0C", to = 1500.0, text = "Let the engine idle" }
+need = { pid = "05", from = 75.0, text = "Warm the engine first: coolant above 75 °C" }
+[[test.auto.outcome]]
+above = 150.0
+result = "hunts"
+[[test.auto.outcome]]
+result = "steady"
+[[test.result]]
+id = "steady"
+text = "Steady (within about 150 rpm)"
+effect = { ignition = 1, mounts = 1, air-leak = -1 }
+[[test.result]]
+id = "hunts"
+text = "It hunts up and down"
+effect = { air-leak = 1, dirty = 2 }
+
+[[test]]
+id = "when"
+title = "When is it worst?"
+why = "Under load points to ignition and fuel; at idle to air leaks, carbon and valves; in gear at idle only to mounts."
+steps = ["Note when it is worst: idle in park or neutral, idle in gear (foot on the brake), accelerating, or only when cold."]
+[[test.result]]
+id = "load"
+text = "Accelerating or uphill"
+effect = { ignition = 2, fuel = 2 }
+[[test.result]]
+id = "idle"
+text = "At idle in park or neutral"
+effect = { air-leak = 1, dirty = 1, egr-purge = 1 }
+[[test.result]]
+id = "in-gear"
+text = "Mainly at idle in gear, smoother in neutral"
+effect = { mounts = 3 }
+[[test.result]]
+id = "cold"
+text = "Only when cold"
+effect = { air-leak = 1, fuel = 1 }
+
+[[test]]
+id = "plugs-age"
+title = "When were the spark plugs changed?"
+why = "Plugs past their interval are a common cause of mild misfires."
+steps = ["Check the service history against the owner's manual's plug interval."]
+[[test.result]]
+id = "due"
+text = "Due or overdue, or unknown on an older car"
+effect = { ignition = 2 }
+[[test.result]]
+id = "recent"
+text = "Recently changed"
+effect = { ignition = -1 }
+
+[[test]]
+id = "mounts-look"
+title = "Watch the engine move"
+why = "With worn mounts the engine rocks a lot when you shift into gear or rev it."
+steps = [
+  "With a helper holding the brake firmly, engine idling: shift between drive and reverse (or rev briefly in neutral on a manual) and watch the engine.",
+  "A big lurch or a clunk means worn mounts.",
+]
+safety = ["Helper's foot firmly on the brake; stand to the side of the car, never in front."]
+[[test.result]]
+id = "rocks"
+text = "It lurches a lot or clunks"
+effect = { mounts = 4 }
+[[test.result]]
+id = "small"
+text = "Small movement"
+effect = { mounts = -2 }
+
+[[test]]
+id = "throttle-look"
+title = "Look inside the throttle body"
+why = "Carbon round the throttle plate upsets the idle."
+steps = ["Key out. Remove the intake duct and look for black carbon round the throttle plate."]
+safety = ["Key out before putting fingers near the throttle plate."]
+[[test.result]]
+id = "dirty"
+text = "Carbon round the plate"
+effect = { dirty = 3 }
+[[test.result]]
+id = "clean"
+text = "Clean"
+effect = { dirty = -2 }

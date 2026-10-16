@@ -1,0 +1,182 @@
+# Diagnosis guide (symptom): the battery keeps going flat. Written for Scana (2026-10-16).
+
+id = "flat-battery"
+title = "Battery keeps going flat"
+codes = []
+summary = "The battery is flat after the car stands for a night or a few days. Either the battery can't hold a charge, the alternator doesn't charge it, the car's trips are too short to recharge it, or something draws current while the car is switched off (a parasitic drain)."
+how_it_works = [
+  "While the engine runs, the alternator charges the battery at about 13.5 to 14.7 V.",
+  "With the car off, a small current still flows for the clock, alarm and module memories. A healthy car draws very little; a light left on or a module that doesn't go to sleep can flatten the battery overnight.",
+  "Short trips with lights, wipers and fans on may not give back what starting took.",
+  "Batteries wear out, usually after about 4 to 6 years, faster in heat.",
+]
+terms = ["Alternator", "Parasitic drain", "Voltage regulator", "Relay", "Fuse"]
+safety = [
+  "Batteries give off explosive gas: no sparks or flames. Connect and disconnect clamps with everything off.",
+  "Remove rings and watches before working near the battery.",
+  "Measuring the car's drain current needs care: a workshop, or the meter's instructions, so you don't blow the meter's fuse.",
+]
+sources = [
+  "Charging range and battery checks: the charging guide's sources (obd-codes.com P0562, carparts.com) (read 2026-10-16)",
+  "Parasitic drain and module sleep: general automotive electrical practice (unverified detail for any one car)",
+]
+related = ["charging", "no-start"]
+
+[[cause]]
+id = "battery"
+name = "A worn-out battery that won't hold a charge"
+detail = "Old or heat-damaged batteries lose capacity: they start the car when charged but fade overnight."
+weight = 35
+fix = "Charge fully and load-test; replace the battery if it fails."
+cost = "medium"
+
+[[cause]]
+id = "drain"
+name = "Something draws current with the car off"
+detail = "A boot, glovebox or interior light staying on, an aftermarket accessory (dash camera, alarm), or a module that doesn't go to sleep."
+weight = 25
+fix = "Find the drain: a workshop measures current with everything off and pulls fuses one at a time to find the circuit."
+cost = "low"
+
+[[cause]]
+id = "charging"
+name = "The alternator doesn't charge enough"
+detail = "A worn alternator, a slipping belt or a poor connection leaves the battery undercharged."
+weight = 20
+fix = "Check the charging voltage; see the charging guide."
+cost = "medium"
+
+[[cause]]
+id = "short-trips"
+name = "Short trips that don't recharge the battery"
+detail = "Many short trips, especially in winter with lights and heaters on, take more than they give back."
+weight = 15
+fix = "Charge the battery with a charger now and then, or take a longer drive each week."
+cost = "low"
+
+[[cause]]
+id = "connections"
+name = "Corroded or loose terminals"
+detail = "Poor terminals stop the battery charging fully and feeding the starter."
+weight = 5
+fix = "Clean and tighten the terminals and the ground straps."
+cost = "low"
+
+[[test]]
+id = "age"
+title = "How old is the battery?"
+why = "Batteries usually last about 4 to 6 years."
+steps = ["Look for a date on the battery, or check the service history."]
+[[test.result]]
+id = "old"
+text = "More than about 4 years, or unknown"
+effect = { battery = 2 }
+[[test.result]]
+id = "new"
+text = "Less than about 2 years"
+effect = { battery = -2 }
+
+[[test]]
+id = "charging-volts"
+title = "Charging voltage with the engine running"
+why = "Normally about 13.5 to 14.7 V: lower means the battery isn't being charged."
+needs = ["scan-tool"]
+steps = ["Start the engine, turn on the headlights and heater fan, and read the control module voltage."]
+[test.auto]
+kind = "live"
+measure = "mean"
+pids = ["42"]
+seconds = 10
+hold = { pid = "0C", from = 500.0, text = "Start the engine and let it idle" }
+[[test.auto.outcome]]
+below = 13.2
+result = "low"
+[[test.auto.outcome]]
+result = "ok"
+[[test.result]]
+id = "low"
+text = "Below about 13.2 V"
+effect = { charging = 4 }
+goto = "charging"
+[[test.result]]
+id = "ok"
+text = "About 13.2 V or more"
+effect = { charging = -2 }
+
+[[test]]
+id = "lights"
+title = "Anything left on?"
+why = "A light that stays on is the simplest drain."
+steps = [
+  "After locking the car at night, look for any light inside: the boot, the glovebox, the cabin lights, a phone charger's light.",
+  "Check any accessories fitted: dash camera, alarm, tracker, fridge.",
+]
+[[test.result]]
+id = "found"
+text = "Something stays on, or an accessory is fitted"
+effect = { drain = 3 }
+[[test.result]]
+id = "none"
+text = "Nothing"
+effect = { drain = -1 }
+
+[[test]]
+id = "trips"
+title = "How is the car used?"
+why = "Short trips may never recharge the battery."
+steps = ["Mostly short trips (under about 10 minutes), or regular longer drives?"]
+[[test.result]]
+id = "short"
+text = "Mostly short trips, or it stands for days at a time"
+effect = { short-trips = 3 }
+[[test.result]]
+id = "long"
+text = "Regular longer drives"
+effect = { short-trips = -2 }
+
+[[test]]
+id = "terminals"
+title = "Look at the terminals"
+why = "Crusty or loose terminals stop the battery charging fully."
+steps = ["Look at both terminals for white or green crust; try to move each clamp by hand (engine off)."]
+[[test.result]]
+id = "bad"
+text = "Crusty or loose"
+effect = { connections = 4 }
+[[test.result]]
+id = "good"
+text = "Clean and tight"
+effect = { connections = -2 }
+
+[[test]]
+id = "overnight"
+title = "Measure the voltage overnight"
+why = "A healthy, charged battery stays about 12.4 to 12.7 V overnight. A big drop overnight with the battery passing a load test means a drain."
+needs = ["multimeter"]
+steps = [
+  "Charge the battery fully. Measure across it an hour after switching off and locking.",
+  "Measure again the next morning before unlocking.",
+]
+[[test.result]]
+id = "drops"
+text = "It drops clearly (more than about 0.2 V)"
+effect = { drain = 3, battery = 1 }
+[[test.result]]
+id = "holds"
+text = "It holds"
+effect = { drain = -2, charging = 1, short-trips = 1 }
+
+[[test]]
+id = "load-test"
+title = "Load-test the battery"
+why = "Tells a worn battery from a drain or a charging fault."
+needs = ["battery-tester"]
+steps = ["Charge fully, then test as the tester says (many parts shops test batteries)."]
+[[test.result]]
+id = "fail"
+text = "It fails"
+effect = { battery = 4 }
+[[test.result]]
+id = "pass"
+text = "It passes"
+effect = { battery = -3 }

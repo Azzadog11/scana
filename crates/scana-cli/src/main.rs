@@ -403,10 +403,23 @@ fn diagnose(
     list: bool,
     make: Option<&str>,
 ) -> Result<()> {
-    use scana_core::diagnose::{self, Diagnosis};
+    use scana_core::diagnose::Diagnosis;
     use scana_db::diag;
-    let code =
-        scana_proto::Dtc::parse(code_text).with_context(|| format!("{code_text} is not a fault code like P0420"))?;
+    let Some(code) = scana_proto::Dtc::parse(code_text) else {
+        // Not a code: a guide's name, such as no-start, or words from its title.
+        let g = diag::guide(code_text).or_else(|| {
+            let found = diag::search(code_text);
+            if found.len() == 1 { found.first().copied() } else { None }
+        });
+        let Some(g) = g else {
+            println!("{code_text} isn't a code or a guide name. Symptom guides (no code needed):");
+            for g in diag::symptoms() {
+                println!("  scana diagnose {}   ({})", g.id, g.title);
+            }
+            return Ok(());
+        };
+        return run_guide(Diagnosis::new(g, None), client, answers, list);
+    };
     let hints = diag::maker_hints(code);
     let found = Diagnosis::for_code_make(code, make).or_else(|| {
         let (m, g) = hints.first()?;
@@ -416,13 +429,27 @@ fn diagnose(
         );
         Some(Diagnosis::new(g, Some(code)))
     });
-    let Some(mut d) = found else {
+    let Some(d) = found else {
         println!("{code}: {}", dtcdb::lookup(code).summary());
         println!("Scana has no step-by-step guide for {code} yet. `scana explain {code}` shows what it knows.");
         return Ok(());
     };
+    run_guide(d, client, answers, list)
+}
+
+/// Works through a guide in the terminal: prints it, measures what it can on a connected
+/// car, asks the rest, and saves a report.
+fn run_guide(
+    mut d: scana_core::diagnose::Diagnosis,
+    client: Option<Client>,
+    answers: Option<&str>,
+    list: bool,
+) -> Result<()> {
+    use scana_core::diagnose::{self, Diagnosis};
+    use scana_db::diag;
     let g = d.guide;
-    println!("{code}: {}\n", g.title);
+    let code_label = d.code.map_or_else(|| g.id.clone(), |c| c.to_string());
+    println!("{code_label}: {}\n", g.title);
     println!("{}\n", wrap(&g.summary, ""));
     println!("How it works:");
     for p in &g.how_it_works {
@@ -483,7 +510,7 @@ fn diagnose(
         let first = d.fix_first_present(&car_codes);
         if !first.is_empty() {
             println!(
-                "\nFix these codes first, they often cause {code}: {}",
+                "\nFix these codes first, they often cause {code_label}: {}",
                 first.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(", ")
             );
         }
@@ -645,7 +672,7 @@ fn diagnose(
     let dir = recorder::sessions_dir().join("diagnoses");
     std::fs::create_dir_all(&dir).with_context(|| format!("can't make {}", dir.display()))?;
     let when = chrono_now();
-    let path = dir.join(format!("{}_{code}.html", when.replace([' ', ':'], "-")));
+    let path = dir.join(format!("{}_{code_label}.html", when.replace([' ', ':'], "-")));
     std::fs::write(&path, d.to_html("", &when)).with_context(|| format!("can't write {}", path.display()))?;
     println!("\nReport saved: {}", path.display());
     Ok(())

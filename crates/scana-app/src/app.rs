@@ -155,6 +155,8 @@ pub struct ScanaApp {
     /// a live measurement in progress, and a read waiting to answer a test.
     pub diag: Option<scana_core::diagnose::Diagnosis>,
     pub diag_code_text: String,
+    /// Filters the list of guides on the Diagnose page.
+    pub diag_filter: String,
     pub diag_open: Option<String>,
     pub diag_measure: Option<crate::pages::diagnose::DiagMeasure>,
     pub diag_wait: Option<crate::pages::diagnose::DiagWait>,
@@ -206,6 +208,7 @@ impl ScanaApp {
             console_text: String::new(),
             diag: None,
             diag_code_text: String::new(),
+            diag_filter: String::new(),
             diag_open: None,
             diag_measure: None,
             diag_wait: None,

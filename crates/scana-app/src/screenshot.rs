@@ -49,6 +49,7 @@ enum Act {
     MeasureTest(&'static str),
     OpenTest(&'static str),
     CloseDiag,
+    Lookup(&'static str),
 }
 
 pub struct ShotPlan {
@@ -104,6 +105,15 @@ impl ShotPlan {
             Topic(Some(crate::app::Topic::Term("Freeze frame".into()))),
             Wait(1.0),
             Shot("08-learn"),
+            Lookup("P0420"),
+            Topic(None),
+            Wait(1.0),
+            Shot("23-learn-lookup"),
+            Lookup(""),
+            Diagnose("C0200"),
+            Wait(1.0),
+            Shot("24-diagnose-maker-code"),
+            CloseDiag,
             Go(Page::Settings),
             Topic(None),
             Wait(0.8),
@@ -324,6 +334,11 @@ pub fn step(app: &mut ScanaApp, mut plan: ShotPlan, ctx: &egui::Context) -> Opti
         }
         Act::OpenTest(test) => {
             app.diag_open = Some(test.to_string());
+            true
+        }
+        Act::Lookup(text) => {
+            app.glossary_filter = text.to_string();
+            app.go(Page::Learn);
             true
         }
         Act::CloseDiag => {

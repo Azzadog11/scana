@@ -8,7 +8,73 @@ use scana_proto::pids;
 impl ScanaApp {
     pub fn page_learn(&mut self, ui: &mut Ui) {
         let pal = self.pal();
-        self.heading(ui, "Learn", "Guided jobs, the glossary, and how OBD-II works.");
+        self.heading(ui, "Learn", "Look up any code, word or tool; guided jobs; and how OBD-II works.");
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("Look up:").strong());
+            ui.add(
+                egui::TextEdit::singleline(&mut self.glossary_filter)
+                    .hint_text("a code (P0420), a word (fuel trim) or a tool")
+                    .desired_width(320.0),
+            );
+            if !self.glossary_filter.is_empty() && ui.small_button("Clear").clicked() {
+                self.glossary_filter.clear();
+            }
+        });
+        let query = self.glossary_filter.trim().to_string();
+        let filter = query.to_lowercase();
+        if let Some(code) = scana_proto::Dtc::parse(&query) {
+            self.code_card(ui, code);
+        } else if !filter.is_empty() {
+            let guides = scana_db::diag::search(&query);
+            if !guides.is_empty() {
+                ui.label(RichText::new("Diagnosis guides").strong());
+                for g in guides {
+                    ui.horizontal_wrapped(|ui| {
+                        if ui.link(&g.title).clicked()
+                            && let Some(c) =
+                                g.codes.first().and_then(|c| scana_proto::Dtc::parse(c.split('-').next().unwrap_or("")))
+                        {
+                            self.start_diagnosis(c);
+                        }
+                        ui.label(RichText::new(g.codes.join(", ")).small().color(pal.dim));
+                    });
+                }
+                ui.add_space(4.0);
+            }
+            for t in scana_db::diag::tools()
+                .iter()
+                .filter(|t| t.name.to_lowercase().contains(&filter) || t.what.to_lowercase().contains(&filter))
+            {
+                ui.label(RichText::new(format!("Tool: {} (cost: {})", t.name, t.cost)).strong());
+                ui.label(&t.what);
+                ui.label(RichText::new(&t.how).color(pal.dim));
+                if let Some(sf) = &t.safety {
+                    ui.label(RichText::new(sf).color(pal.note));
+                }
+                ui.add_space(4.0);
+            }
+        }
+        ui.add_space(8.0);
+        let shown: Vec<&scana_db::learn::Term> = learn::glossary()
+            .iter()
+            .filter(|t| {
+                filter.is_empty() || t.name.to_lowercase().contains(&filter) || t.text.to_lowercase().contains(&filter)
+            })
+            .collect();
+        ui.label(
+            RichText::new(format!("Glossary ({} of {} words)", shown.len(), learn::glossary().len()))
+                .size(18.0)
+                .strong(),
+        );
+        for t in shown {
+            ui.horizontal_wrapped(|ui| {
+                if ui.link(RichText::new(&t.name).strong()).clicked() {
+                    self.topic = Some(Topic::Term(t.name.clone()));
+                }
+                ui.label(&t.text);
+            });
+        }
+        ui.add_space(12.0);
         ui.label(RichText::new("Guided jobs").size(18.0).strong());
         for job in learn::jobs() {
             let open = self.open_job.as_deref() == Some(job.id.as_str());
@@ -35,31 +101,6 @@ impl ScanaApp {
             }
         }
         ui.add_space(12.0);
-        ui.label(RichText::new("Glossary").size(18.0).strong());
-        ui.horizontal(|ui| {
-            ui.label("Find:");
-            ui.add(
-                egui::TextEdit::singleline(&mut self.glossary_filter)
-                    .hint_text("for example: trim")
-                    .desired_width(220.0),
-            );
-        });
-        let filter = self.glossary_filter.to_lowercase();
-        for t in learn::glossary() {
-            if !filter.is_empty()
-                && !t.name.to_lowercase().contains(&filter)
-                && !t.text.to_lowercase().contains(&filter)
-            {
-                continue;
-            }
-            ui.horizontal_wrapped(|ui| {
-                if ui.link(RichText::new(&t.name).strong()).clicked() {
-                    self.topic = Some(Topic::Term(t.name.clone()));
-                }
-                ui.label(&t.text);
-            });
-        }
-        ui.add_space(12.0);
         ui.label(RichText::new("How OBD-II works").size(18.0).strong());
         for s in learn::lesson() {
             ui.label(RichText::new(&s.title).strong());
@@ -69,6 +110,51 @@ impl ScanaApp {
     }
 
     /// The panel on the right: what the selected thing means, or help for the page.
+    /// What Scana knows about one code, on the Learn page.
+    fn code_card(&mut self, ui: &mut Ui, code: scana_proto::Dtc) {
+        let pal = self.pal();
+        let info = dtcdb::lookup(code);
+        egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(RichText::new(format!("{code}  {}", info.summary())).size(17.0).strong());
+            ui.label(RichText::new(format!("Group: {}. System: {}.", info.group, info.system.name())).color(pal.dim));
+            if info.manufacturer_specific {
+                ui.label(
+                    RichText::new(
+                        "Maker-specific: its exact meaning depends on the make. The maker's workshop manual has it.",
+                    )
+                    .color(pal.note),
+                );
+            }
+            if let Some(a) = info.advice {
+                ui.label(RichText::new("What it usually means").strong());
+                ui.label(&a.means);
+                ui.label(RichText::new("What to check first").strong());
+                for c in &a.check {
+                    ui.label(format!("• {c}"));
+                }
+            }
+            let make = self.model.profile().and_then(|p| p.make.as_deref());
+            if let Some(g) = scana_db::diag::guide_for_make(code, make) {
+                if ui.button(RichText::new(format!("Diagnose {code} step by step: {}", g.title)).strong()).clicked() {
+                    self.start_diagnosis(code);
+                }
+            } else {
+                for (m, g) in scana_db::diag::maker_hints(code) {
+                    ui.label(RichText::new(format!("On {m}, {code} means: {}.", g.title)).color(pal.note));
+                    if ui.button("Open that guide").clicked() {
+                        self.start_diagnosis(code);
+                    }
+                }
+            }
+            ui.label(
+                RichText::new("General guidance: check the maker's workshop manual before replacing parts.")
+                    .small()
+                    .color(pal.dim),
+            );
+        });
+    }
+
     pub fn learn_panel(&mut self, ui: &mut Ui) {
         let pal = self.pal();
         ui.add_space(6.0);

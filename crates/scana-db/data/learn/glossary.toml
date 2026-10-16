@@ -247,3 +247,389 @@ text = "The module that controls an automatic gearbox or CVT (the TCM). It has i
 [[term]]
 name = "CVT"
 text = "Continuously variable transmission: an automatic gearbox with a steel belt or chain between two pulleys that change size, instead of fixed gears. It needs exactly the fluid its maker specifies."
+
+# More words met in codes, guides and live data (added 2026-10-16).
+
+[[term]]
+name = "STFT"
+text = "Short term fuel trim: the engine computer's quick, moment-to-moment fuel correction, in percent. It swings around zero in closed loop. Plus means adding fuel."
+
+[[term]]
+name = "LTFT"
+text = "Long term fuel trim: the correction the engine computer has learnt over time, in percent. A large long term trim (beyond about 10 %) means something has changed: a leak, a sensor, the fuel supply."
+
+[[term]]
+name = "Total fuel trim"
+text = "Short term plus long term fuel trim. Scana adds them in its diagnosis tests. Within about 10 % of zero is normal on most engines."
+
+[[term]]
+name = "Open loop"
+text = "When the engine computer sets the fuel from fixed tables without using the oxygen sensor: cold starts, hard acceleration, and on many cars when coasting. The opposite of closed loop."
+
+[[term]]
+name = "Rich"
+text = "More fuel than the air can burn completely. A rich engine wastes fuel, can smell of fuel, and the oxygen sensor reads high (about 0.9 V)."
+
+[[term]]
+name = "Lean"
+text = "More air than needed for the fuel. A lean engine can hesitate, misfire and run hot, and the oxygen sensor reads low (about 0.1 V)."
+
+[[term]]
+name = "Stoichiometric"
+text = "The chemically perfect air to fuel mixture: about 14.7 parts air to 1 part petrol by weight (lambda 1). Most petrol engines aim for it in closed loop."
+
+[[term]]
+name = "ECM"
+text = "Engine control module: the engine computer. Also called the PCM (powertrain control module) when it controls the gearbox too."
+
+[[term]]
+name = "PCM"
+text = "Powertrain control module: an engine computer that also controls the gearbox. Many people use PCM and ECM for the same thing."
+
+[[term]]
+name = "TCM"
+text = "Transmission control module: the gearbox computer, on cars where it is separate from the engine computer."
+
+[[term]]
+name = "BCM"
+text = "Body control module: the computer that runs lights, locks, wipers and other body functions."
+
+[[term]]
+name = "ABS"
+text = "Anti-lock braking system: stops the wheels locking in a hard stop so you can still steer. Its computer reads a speed sensor at each wheel. With the ABS light on, normal brakes still work."
+
+[[term]]
+name = "Stability control"
+text = "A system that brakes single wheels and reduces power to stop a skid. Toyota calls it VSC, others ESC or ESP. It uses the ABS sensors, a steering angle sensor and a yaw sensor."
+
+[[term]]
+name = "Traction control"
+text = "A system that reduces power or brakes a spinning wheel to keep grip when accelerating. Often called TRC or TCS. It shares the ABS sensors."
+
+[[term]]
+name = "SRS"
+text = "Supplemental restraint system: the airbags, seat belt pretensioners and their sensors and computer. Never probe its wiring."
+
+[[term]]
+name = "PCV valve"
+text = "Positive crankcase ventilation valve: lets the engine draw fumes from the crankcase back into the intake to be burnt. A stuck or split PCV valve or hose causes air leaks, oil use or a rough idle."
+
+[[term]]
+name = "TPS"
+text = "Throttle position sensor: tells the engine computer how far the throttle is open. Electronic throttles have two that check each other."
+
+[[term]]
+name = "Accelerator pedal sensor"
+text = "Sensors in the accelerator pedal of a drive-by-wire car that tell the engine computer how far you press it. There are two, which must agree."
+
+[[term]]
+name = "Vehicle speed sensor"
+text = "Tells the computers how fast the car is moving: from the gearbox output on older cars, from the ABS wheel speed sensors on many newer ones. Also called VSS."
+
+[[term]]
+name = "Wheel speed sensor"
+text = "A sensor at each wheel facing a toothed ring (the tone ring), so the ABS computer knows each wheel's speed. Their wires and plugs live in water and mud and fail often."
+
+[[term]]
+name = "Tone ring"
+text = "The toothed ring that turns with a wheel (or a shaft) for a speed sensor to read. Cracks, rust or missing teeth give an erratic signal."
+
+[[term]]
+name = "Steering angle sensor"
+text = "Tells the stability control how far and which way the steering wheel is turned. It may need resetting after a wheel alignment."
+
+[[term]]
+name = "Clock spring"
+text = "A coiled ribbon cable behind the steering wheel that connects the driver's airbag, horn and buttons while the wheel turns. When it breaks, the airbag light comes on and the wheel buttons stop working."
+
+[[term]]
+name = "Pretensioner"
+text = "A small device that pulls a seat belt tight in a crash. Part of the airbag system: never probe its wiring."
+
+[[term]]
+name = "Occupant sensor"
+text = "A sensor in the passenger seat that tells the airbag computer whether someone (and how heavy) is sitting there, to switch the passenger airbag on or off."
+
+[[term]]
+name = "TPMS"
+text = "Tyre pressure monitoring system: sensors in the wheels (or the ABS working it out from wheel speeds) warn of a low tyre."
+
+[[term]]
+name = "Instrument cluster"
+text = "The dashboard display: speedometer, gauges and warning lights. It is a computer on the network too (often called the meter, IPC or combination meter)."
+
+[[term]]
+name = "Gateway"
+text = "A module that links the car's different networks and passes messages between them. On many newer cars the OBD port only reaches other modules through the gateway."
+
+[[term]]
+name = "Module"
+text = "Another word for a car computer (ECU): the engine, gearbox, ABS, airbag and body computers are all modules."
+
+[[term]]
+name = "K-line"
+text = "An older single-wire diagnostic connection on OBD pin 7 (ISO 9141-2 and KWP2000), used by many cars before CAN, such as many early-2000s Toyotas. Scana's bridge only speaks CAN, so it can't reach K-line cars."
+
+[[term]]
+name = "J1850"
+text = "Older diagnostic connections on OBD pins 2 and 10, used by many American cars before 2008 (Ford PWM, GM VPW). Scana's bridge can't reach them."
+
+[[term]]
+name = "ELM327"
+text = "A popular chip in cheap OBD-II adapters that speaks all the OBD-II protocols through simple text commands. Many clones exist, of mixed quality."
+
+[[term]]
+name = "KWP2000"
+text = "Keyword Protocol 2000 (ISO 14230): an older diagnostic language that many modules still speak over CAN, with services such as 1A for identity and 21 for data. The newer one is UDS."
+
+[[term]]
+name = "Tester present"
+text = "A harmless 'are you there?' request (service 3E). Scana sends one to each likely address to find the car's modules: any answer means a module is there."
+
+[[term]]
+name = "Data identifier"
+text = "A number for one piece of data in a module, read with UDS service 22 (for example F190 is the VIN). Also called a DID. Makers keep most of theirs private, which is what Scana's data explorer helps uncover."
+
+[[term]]
+name = "Local identifier"
+text = "A one-byte number for a block of data in an older (KWP2000) module, read with service 21. Toyota-family modules use them for live data."
+
+[[term]]
+name = "Failure type"
+text = "The third byte of a UDS fault code (for example the 11 in C0035-11): it says how the circuit failed, such as shorted to ground, open, or signal too high. Scana shows it in words."
+
+[[term]]
+name = "History code"
+text = "A code a module remembers from earlier although the fault isn't there now. Scana shows these as 'happened earlier'. They often date from a flat battery or a jump start."
+
+[[term]]
+name = "Drive cycle"
+text = "A pattern of driving (cold start, idle, steady speeds, slowing down) that lets the engine computer run all its readiness tests. The workshop manual often gives one."
+
+[[term]]
+name = "Monitor"
+text = "One of the engine computer's self-tests: catalyst, oxygen sensors, EVAP, EGR, misfire and others. Readiness shows which have finished since codes were last cleared."
+
+[[term]]
+name = "Ignition timing"
+text = "When the spark fires, in degrees of crankshaft rotation before top dead centre. The engine computer moves it all the time; it retards it when the knock sensor hears knock."
+
+[[term]]
+name = "Knock"
+text = "Pinging: fuel burning too early with a sharp metallic rattle under load. Low-grade fuel, carbon or overheating cause it; heavy knock damages pistons."
+
+[[term]]
+name = "Fuel injector"
+text = "An electric valve that sprays fuel into the engine, opened by the engine computer for a few milliseconds each cycle. Port injectors spray into the intake; direct injectors into the cylinder."
+
+[[term]]
+name = "Fuel rail"
+text = "The pipe that feeds fuel to all the injectors at pressure. Many have a test port or a pressure sensor."
+
+[[term]]
+name = "Fuel pressure regulator"
+text = "Keeps fuel pressure at the right level for the injectors. On returnless systems the engine computer does this by controlling the pump."
+
+[[term]]
+name = "Direct injection"
+text = "Fuel sprayed straight into the cylinder at very high pressure, from an engine-driven pump. Efficient, but its intake valves collect carbon and its high-pressure parts need a workshop."
+
+[[term]]
+name = "Port injection"
+text = "Fuel sprayed into the intake just before the valves, at moderate pressure (often about 300 to 400 kPa)."
+
+[[term]]
+name = "Intercooler"
+text = "A radiator for the air from a turbocharger: cooling the air packs more into the engine. Its pipes and clamps are a common place for boost leaks."
+
+[[term]]
+name = "Boost"
+text = "The extra intake pressure a turbocharger or supercharger makes above the outside air pressure."
+
+[[term]]
+name = "Diesel particulate filter"
+text = "A filter in a diesel's exhaust that traps soot and burns it off now and then (regeneration), which needs a steady drive at highway speed. Also called the DPF."
+
+[[term]]
+name = "Regeneration"
+text = "Burning the soot out of a diesel particulate filter: the engine computer raises the exhaust temperature to about 600 °C for several minutes, usually on a highway drive."
+
+[[term]]
+name = "AdBlue"
+text = "Diesel exhaust fluid (DEF): a urea solution sprayed into a diesel's exhaust so the SCR catalyst can turn nitrogen oxides into nitrogen and water."
+
+[[term]]
+name = "SCR"
+text = "Selective catalytic reduction: a catalyst in a diesel exhaust that uses AdBlue to cut nitrogen oxide (NOx) emissions."
+
+[[term]]
+name = "NOx"
+text = "Nitrogen oxides: harmful gases made when combustion is very hot. EGR and, on diesels, SCR reduce them."
+
+[[term]]
+name = "Glow plug"
+text = "A heater in each cylinder of a diesel that helps it start in the cold. A burnt-out one makes cold starts hard and smoky."
+
+[[term]]
+name = "Common rail"
+text = "A modern diesel fuel system: one very high-pressure rail feeds electronically controlled injectors. Its pressures are dangerous: workshop only."
+
+[[term]]
+name = "Catalytic converter"
+text = "The part of the exhaust that turns harmful gases into harmless ones. It stores and releases oxygen, which the rear oxygen sensor watches. P0420 and P0430 mean it isn't doing that well enough."
+
+[[term]]
+name = "Oxygen storage"
+text = "A catalytic converter's ability to hold oxygen when the mixture is lean and give it back when rich. As a converter wears out, it stores less."
+
+[[term]]
+name = "Light-off"
+text = "The moment a catalytic converter gets hot enough to start working, a minute or two after a cold start."
+
+[[term]]
+name = "Coolant"
+text = "The mix of water and antifreeze that carries heat from the engine to the radiator, and protects against freezing, boiling and corrosion. Use the type the maker specifies."
+
+[[term]]
+name = "Water pump"
+text = "The pump that pushes coolant round the engine and radiator, driven by a belt (sometimes the timing belt) or electrically."
+
+[[term]]
+name = "Radiator cap"
+text = "Holds the cooling system's pressure, which raises the boiling point. Never open it on a hot engine."
+
+[[term]]
+name = "Heater core"
+text = "A small radiator behind the dashboard that heats the cabin with engine coolant. A leaking one fogs the windscreen and wets the carpet."
+
+[[term]]
+name = "Compression"
+text = "The pressure a cylinder builds as its piston rises. Low compression on one cylinder (a burnt valve, worn rings, a head gasket) causes a misfire no part swap will cure."
+
+[[term]]
+name = "Leak-down test"
+text = "Puts compressed air into a cylinder and listens where it escapes, to tell rings, valves and head gasket faults apart."
+
+[[term]]
+name = "Cam phaser"
+text = "The variable valve timing gear on the end of a camshaft that oil pressure turns slightly ahead or back. A worn one can knock at start-up."
+
+[[term]]
+name = "Torque converter"
+text = "The fluid coupling between the engine and an automatic gearbox. Its lock-up clutch (TCC) locks it at cruise to save fuel."
+
+[[term]]
+name = "TCC"
+text = "Torque converter clutch: locks the torque converter at cruise. A shudder at steady speed or codes P0740 to P0744 point to it."
+
+[[term]]
+name = "Shift solenoid"
+text = "An electric valve in an automatic gearbox that the gearbox computer switches to change gear."
+
+[[term]]
+name = "Valve body"
+text = "The maze of oil passages and valves inside an automatic gearbox that directs fluid to change gears. The solenoids sit in it."
+
+[[term]]
+name = "ATF"
+text = "Automatic transmission fluid. Each gearbox needs its maker's exact type; CVTs need their own CVT fluid."
+
+[[term]]
+name = "Immobiliser"
+text = "A security system that lets the engine start only with the right key, read from a chip in the key. A fault can give a crank-but-no-start."
+
+[[term]]
+name = "Voltage regulator"
+text = "Keeps the alternator's output at about 13.5 to 14.7 V. When it fails high, the battery overcharges; when it fails low, the battery goes flat."
+
+[[term]]
+name = "Parasitic drain"
+text = "Current drawn from the battery with the car switched off. A little is normal (clocks, alarm); too much flattens the battery overnight."
+
+[[term]]
+name = "Ground"
+text = "The return path to the battery's negative terminal, usually through the car's body and engine. A corroded or loose ground strap causes strange electrical faults."
+
+[[term]]
+name = "Relay"
+text = "An electric switch: a small current from a computer or switch turns on a big current for a pump, fan or lights."
+
+[[term]]
+name = "Fuse"
+text = "A thin link that melts and breaks the circuit if too much current flows, protecting the wiring. Replace it only with the same rating; one that blows again means a short."
+
+[[term]]
+name = "Connector"
+text = "A plug joining wiring to a part or to more wiring. Corroded, loose or pushed-back pins in connectors cause many electrical codes."
+
+[[term]]
+name = "Open circuit"
+text = "A circuit broken somewhere (a broken wire, an unplugged connector, a burnt-out part), so no current flows. A meter reads no continuity (OL)."
+
+[[term]]
+name = "Short circuit"
+text = "A circuit touching something it shouldn't: ground (short to ground) or a power wire (short to battery voltage). Often blows a fuse or sets a 'circuit low' or 'circuit high' code."
+
+[[term]]
+name = "Circuit low"
+text = "In a code's name: the signal voltage is below what the computer expects, often from a short to ground, or an open circuit on some sensors."
+
+[[term]]
+name = "Circuit high"
+text = "In a code's name: the signal voltage is above what the computer expects, often from an open circuit (unplugged sensor, broken wire) or a short to power."
+
+[[term]]
+name = "Range or performance"
+text = "In a code's name: the signal is within electrical limits but doesn't make sense with the other readings, or changes too slowly. Often a worn sensor, or a real mechanical fault."
+
+[[term]]
+name = "Resistance"
+text = "How much a part or wire opposes current, in ohms. Many sensors and coils are checked by measuring their resistance with the part unplugged and comparing with the workshop manual."
+
+[[term]]
+name = "Voltage drop"
+text = "Voltage lost across a wire or connection while current flows. More than a few tenths of a volt on a power or ground wire means a poor connection."
+
+[[term]]
+name = "Reference voltage"
+text = "A steady supply, usually 5 V, that the engine computer feeds to several sensors. If one sensor shorts it to ground, all of them read wrongly."
+
+[[term]]
+name = "Duty cycle"
+text = "How much of the time a pulsed signal is on, in percent. Computers control many valves and solenoids this way (PWM)."
+
+[[term]]
+name = "PWM"
+text = "Pulse width modulation: switching a part fully on and off quickly, and varying how long it is on, to control it like a dimmer."
+
+[[term]]
+name = "Hall effect sensor"
+text = "A sensor that switches a square-wave signal on and off as metal teeth pass a magnet. Needs power and ground. Many crank, cam and wheel speed sensors are this type."
+
+[[term]]
+name = "Reluctance sensor"
+text = "A two-wire sensor with a magnet and a coil that makes its own AC voltage as teeth pass it: the faster, the bigger. Older crank and wheel speed sensors are this type."
+
+[[term]]
+name = "Thermistor"
+text = "A resistor whose resistance changes with temperature. Coolant and intake air temperature sensors are thermistors: their resistance falls as they warm."
+
+[[term]]
+name = "Solenoid"
+text = "An electromagnet that moves a valve or plunger when current flows: injectors, purge valves, shift solenoids and oil control valves are solenoids."
+
+[[term]]
+name = "Actuator"
+text = "A part a computer moves: a motor, solenoid or valve. Scana doesn't drive actuators yet (that is stage 4, behind safety checks)."
+
+[[term]]
+name = "Workshop manual"
+text = "The maker's repair manual for a model: specifications, wiring diagrams, test procedures and the meaning of maker-specific codes. Scana's guides point to it for values that differ by car."
+
+[[term]]
+name = "CVN"
+text = "Calibration verification number: a checksum of the engine computer's software, reported in vehicle information. It changes when the software changes."
+
+[[term]]
+name = "Maker-specific code"
+text = "A code number whose meaning depends on the make: P1xxx, P30xx to P33xx, B1, B2, C1, C2, U1 and U2 codes. Some C0 numbers are used differently by different makes too. The maker's workshop manual has them."

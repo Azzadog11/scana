@@ -2,6 +2,20 @@
 # Written for Scana (2026-10-16), not copied from SAE text. Check a code against the maker's
 # workshop manual before acting on it. Format: CODE<TAB>description. Maker-specific codes
 # (P1xxx, B1xxx and so on) belong in a vehicle profile, not here.
+#
+# About 360 codes were written one by one. The rest were written from the component and fault
+# each code number stands for, checked against the open python-OBD code list
+# (github.com/brendan-w/python-OBD, GPL-2.0-or-later), and reworded in Scana's plain style.
+# Where that list doesn't say which bank, sensor or wire a code is for, the description says so.
+P0001	Fuel volume regulator control circuit open
+P0002	Fuel volume regulator control circuit reading out of range or not as expected
+P0003	Fuel volume regulator control circuit signal too low
+P0004	Fuel volume regulator control circuit signal too high
+P0005	Fuel shutoff valve A control circuit open
+P0006	Fuel shutoff valve A control circuit signal too low
+P0007	Fuel shutoff valve A control circuit signal too high
+P0008	Engine position system performance (bank 1)
+P0009	Engine position system performance (bank 2)
 P0010	Intake camshaft position actuator circuit (bank 1)
 P0011	Intake camshaft timing too far advanced, or system performance (bank 1)
 P0012	Intake camshaft timing too far retarded (bank 1)
@@ -18,22 +32,80 @@ P0022	Intake camshaft timing too far retarded (bank 2)
 P0023	Exhaust camshaft position actuator circuit (bank 2)
 P0024	Exhaust camshaft timing too far advanced, or system performance (bank 2)
 P0025	Exhaust camshaft timing too far retarded (bank 2)
+P0026	Intake valve control solenoid circuit reading out of range or not as expected (bank 1)
+P0027	Exhaust valve control solenoid circuit reading out of range or not as expected (bank 1)
+P0028	Intake valve control solenoid circuit reading out of range or not as expected (bank 2)
+P0029	Exhaust valve control solenoid circuit reading out of range or not as expected (bank 2)
 P0030	Oxygen sensor heater control circuit (bank 1 sensor 1)
 P0031	Oxygen sensor heater control circuit low (bank 1 sensor 1)
 P0032	Oxygen sensor heater control circuit high (bank 1 sensor 1)
+P0033	Turbo charger bypass valve control circuit
+P0034	Turbo charger bypass valve control circuit signal too low
+P0035	Turbo charger bypass valve control circuit signal too high
 P0036	Oxygen sensor heater control circuit (bank 1 sensor 2)
 P0037	Oxygen sensor heater control circuit low (bank 1 sensor 2)
 P0038	Oxygen sensor heater control circuit high (bank 1 sensor 2)
+P0039	Turbo or supercharger bypass valve control circuit reading out of range or not as expected
+P0040	Oxygen sensor signals swapped / bank 2 sensor 1 (bank 1 sensor 1)
+P0041	Oxygen sensor signals swapped / bank 2 sensor 2 (bank 1 sensor 2)
+P0042	Oxygen sensor heater control circuit (bank 1 sensor 3)
+P0043	Oxygen sensor heater control circuit signal too low (bank 1 sensor 3)
+P0044	Oxygen sensor heater control circuit signal too high (bank 1 sensor 3)
+P0045	Turbo or supercharger boost control solenoid circuit open
+P0046	Turbo or supercharger boost control solenoid circuit reading out of range or not as expected
+P0047	Turbo or supercharger boost control solenoid circuit signal too low
+P0048	Turbo or supercharger boost control solenoid circuit signal too high
+P0049	Turbo or supercharger turbine overspeed
 P0050	Oxygen sensor heater control circuit (bank 2 sensor 1)
 P0051	Oxygen sensor heater control circuit low (bank 2 sensor 1)
 P0052	Oxygen sensor heater control circuit high (bank 2 sensor 1)
+P0053	Oxygen sensor heater resistance (bank 1 sensor 1)
+P0054	Oxygen sensor heater resistance (bank 1 sensor 2)
+P0055	Oxygen sensor heater resistance (bank 1 sensor 3)
 P0056	Oxygen sensor heater control circuit (bank 2 sensor 2)
 P0057	Oxygen sensor heater control circuit low (bank 2 sensor 2)
 P0058	Oxygen sensor heater control circuit high (bank 2 sensor 2)
+P0059	Oxygen sensor heater resistance (bank 2 sensor 1)
+P0060	Oxygen sensor heater resistance (bank 2 sensor 2)
+P0061	Oxygen sensor heater resistance (bank 2 sensor 3)
+P0062	Oxygen sensor heater control circuit (bank 2 sensor 3)
+P0063	Oxygen sensor heater control circuit signal too low (bank 2 sensor 3)
+P0064	Oxygen sensor heater control circuit signal too high (bank 2 sensor 3)
+P0065	Air assisted injector control reading out of range or not as expected
+P0066	Air assisted injector control circuit or circuit signal too low
+P0067	Air assisted injector control circuit signal too high
 P0068	Manifold pressure or throttle position doesn't match the air flow
+P0069	Manifold absolute pressure: barometric pressure correlation
+P0070	Ambient air temperature sensor circuit
+P0071	Ambient air temperature sensor reading out of range or not as expected
+P0072	Ambient air temperature sensor circuit signal too low
+P0073	Ambient air temperature sensor circuit signal too high
+P0074	Ambient air temperature sensor circuit signal comes and goes
+P0075	Intake valve control solenoid circuit (bank 1)
+P0076	Intake valve control solenoid circuit signal too low (bank 1)
+P0077	Intake valve control solenoid circuit signal too high (bank 1)
+P0078	Exhaust valve control solenoid circuit (bank 1)
+P0079	Exhaust valve control solenoid circuit signal too low (bank 1)
+P0080	Exhaust valve control solenoid circuit signal too high (bank 1)
+P0081	Intake valve control solenoid circuit (bank 2)
+P0082	Intake valve control solenoid circuit signal too low (bank 2)
+P0083	Intake valve control solenoid circuit signal too high (bank 2)
+P0084	Exhaust valve control solenoid circuit (bank 2)
+P0085	Exhaust valve control solenoid circuit signal too low (bank 2)
+P0086	Exhaust valve control solenoid circuit signal too high (bank 2)
 P0087	Fuel rail pressure too low
 P0088	Fuel rail pressure too high
 P0089	Fuel pressure regulator performance
+P0090	Fuel pressure regulator 1 control circuit
+P0091	Fuel pressure regulator 1 control circuit signal too low
+P0092	Fuel pressure regulator 1 control circuit signal too high
+P0093	Fuel system leak detected: large leak
+P0094	Fuel system leak detected: small leak
+P0095	Intake air temperature sensor 2 circuit
+P0096	Intake air temperature sensor 2 circuit reading out of range or not as expected
+P0097	Intake air temperature sensor 2 circuit signal too low
+P0098	Intake air temperature sensor 2 circuit signal too high
+P0099	Intake air temperature sensor 2 circuit signal comes and goes or is erratic
 P0100	Mass air flow (MAF) sensor circuit
 P0101	Mass air flow (MAF) sensor range or performance
 P0102	Mass air flow (MAF) sensor circuit low
@@ -63,6 +135,7 @@ P0125	Coolant too cold for closed-loop fuel control
 P0126	Coolant too cold for stable operation
 P0127	Intake air temperature too high
 P0128	Coolant below the thermostat's regulating temperature
+P0129	Barometric pressure too low
 P0130	Oxygen sensor circuit (bank 1 sensor 1)
 P0131	Oxygen sensor circuit low voltage (bank 1 sensor 1)
 P0132	Oxygen sensor circuit high voltage (bank 1 sensor 1)
@@ -81,6 +154,8 @@ P0144	Oxygen sensor circuit high voltage (bank 1 sensor 3)
 P0145	Oxygen sensor slow response (bank 1 sensor 3)
 P0146	Oxygen sensor no activity (bank 1 sensor 3)
 P0147	Oxygen sensor heater circuit (bank 1 sensor 3)
+P0148	Fuel delivery error
+P0149	Fuel timing error
 P0150	Oxygen sensor circuit (bank 2 sensor 1)
 P0151	Oxygen sensor circuit low voltage (bank 2 sensor 1)
 P0152	Oxygen sensor circuit high voltage (bank 2 sensor 1)
@@ -99,6 +174,8 @@ P0164	Oxygen sensor circuit high voltage (bank 2 sensor 3)
 P0165	Oxygen sensor slow response (bank 2 sensor 3)
 P0166	Oxygen sensor no activity (bank 2 sensor 3)
 P0167	Oxygen sensor heater circuit (bank 2 sensor 3)
+P0168	Fuel temperature too high
+P0169	Incorrect fuel composition
 P0170	Fuel trim out of range (bank 1)
 P0171	System too lean (bank 1)
 P0172	System too rich (bank 1)
@@ -106,7 +183,19 @@ P0173	Fuel trim out of range (bank 2)
 P0174	System too lean (bank 2)
 P0175	System too rich (bank 2)
 P0176	Fuel composition sensor circuit
+P0177	Fuel composition sensor circuit reading out of range or not as expected
+P0178	Fuel composition sensor circuit signal too low
+P0179	Fuel composition sensor circuit signal too high
 P0180	Fuel temperature sensor A circuit
+P0181	Fuel temperature sensor A circuit reading out of range or not as expected
+P0182	Fuel temperature sensor A circuit signal too low
+P0183	Fuel temperature sensor A circuit signal too high
+P0184	Fuel temperature sensor A circuit signal comes and goes
+P0185	Fuel temperature sensor B circuit
+P0186	Fuel temperature sensor B circuit reading out of range or not as expected
+P0187	Fuel temperature sensor B circuit signal too low
+P0188	Fuel temperature sensor B circuit signal too high
+P0189	Fuel temperature sensor B circuit signal comes and goes
 P0190	Fuel rail pressure sensor circuit
 P0191	Fuel rail pressure sensor range or performance
 P0192	Fuel rail pressure sensor circuit low
@@ -116,6 +205,7 @@ P0195	Engine oil temperature sensor circuit
 P0196	Engine oil temperature sensor range or performance
 P0197	Engine oil temperature sensor circuit low
 P0198	Engine oil temperature sensor circuit high
+P0199	Engine oil temperature sensor comes and goes
 P0200	Injector circuit
 P0201	Injector circuit, cylinder 1
 P0202	Injector circuit, cylinder 2
@@ -129,6 +219,10 @@ P0209	Injector circuit, cylinder 9
 P0210	Injector circuit, cylinder 10
 P0211	Injector circuit, cylinder 11
 P0212	Injector circuit, cylinder 12
+P0213	Cold start injector 1
+P0214	Cold start injector 2
+P0215	Engine shutoff solenoid
+P0216	Injector/injection timing control circuit
 P0217	Engine overheated
 P0218	Transmission fluid overheated
 P0219	Engine over-speed
@@ -136,14 +230,43 @@ P0220	Throttle or pedal position sensor B circuit
 P0221	Throttle or pedal position sensor B range or performance
 P0222	Throttle or pedal position sensor B circuit low
 P0223	Throttle or pedal position sensor B circuit high
+P0224	Throttle/pedal position sensor/switch B circuit signal comes and goes
 P0225	Throttle or pedal position sensor C circuit
 P0226	Throttle or pedal position sensor C range or performance
 P0227	Throttle or pedal position sensor C circuit low
 P0228	Throttle or pedal position sensor C circuit high
+P0229	Throttle/pedal position sensor/switch C circuit signal comes and goes
 P0230	Fuel pump primary circuit
 P0231	Fuel pump secondary circuit low
 P0232	Fuel pump secondary circuit high
+P0233	Fuel pump secondary circuit signal comes and goes
 P0234	Turbocharger or supercharger overboost
+P0235	Turbo or supercharger boost sensor A circuit
+P0236	Turbo or supercharger boost sensor A circuit reading out of range or not as expected
+P0237	Turbo or supercharger boost sensor A circuit signal too low
+P0238	Turbo or supercharger boost sensor A circuit signal too high
+P0239	Turbo or supercharger boost sensor B circuit
+P0240	Turbo or supercharger boost sensor B circuit reading out of range or not as expected
+P0241	Turbo or supercharger boost sensor B circuit signal too low
+P0242	Turbo or supercharger boost sensor B circuit signal too high
+P0243	Turbo or supercharger wastegate solenoid A
+P0244	Turbo or supercharger wastegate solenoid A reading out of range or not as expected
+P0245	Turbo or supercharger wastegate solenoid A low
+P0246	Turbo or supercharger wastegate solenoid A high
+P0247	Turbo or supercharger wastegate solenoid B
+P0248	Turbo or supercharger wastegate solenoid B reading out of range or not as expected
+P0249	Turbo or supercharger wastegate solenoid B low
+P0250	Turbo or supercharger wastegate solenoid B high
+P0251	Injection pump fuel metering control A (cam/rotor/injector)
+P0252	Injection pump fuel metering control A reading out of range or not as expected (cam/rotor/injector)
+P0253	Injection pump fuel metering control A low (cam/rotor/injector)
+P0254	Injection pump fuel metering control A high (cam/rotor/injector)
+P0255	Injection pump fuel metering control A comes and goes (cam/rotor/injector)
+P0256	Injection pump fuel metering control B (cam/rotor/injector)
+P0257	Injection pump fuel metering control B reading out of range or not as expected (cam/rotor/injector)
+P0258	Injection pump fuel metering control B low (cam/rotor/injector)
+P0259	Injection pump fuel metering control B high (cam/rotor/injector)
+P0260	Injection pump fuel metering control B comes and goes (cam/rotor/injector)
 P0261	Injector circuit low, cylinder 1
 P0262	Injector circuit high, cylinder 1
 P0263	Cylinder 1 contribution or balance
@@ -168,6 +291,20 @@ P0281	Cylinder 7 contribution or balance
 P0282	Injector circuit low, cylinder 8
 P0283	Injector circuit high, cylinder 8
 P0284	Cylinder 8 contribution or balance
+P0285	Cylinder 9 injector circuit signal too low
+P0286	Cylinder 9 injector circuit signal too high
+P0287	Cylinder 9 contribution/balance
+P0288	Cylinder 10 injector circuit signal too low
+P0289	Cylinder 10 injector circuit signal too high
+P0290	Cylinder 10 contribution/balance
+P0291	Cylinder 11 injector circuit signal too low
+P0292	Cylinder 11 injector circuit signal too high
+P0293	Cylinder 11 contribution/balance
+P0294	Cylinder 12 injector circuit signal too low
+P0295	Cylinder 12 injector circuit signal too high
+P0296	Cylinder 12 contribution/balance
+P0297	Vehicle overspeed condition
+P0298	Engine oil over temperature
 P0299	Turbocharger or supercharger underboost
 P0300	Random or multiple cylinder misfire
 P0301	Cylinder 1 misfire
@@ -184,13 +321,26 @@ P0311	Cylinder 11 misfire
 P0312	Cylinder 12 misfire
 P0313	Misfire with low fuel
 P0314	Single cylinder misfire (cylinder not identified)
+P0315	Crankshaft position system variation not learned
+P0316	Engine misfire detected on startup (first 1000 revolutions)
+P0317	Rough road hardware not present
+P0318	Rough road sensor A signal circuit
+P0319	Rough road sensor B
+P0320	Ignition/distributor engine speed input circuit
+P0321	Ignition/distributor engine speed input circuit reading out of range or not as expected
+P0322	Ignition/distributor engine speed input circuit no signal
+P0323	Ignition/distributor engine speed input circuit signal comes and goes
+P0324	Knock control system error
 P0325	Knock sensor 1 circuit (bank 1)
 P0326	Knock sensor 1 range or performance (bank 1)
 P0327	Knock sensor 1 circuit low (bank 1)
 P0328	Knock sensor 1 circuit high (bank 1)
+P0329	Knock sensor 1 circuit signal comes and goes
 P0330	Knock sensor 2 circuit (bank 2)
+P0331	Knock sensor 2 circuit reading out of range or not as expected
 P0332	Knock sensor 2 circuit low (bank 2)
 P0333	Knock sensor 2 circuit high (bank 2)
+P0334	Knock sensor 2 circuit signal comes and goes
 P0335	Crankshaft position sensor A circuit
 P0336	Crankshaft position sensor A range or performance
 P0337	Crankshaft position sensor A circuit low
@@ -202,6 +352,10 @@ P0342	Camshaft position sensor A circuit low (bank 1)
 P0343	Camshaft position sensor A circuit high (bank 1)
 P0344	Camshaft position sensor A circuit intermittent (bank 1)
 P0345	Camshaft position sensor A circuit (bank 2)
+P0346	Camshaft position sensor A circuit reading out of range or not as expected
+P0347	Camshaft position sensor A circuit signal too low
+P0348	Camshaft position sensor A circuit signal too high
+P0349	Camshaft position sensor A circuit signal comes and goes
 P0350	Ignition coil primary or secondary circuit
 P0351	Ignition coil A (cylinder 1) primary or secondary circuit
 P0352	Ignition coil B (cylinder 2) primary or secondary circuit
@@ -215,8 +369,35 @@ P0359	Ignition coil I (cylinder 9) primary or secondary circuit
 P0360	Ignition coil J (cylinder 10) primary or secondary circuit
 P0361	Ignition coil K (cylinder 11) primary or secondary circuit
 P0362	Ignition coil L (cylinder 12) primary or secondary circuit
+P0363	Misfire detected: fueling disabled
 P0365	Camshaft position sensor B circuit (bank 1)
 P0366	Camshaft position sensor B range or performance (bank 1)
+P0367	Camshaft position sensor B circuit signal too low (bank 1)
+P0368	Camshaft position sensor B circuit signal too high (bank 1)
+P0369	Camshaft position sensor B circuit signal comes and goes (bank 1)
+P0370	Timing reference high resolution signal A
+P0371	Timing reference high resolution signal A too many pulses
+P0372	Timing reference high resolution signal A too few pulses
+P0373	Timing reference high resolution signal A comes and goes or is erratic pulses
+P0374	Timing reference high resolution signal A no pulse
+P0375	Timing reference high resolution signal B
+P0376	Timing reference high resolution signal B too many pulses
+P0377	Timing reference high resolution signal B too few pulses
+P0378	Timing reference high resolution signal B comes and goes or is erratic pulses
+P0379	Timing reference high resolution signal B no pulses
+P0380	Glow plug/heater circuit A
+P0381	Glow plug/heater indicator circuit
+P0382	Glow plug/heater circuit B
+P0385	Crankshaft position sensor B circuit
+P0386	Crankshaft position sensor B circuit reading out of range or not as expected
+P0387	Crankshaft position sensor B circuit signal too low
+P0388	Crankshaft position sensor B circuit signal too high
+P0389	Crankshaft position sensor B circuit signal comes and goes
+P0390	Camshaft position sensor B circuit (bank 2)
+P0391	Camshaft position sensor B circuit reading out of range or not as expected (bank 2)
+P0392	Camshaft position sensor B circuit signal too low (bank 2)
+P0393	Camshaft position sensor B circuit signal too high (bank 2)
+P0394	Camshaft position sensor B circuit signal comes and goes (bank 2)
 P0400	EGR flow
 P0401	EGR flow too low
 P0402	EGR flow too high
@@ -224,12 +405,39 @@ P0403	EGR control circuit
 P0404	EGR control circuit range or performance
 P0405	EGR sensor A circuit low
 P0406	EGR sensor A circuit high
+P0407	Exhaust gas recirculation sensor B circuit signal too low
+P0408	Exhaust gas recirculation sensor B circuit signal too high
+P0409	Exhaust gas recirculation sensor A circuit
 P0410	Secondary air injection system
 P0411	Secondary air injection: wrong flow
+P0412	Secondary air injection system switching valve A circuit
+P0413	Secondary air injection system switching valve A circuit open
+P0414	Secondary air injection system switching valve A circuit shorted
+P0415	Secondary air injection system switching valve B circuit
+P0416	Secondary air injection system switching valve B circuit open
+P0417	Secondary air injection system switching valve B circuit shorted
+P0418	Secondary air injection system control A circuit
+P0419	Secondary air injection system control B circuit
 P0420	Catalyst efficiency below threshold (bank 1)
 P0421	Warm-up catalyst efficiency below threshold (bank 1)
+P0422	Main catalyst efficiency below threshold (bank 1)
+P0423	Heated catalyst efficiency below threshold (bank 1)
+P0424	Heated catalyst temperature below threshold (bank 1)
+P0425	Catalyst temperature sensor (bank 1)
+P0426	Catalyst temperature sensor reading out of range or not as expected (bank 1)
+P0427	Catalyst temperature sensor low (bank 1)
+P0428	Catalyst temperature sensor high (bank 1)
+P0429	Catalyst heater control circuit (bank 1)
 P0430	Catalyst efficiency below threshold (bank 2)
 P0431	Warm-up catalyst efficiency below threshold (bank 2)
+P0432	Main catalyst efficiency below threshold (bank 2)
+P0433	Heated catalyst efficiency below threshold (bank 2)
+P0434	Heated catalyst temperature below threshold (bank 2)
+P0435	Catalyst temperature sensor (bank 2)
+P0436	Catalyst temperature sensor reading out of range or not as expected (bank 2)
+P0437	Catalyst temperature sensor low (bank 2)
+P0438	Catalyst temperature sensor high (bank 2)
+P0439	Catalyst heater control circuit (bank 2)
 P0440	Evaporative emission (EVAP) system
 P0441	EVAP system: wrong purge flow
 P0442	EVAP system: small leak
@@ -244,17 +452,48 @@ P0450	EVAP pressure sensor circuit
 P0451	EVAP pressure sensor range or performance
 P0452	EVAP pressure sensor circuit low
 P0453	EVAP pressure sensor circuit high
+P0454	Fuel vapour (EVAP) system pressure sensor/switch comes and goes
 P0455	EVAP system: large leak
 P0456	EVAP system: very small leak
 P0457	EVAP system leak: fuel cap loose or off
+P0458	Fuel vapour (EVAP) system purge control valve circuit signal too low
+P0459	Fuel vapour (EVAP) system purge control valve circuit signal too high
 P0460	Fuel level sensor A circuit
 P0461	Fuel level sensor A range or performance
 P0462	Fuel level sensor A circuit low
 P0463	Fuel level sensor A circuit high
 P0464	Fuel level sensor A circuit intermittent
+P0465	EVAP purge flow sensor circuit
+P0466	EVAP purge flow sensor circuit reading out of range or not as expected
+P0467	EVAP purge flow sensor circuit signal too low
+P0468	EVAP purge flow sensor circuit signal too high
+P0469	EVAP purge flow sensor circuit signal comes and goes
+P0470	Exhaust pressure sensor
+P0471	Exhaust pressure sensor reading out of range or not as expected
+P0472	Exhaust pressure sensor low
+P0473	Exhaust pressure sensor high
+P0474	Exhaust pressure sensor comes and goes
+P0475	Exhaust pressure control valve
+P0476	Exhaust pressure control valve reading out of range or not as expected
+P0477	Exhaust pressure control valve low
+P0478	Exhaust pressure control valve high
+P0479	Exhaust pressure control valve comes and goes
 P0480	Cooling fan 1 control circuit
 P0481	Cooling fan 2 control circuit
+P0482	Fan 3 control circuit
+P0483	Fan rationality check
+P0484	Fan circuit over current
+P0485	Fan power/ground circuit
+P0486	Exhaust gas recirculation sensor B circuit
+P0487	Exhaust gas recirculation throttle position control circuit
+P0488	Exhaust gas recirculation throttle position control reading out of range or not as expected
+P0489	Exhaust gas recirculation control circuit signal too low
+P0490	Exhaust gas recirculation control circuit signal too high
 P0491	Secondary air injection: not enough flow (bank 1)
+P0492	Secondary air injection system insufficient flow
+P0493	Fan overspeed
+P0494	Fan speed low
+P0495	Fan speed high
 P0496	EVAP system: purge flow too high
 P0497	EVAP system: purge flow too low
 P0498	EVAP vent valve control circuit low
@@ -263,23 +502,102 @@ P0500	Vehicle speed sensor A
 P0501	Vehicle speed sensor A range or performance
 P0502	Vehicle speed sensor A circuit low
 P0503	Vehicle speed sensor A intermittent, erratic or high
+P0504	Brake switch A/B correlation
 P0505	Idle air control system
 P0506	Idle speed lower than expected
 P0507	Idle speed higher than expected
+P0508	Idle air control system circuit signal too low
+P0509	Idle air control system circuit signal too high
+P0510	Closed throttle position switch
+P0511	Idle air control circuit
+P0512	Starter request circuit
+P0513	Incorrect immobilizer key
+P0514	Battery temperature sensor circuit reading out of range or not as expected
+P0515	Battery temperature sensor circuit
+P0516	Battery temperature sensor circuit signal too low
+P0517	Battery temperature sensor circuit signal too high
+P0518	Idle air control circuit signal comes and goes
+P0519	Idle air control system performance
 P0520	Engine oil pressure sensor or switch circuit
 P0521	Engine oil pressure sensor or switch range or performance
 P0522	Engine oil pressure sensor or switch circuit low
 P0523	Engine oil pressure sensor or switch circuit high
 P0524	Engine oil pressure too low
+P0525	Cruise control servo control circuit reading out of range or not as expected
+P0526	Fan speed sensor circuit
+P0527	Fan speed sensor circuit reading out of range or not as expected
+P0528	Fan speed sensor circuit no signal
+P0529	Fan speed sensor circuit signal comes and goes
 P0530	A/C refrigerant pressure sensor A circuit
+P0531	Air conditioning refrigerant pressure sensor A circuit reading out of range or not as expected
 P0532	A/C refrigerant pressure sensor A circuit low
 P0533	A/C refrigerant pressure sensor A circuit high
+P0534	Air conditioner refrigerant charge loss
+P0535	Air conditioning evaporator temperature sensor circuit
+P0536	Air conditioning evaporator temperature sensor circuit reading out of range or not as expected
+P0537	Air conditioning evaporator temperature sensor circuit signal too low
+P0538	Air conditioning evaporator temperature sensor circuit signal too high
+P0539	Air conditioning evaporator temperature sensor circuit signal comes and goes
+P0540	Intake air heater A circuit
+P0541	Intake air heater A circuit signal too low
+P0542	Intake air heater A circuit signal too high
+P0543	Intake air heater A circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P0544	Exhaust gas temperature sensor circuit (bank 1 sensor 1)
+P0545	Exhaust gas temperature sensor circuit signal too low (bank 1 sensor 1)
+P0546	Exhaust gas temperature sensor circuit signal too high (bank 1 sensor 1)
+P0547	Exhaust gas temperature sensor circuit (bank 2 sensor 1)
+P0548	Exhaust gas temperature sensor circuit signal too low (bank 2 sensor 1)
+P0549	Exhaust gas temperature sensor circuit signal too high (bank 2 sensor 1)
 P0550	Power steering pressure sensor circuit
+P0551	Power steering pressure sensor/switch circuit reading out of range or not as expected
+P0552	Power steering pressure sensor/switch circuit signal too low
+P0553	Power steering pressure sensor/switch circuit signal too high
+P0554	Power steering pressure sensor/switch circuit signal comes and goes
+P0555	Brake booster pressure sensor circuit
+P0556	Brake booster pressure sensor circuit reading out of range or not as expected
+P0557	Brake booster pressure sensor circuit signal too low
+P0558	Brake booster pressure sensor circuit signal too high
+P0559	Brake booster pressure sensor circuit signal comes and goes
 P0560	System voltage
 P0561	System voltage unstable
 P0562	System voltage low
 P0563	System voltage high
+P0564	Cruise control multi-function input A circuit
+P0565	Cruise control on signal
+P0566	Cruise control off signal
+P0567	Cruise control resume signal
+P0568	Cruise control set signal
+P0569	Cruise control coast signal
+P0570	Cruise control accelerate signal
 P0571	Brake switch A circuit
+P0572	Brake switch A circuit signal too low
+P0573	Brake switch A circuit signal too high
+P0574	Cruise control system: vehicle speed too high
+P0575	Cruise control input circuit
+P0576	Cruise control input circuit signal too low
+P0577	Cruise control input circuit signal too high
+P0578	Cruise control multi-function input A circuit stuck
+P0579	Cruise control multi-function input A circuit reading out of range or not as expected
+P0580	Cruise control multi-function input A circuit signal too low
+P0581	Cruise control multi-function input A circuit signal too high
+P0582	Cruise control vacuum control circuit open
+P0583	Cruise control vacuum control circuit signal too low
+P0584	Cruise control vacuum control circuit signal too high
+P0585	Cruise control multi-function input A/B correlation
+P0586	Cruise control vent control circuit open
+P0587	Cruise control vent control circuit signal too low
+P0588	Cruise control vent control circuit signal too high
+P0589	Cruise control multi-function input B circuit
+P0590	Cruise control multi-function input B circuit stuck
+P0591	Cruise control multi-function input B circuit reading out of range or not as expected
+P0592	Cruise control multi-function input B circuit signal too low
+P0593	Cruise control multi-function input B circuit signal too high
+P0594	Cruise control servo control circuit open
+P0595	Cruise control servo control circuit signal too low
+P0596	Cruise control servo control circuit signal too high
+P0597	Thermostat heater control circuit open
+P0598	Thermostat heater control circuit signal too low
+P0599	Thermostat heater control circuit signal too high
 P0600	Serial communication link
 P0601	Engine computer memory checksum error
 P0602	Engine computer programming error
@@ -288,80 +606,1433 @@ P0604	Engine computer RAM error
 P0605	Engine computer ROM error
 P0606	Engine computer processor fault
 P0607	Engine computer performance
+P0608	Control module vehicle speed sensor output A
+P0609	Control module vehicle speed sensor output B
+P0610	Control module vehicle options error
+P0611	Fuel injector control module performance
+P0612	Fuel injector control module relay control
+P0613	Gearbox computer processor
+P0614	Engine computer / gearbox computer incompatible
 P0615	Starter relay circuit
+P0616	Starter relay circuit signal too low
+P0617	Starter relay circuit signal too high
+P0618	Alternative fuel control module KAM error
+P0619	Alternative fuel control module RAM/ROM error
 P0620	Generator (alternator) control circuit
 P0621	Generator (alternator) warning lamp control circuit
 P0622	Generator (alternator) field control circuit
+P0623	Generator lamp control circuit
+P0624	Fuel cap lamp control circuit
+P0625	Generator field/f terminal circuit signal too low
+P0626	Generator field/f terminal circuit signal too high
 P0627	Fuel pump A control circuit open
+P0628	Fuel pump A control circuit signal too low
+P0629	Fuel pump A control circuit signal too high
 P0630	VIN not programmed or doesn't match (engine computer)
+P0631	VIN not programmed or incompatible: gearbox computer
+P0632	Odometer not programmed: engine computer
+P0633	Immobilizer key not programmed: engine computer
+P0634	Engine computer/gearbox computer internal temperature too high
+P0635	Power steering control circuit
+P0636	Power steering control circuit signal too low
+P0637	Power steering control circuit signal too high
 P0638	Throttle actuator control range or performance (bank 1)
+P0639	Throttle actuator control reading out of range or not as expected
+P0640	Intake air heater control circuit
 P0641	Sensor reference voltage A circuit open
+P0642	Sensor reference voltage A circuit signal too low
+P0643	Sensor reference voltage A circuit signal too high
+P0644	Driver display serial communication circuit
+P0645	Air conditioning clutch relay control circuit
+P0646	Air conditioning clutch relay control circuit signal too low
+P0647	Air conditioning clutch relay control circuit signal too high
+P0648	Immobilizer lamp control circuit
+P0649	Speed control lamp control circuit
 P0650	Check engine light (MIL) control circuit
 P0651	Sensor reference voltage B circuit open
+P0652	Sensor reference voltage B circuit signal too low
+P0653	Sensor reference voltage B circuit signal too high
+P0654	Engine RPM output circuit
+P0655	Engine hot lamp output control circuit
+P0656	Fuel level output circuit
+P0657	Actuator supply voltage A circuit open
+P0658	Actuator supply voltage A circuit signal too low
+P0659	Actuator supply voltage A circuit signal too high
+P0660	Intake manifold tuning valve control circuit open (bank 1)
+P0661	Intake manifold tuning valve control circuit signal too low (bank 1)
+P0662	Intake manifold tuning valve control circuit signal too high (bank 1)
+P0663	Intake manifold tuning valve control circuit open (bank 2)
+P0664	Intake manifold tuning valve control circuit signal too low (bank 2)
+P0665	Intake manifold tuning valve control circuit signal too high (bank 2)
+P0666	Engine computer/gearbox computer internal temperature sensor circuit
+P0667	Engine computer/gearbox computer internal temperature sensor reading out of range or not as expected
+P0668	Engine computer/gearbox computer internal temperature sensor circuit signal too low
+P0669	Engine computer/gearbox computer internal temperature sensor circuit signal too high
+P0670	Glow plug module control circuit
+P0671	Cylinder 1 glow plug circuit
+P0672	Cylinder 2 glow plug circuit
+P0673	Cylinder 3 glow plug circuit
+P0674	Cylinder 4 glow plug circuit
+P0675	Cylinder 5 glow plug circuit
+P0676	Cylinder 6 glow plug circuit
+P0677	Cylinder 7 glow plug circuit
+P0678	Cylinder 8 glow plug circuit
+P0679	Cylinder 9 glow plug circuit
+P0680	Cylinder 10 glow plug circuit
+P0681	Cylinder 11 glow plug circuit
+P0682	Cylinder 12 glow plug circuit
+P0683	Glow plug control module to engine computer communication circuit
+P0684	Glow plug control module to engine computer communication circuit reading out of range or not as expected
 P0685	Engine computer power relay control circuit open
+P0686	Engine computer power relay control circuit signal too low
+P0687	Engine computer power relay control circuit signal too high
+P0688	Engine computer power relay sense circuit /open
+P0689	Engine computer power relay sense circuit signal too low
+P0690	Engine computer power relay sense circuit signal too high
+P0691	Fan 1 control circuit signal too low
+P0692	Fan 1 control circuit signal too high
+P0693	Fan 2 control circuit signal too low
+P0694	Fan 2 control circuit signal too high
+P0695	Fan 3 control circuit signal too low
+P0696	Fan 3 control circuit signal too high
+P0697	Sensor reference voltage C circuit open
+P0698	Sensor reference voltage C circuit signal too low
+P0699	Sensor reference voltage C circuit signal too high
 P0700	Gearbox control system: the gearbox computer asks for the check engine light
+P0701	Transmission control system reading out of range or not as expected
+P0702	Transmission control system electrical fault
+P0703	Brake switch B circuit
+P0704	Clutch switch input circuit fault
 P0705	Gearbox range sensor circuit
+P0706	Transmission range sensor circuit reading out of range or not as expected
+P0707	Transmission range sensor circuit signal too low
+P0708	Transmission range sensor circuit signal too high
+P0709	Transmission range sensor circuit signal comes and goes
 P0710	Gearbox fluid temperature sensor A circuit
 P0711	Gearbox fluid temperature sensor A range or performance
 P0712	Gearbox fluid temperature sensor A circuit low
 P0713	Gearbox fluid temperature sensor A circuit high
+P0714	Transmission fluid temperature sensor A circuit signal comes and goes
 P0715	Gearbox input (turbine) speed sensor A circuit
+P0716	Input/turbine speed sensor A circuit reading out of range or not as expected
+P0717	Input/turbine speed sensor A circuit no signal
+P0718	Input/turbine speed sensor A circuit signal comes and goes
+P0719	Brake switch B circuit signal too low
 P0720	Gearbox output speed sensor circuit
+P0721	Output speed sensor circuit reading out of range or not as expected
+P0722	Output speed sensor circuit no signal
+P0723	Output speed sensor circuit signal comes and goes
+P0724	Brake switch B circuit signal too high
 P0725	Engine speed input circuit (gearbox)
+P0726	Engine speed input circuit reading out of range or not as expected
+P0727	Engine speed input circuit no signal
+P0728	Engine speed input circuit signal comes and goes
+P0729	Gear 6 incorrect ratio
 P0730	Incorrect gear ratio
 P0731	Incorrect gear ratio in 1st gear
 P0732	Incorrect gear ratio in 2nd gear
 P0733	Incorrect gear ratio in 3rd gear
 P0734	Incorrect gear ratio in 4th gear
 P0735	Incorrect gear ratio in 5th gear
+P0736	Reverse incorrect ratio
+P0737	Gearbox computer engine speed output circuit
+P0738	Gearbox computer engine speed output circuit signal too low
+P0739	Gearbox computer engine speed output circuit signal too high
 P0740	Torque converter clutch solenoid circuit
 P0741	Torque converter clutch: performance, or stuck off
+P0742	Torque converter clutch circuit stuck on
+P0743	Torque converter clutch circuit electrical fault
+P0744	Torque converter clutch circuit signal comes and goes
+P0745	Pressure control solenoid A
+P0746	Pressure control solenoid A performance or stuck off
+P0747	Pressure control solenoid A stuck on
+P0748	Pressure control solenoid A electrical fault
+P0749	Pressure control solenoid A comes and goes
 P0750	Shift solenoid A
+P0751	Shift solenoid A performance or stuck off
+P0752	Shift solenoid A stuck on
+P0753	Shift solenoid A electrical fault
+P0754	Shift solenoid A comes and goes
 P0755	Shift solenoid B
+P0756	Shift solenoid B performance or stuck off
+P0757	Shift solenoid B stuck on
+P0758	Shift solenoid B electrical fault
+P0759	Shift solenoid B comes and goes
 P0760	Shift solenoid C
+P0761	Shift solenoid C performance or stuck off
+P0762	Shift solenoid C stuck on
+P0763	Shift solenoid C electrical fault
+P0764	Shift solenoid C comes and goes
 P0765	Shift solenoid D
+P0766	Shift solenoid D performance or stuck off
+P0767	Shift solenoid D stuck on
+P0768	Shift solenoid D electrical fault
+P0769	Shift solenoid D comes and goes
+P0770	Shift solenoid E
+P0771	Shift solenoid E performance or stuck off
+P0772	Shift solenoid E stuck on
+P0773	Shift solenoid E electrical fault
+P0774	Shift solenoid E comes and goes
+P0775	Pressure control solenoid B
+P0776	Pressure control solenoid B performance or stuck off
+P0777	Pressure control solenoid B stuck on
+P0778	Pressure control solenoid B electrical fault
+P0779	Pressure control solenoid B comes and goes
 P0780	Shift error
+P0781	1-2 shift
+P0782	2-3 shift
+P0783	3-4 shift
+P0784	4-5 shift
+P0785	Shift/timing solenoid
+P0786	Shift/timing solenoid reading out of range or not as expected
+P0787	Shift/timing solenoid low
+P0788	Shift/timing solenoid high
+P0789	Shift/timing solenoid comes and goes
+P0790	Normal/performance switch circuit
+P0791	Intermediate shaft speed sensor A circuit
+P0792	Intermediate shaft speed sensor A circuit reading out of range or not as expected
+P0793	Intermediate shaft speed sensor A circuit no signal
+P0794	Intermediate shaft speed sensor A circuit signal comes and goes
+P0795	Pressure control solenoid C
+P0796	Pressure control solenoid C performance or stuck off
+P0797	Pressure control solenoid C stuck on
+P0798	Pressure control solenoid C electrical fault
+P0799	Pressure control solenoid C comes and goes
+P0800	Transfer case control system (check engine light request)
+P0801	Reverse inhibit control circuit
+P0802	Transmission control system check engine light request circuit open
+P0803	1-4 upshift (skip shift) solenoid control circuit
+P0804	1-4 upshift (skip shift) lamp control circuit
+P0805	Clutch position sensor circuit
+P0806	Clutch position sensor circuit reading out of range or not as expected
+P0807	Clutch position sensor circuit signal too low
+P0808	Clutch position sensor circuit signal too high
+P0809	Clutch position sensor circuit signal comes and goes
+P0810	Clutch position control error
+P0811	Excessive clutch slippage
+P0812	Reverse input circuit
+P0813	Reverse output circuit
+P0814	Transmission range display circuit
+P0815	Upshift switch circuit
+P0816	Downshift switch circuit
+P0817	Starter disable circuit
+P0818	Driveline disconnect switch input circuit
+P0819	Up and down shift switch to transmission range correlation
+P0820	Gear lever X-Y position sensor circuit
+P0821	Gear lever X position circuit
+P0822	Gear lever Y position circuit
+P0823	Gear lever X position circuit signal comes and goes
+P0824	Gear lever Y position circuit signal comes and goes
+P0825	Gear lever push-pull switch (shift anticipate)
+P0826	Up and down shift switch circuit
+P0827	Up and down shift switch circuit signal too low
+P0828	Up and down shift switch circuit signal too high
+P0829	5-6 shift
+P0830	Clutch pedal switch A circuit
+P0831	Clutch pedal switch A circuit signal too low
+P0832	Clutch pedal switch A circuit signal too high
+P0833	Clutch pedal switch B circuit
+P0834	Clutch pedal switch B circuit signal too low
+P0835	Clutch pedal switch B circuit signal too high
+P0836	Four wheel drive (4WD) switch circuit
+P0837	Four wheel drive (4WD) switch circuit reading out of range or not as expected
+P0838	Four wheel drive (4WD) switch circuit signal too low
+P0839	Four wheel drive (4WD) switch circuit signal too high
+P0840	Transmission fluid pressure sensor/switch A circuit
 P0841	Gearbox fluid pressure sensor or switch A range or performance
+P0842	Transmission fluid pressure sensor/switch A circuit signal too low
+P0843	Transmission fluid pressure sensor/switch A circuit signal too high
+P0844	Transmission fluid pressure sensor/switch A circuit signal comes and goes
+P0845	Transmission fluid pressure sensor/switch B circuit
+P0846	Transmission fluid pressure sensor/switch B circuit reading out of range or not as expected
+P0847	Transmission fluid pressure sensor/switch B circuit signal too low
+P0848	Transmission fluid pressure sensor/switch B circuit signal too high
+P0849	Transmission fluid pressure sensor/switch B circuit signal comes and goes
+P0850	Park/neutral switch input circuit
+P0851	Park/neutral switch input circuit signal too low
+P0852	Park/neutral switch input circuit signal too high
+P0853	Drive switch input circuit
+P0854	Drive switch input circuit signal too low
+P0855	Drive switch input circuit signal too high
+P0856	Traction control input signal
+P0857	Traction control input signal reading out of range or not as expected
+P0858	Traction control input signal low
+P0859	Traction control input signal high
+P0860	Gear shift module communication circuit
+P0861	Gear shift module communication circuit signal too low
+P0862	Gear shift module communication circuit signal too high
+P0863	Gearbox computer communication circuit
+P0864	Gearbox computer communication circuit reading out of range or not as expected
+P0865	Gearbox computer communication circuit signal too low
+P0866	Gearbox computer communication circuit signal too high
+P0867	Transmission fluid pressure
+P0868	Transmission fluid pressure low
+P0869	Transmission fluid pressure high
+P0870	Transmission fluid pressure sensor/switch C circuit
+P0871	Transmission fluid pressure sensor/switch C circuit reading out of range or not as expected
+P0872	Transmission fluid pressure sensor/switch C circuit signal too low
+P0873	Transmission fluid pressure sensor/switch C circuit signal too high
+P0874	Transmission fluid pressure sensor/switch C circuit signal comes and goes
+P0875	Transmission fluid pressure sensor/switch D circuit
+P0876	Transmission fluid pressure sensor/switch D circuit reading out of range or not as expected
+P0877	Transmission fluid pressure sensor/switch D circuit signal too low
+P0878	Transmission fluid pressure sensor/switch D circuit signal too high
+P0879	Transmission fluid pressure sensor/switch D circuit signal comes and goes
+P0880	Gearbox computer power input signal
+P0881	Gearbox computer power input signal reading out of range or not as expected
+P0882	Gearbox computer power input signal low
+P0883	Gearbox computer power input signal high
+P0884	Gearbox computer power input signal comes and goes
+P0885	Gearbox computer power relay control circuit open
+P0886	Gearbox computer power relay control circuit signal too low
+P0887	Gearbox computer power relay control circuit signal too high
+P0888	Gearbox computer power relay sense circuit
+P0889	Gearbox computer power relay sense circuit reading out of range or not as expected
+P0890	Gearbox computer power relay sense circuit signal too low
+P0891	Gearbox computer power relay sense circuit signal too high
+P0892	Gearbox computer power relay sense circuit signal comes and goes
+P0893	Multiple gears engaged
+P0894	Transmission component slipping
+P0895	Shift time too short
+P0896	Shift time too long
+P0897	Transmission fluid deteriorated
+P0898	Transmission control system check engine light request circuit signal too low
+P0899	Transmission control system check engine light request circuit signal too high
+P0900	Clutch actuator circuit open
+P0901	Clutch actuator circuit reading out of range or not as expected
+P0902	Clutch actuator circuit signal too low
+P0903	Clutch actuator circuit signal too high
+P0904	Gate select position circuit
+P0905	Gate select position circuit reading out of range or not as expected
+P0906	Gate select position circuit signal too low
+P0907	Gate select position circuit signal too high
+P0908	Gate select position circuit signal comes and goes
+P0909	Gate select control error
+P0910	Gate select actuator circuit open
+P0911	Gate select actuator circuit reading out of range or not as expected
+P0912	Gate select actuator circuit signal too low
+P0913	Gate select actuator circuit signal too high
+P0914	Gear shift position circuit
+P0915	Gear shift position circuit reading out of range or not as expected
+P0916	Gear shift position circuit signal too low
+P0917	Gear shift position circuit signal too high
+P0918	Gear shift position circuit signal comes and goes
+P0919	Gear shift position control error
+P0920	Gear shift forward actuator circuit open
+P0921	Gear shift forward actuator circuit reading out of range or not as expected
+P0922	Gear shift forward actuator circuit signal too low
+P0923	Gear shift forward actuator circuit signal too high
+P0924	Gear shift reverse actuator circuit open
+P0925	Gear shift reverse actuator circuit reading out of range or not as expected
+P0926	Gear shift reverse actuator circuit signal too low
+P0927	Gear shift reverse actuator circuit signal too high
+P0928	Gear shift lock solenoid control circuit open
+P0929	Gear shift lock solenoid control circuit reading out of range or not as expected
+P0930	Gear shift lock solenoid control circuit signal too low
+P0931	Gear shift lock solenoid control circuit signal too high
+P0932	Hydraulic pressure sensor circuit
+P0933	Hydraulic pressure sensor reading out of range or not as expected
+P0934	Hydraulic pressure sensor circuit signal too low
+P0935	Hydraulic pressure sensor circuit signal too high
+P0936	Hydraulic pressure sensor circuit signal comes and goes
+P0937	Hydraulic oil temperature sensor circuit
+P0938	Hydraulic oil temperature sensor reading out of range or not as expected
+P0939	Hydraulic oil temperature sensor circuit signal too low
+P0940	Hydraulic oil temperature sensor circuit signal too high
+P0941	Hydraulic oil temperature sensor circuit signal comes and goes
+P0942	Hydraulic pressure unit
+P0943	Hydraulic pressure unit cycling period too short
+P0944	Hydraulic pressure unit loss of pressure
+P0945	Hydraulic pump relay circuit open
+P0946	Hydraulic pump relay circuit reading out of range or not as expected
+P0947	Hydraulic pump relay circuit signal too low
+P0948	Hydraulic pump relay circuit signal too high
+P0949	Auto shift manual adaptive learning not complete
+P0950	Auto shift manual control circuit
+P0951	Auto shift manual control circuit reading out of range or not as expected
+P0952	Auto shift manual control circuit signal too low
+P0953	Auto shift manual control circuit signal too high
+P0954	Auto shift manual control circuit signal comes and goes
+P0955	Auto shift manual mode circuit
+P0956	Auto shift manual mode circuit reading out of range or not as expected
+P0957	Auto shift manual mode circuit signal too low
+P0958	Auto shift manual mode circuit signal too high
+P0959	Auto shift manual mode circuit signal comes and goes
+P0960	Pressure control solenoid A control circuit open
+P0961	Pressure control solenoid A control circuit reading out of range or not as expected
+P0962	Pressure control solenoid A control circuit signal too low
+P0963	Pressure control solenoid A control circuit signal too high
+P0964	Pressure control solenoid B control circuit open
+P0965	Pressure control solenoid B control circuit reading out of range or not as expected
+P0966	Pressure control solenoid B control circuit signal too low
+P0967	Pressure control solenoid B control circuit signal too high
+P0968	Pressure control solenoid C control circuit open
+P0969	Pressure control solenoid C control circuit reading out of range or not as expected
+P0970	Pressure control solenoid C control circuit signal too low
+P0971	Pressure control solenoid C control circuit signal too high
+P0972	Shift solenoid A control circuit reading out of range or not as expected
+P0973	Shift solenoid A control circuit signal too low
+P0974	Shift solenoid A control circuit signal too high
+P0975	Shift solenoid B control circuit reading out of range or not as expected
+P0976	Shift solenoid B control circuit signal too low
+P0977	Shift solenoid B control circuit signal too high
+P0978	Shift solenoid C control circuit reading out of range or not as expected
+P0979	Shift solenoid C control circuit signal too low
+P0980	Shift solenoid C control circuit signal too high
+P0981	Shift solenoid D control circuit reading out of range or not as expected
+P0982	Shift solenoid D control circuit signal too low
+P0983	Shift solenoid D control circuit signal too high
+P0984	Shift solenoid E control circuit reading out of range or not as expected
+P0985	Shift solenoid E control circuit signal too low
+P0986	Shift solenoid E control circuit signal too high
+P0987	Transmission fluid pressure sensor/switch E circuit
+P0988	Transmission fluid pressure sensor/switch E circuit reading out of range or not as expected
+P0989	Transmission fluid pressure sensor/switch E circuit signal too low
+P0990	Transmission fluid pressure sensor/switch E circuit signal too high
+P0991	Transmission fluid pressure sensor/switch E circuit signal comes and goes
+P0992	Transmission fluid pressure sensor/switch F circuit
+P0993	Transmission fluid pressure sensor/switch F circuit reading out of range or not as expected
+P0994	Transmission fluid pressure sensor/switch F circuit signal too low
+P0995	Transmission fluid pressure sensor/switch F circuit signal too high
+P0996	Transmission fluid pressure sensor/switch F circuit signal comes and goes
+P0997	Shift solenoid F control circuit reading out of range or not as expected
+P0998	Shift solenoid F control circuit signal too low
+P0999	Shift solenoid F control circuit signal too high
+P0A00	Motor electronics coolant temperature sensor circuit
+P0A01	Motor electronics coolant temperature sensor circuit reading out of range or not as expected
+P0A02	Motor electronics coolant temperature sensor circuit signal too low
+P0A03	Motor electronics coolant temperature sensor circuit signal too high
+P0A04	Motor electronics coolant temperature sensor circuit signal comes and goes
+P0A05	Motor electronics coolant pump control circuit open
+P0A06	Motor electronics coolant pump control circuit signal too low
+P0A07	Motor electronics coolant pump control circuit signal too high
+P0A08	DC/DC converter status circuit
+P0A09	DC/DC converter status circuit signal too low
+P0A10	DC/DC converter status circuit signal too high
+P0A11	DC/DC converter enable circuit open
+P0A12	DC/DC converter enable circuit signal too low
+P0A13	DC/DC converter enable circuit signal too high
+P0A14	Engine mount control circuit open
+P0A15	Engine mount control circuit signal too low
+P0A16	Engine mount control circuit signal too high
+P0A17	Motor torque sensor circuit
+P0A18	Motor torque sensor circuit reading out of range or not as expected
+P0A19	Motor torque sensor circuit signal too low
+P0A20	Motor torque sensor circuit signal too high
+P0A21	Motor torque sensor circuit signal comes and goes
+P0A22	Generator torque sensor circuit
+P0A23	Generator torque sensor circuit reading out of range or not as expected
+P0A24	Generator torque sensor circuit signal too low
+P0A25	Generator torque sensor circuit signal too high
+P0A26	Generator torque sensor circuit signal comes and goes
+P0A27	Battery power off circuit
+P0A28	Battery power off circuit signal too low
+P0A29	Battery power off circuit signal too high
+P2000	NOx trap efficiency below threshold (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2001	NOx trap efficiency below threshold (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2002	Diesel particulate filter efficiency below threshold (bank 1)
+P2003	Diesel particulate filter efficiency below threshold (bank 2)
+P2004	Intake manifold runner control stuck open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2005	Intake manifold runner control stuck open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2006	Intake manifold runner control stuck closed (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2007	Intake manifold runner control stuck closed (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2008	Intake manifold runner control circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2009	Intake manifold runner control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2010	Intake manifold runner control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2011	Intake manifold runner control circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2012	Intake manifold runner control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2013	Intake manifold runner control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2014	Intake manifold runner position sensor/switch circuit (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2015	Intake manifold runner position sensor/switch circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2016	Intake manifold runner position sensor/switch circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2017	Intake manifold runner position sensor/switch circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2018	Intake manifold runner position sensor/switch circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2019	Intake manifold runner position sensor/switch circuit (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2020	Intake manifold runner position sensor/switch circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2021	Intake manifold runner position sensor/switch circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2022	Intake manifold runner position sensor/switch circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2023	Intake manifold runner position sensor/switch circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2024	Evaporative emissions (EVAP) fuel vapor temperature sensor circuit
+P2025	Evaporative emissions (EVAP) fuel vapor temperature sensor performance
+P2026	Evaporative emissions (EVAP) fuel vapor temperature sensor circuit signal too low voltage
+P2027	Evaporative emissions (EVAP) fuel vapor temperature sensor circuit signal too high voltage
+P2028	Evaporative emissions (EVAP) fuel vapor temperature sensor circuit signal comes and goes
+P2029	Fuel fired heater disabled
+P2030	Fuel fired heater performance
+P2031	Exhaust gas temperature sensor circuit (bank 1 sensor 2)
+P2032	Exhaust gas temperature sensor circuit signal too low (bank 1 sensor 2)
+P2033	Exhaust gas temperature sensor circuit signal too high (bank 1 sensor 2)
+P2034	Exhaust gas temperature sensor circuit (bank 2 sensor 2)
+P2035	Exhaust gas temperature sensor circuit signal too low (bank 2 sensor 2)
+P2036	Exhaust gas temperature sensor circuit signal too high (bank 2 sensor 2)
+P2037	Reductant injection air pressure sensor circuit
+P2038	Reductant injection air pressure sensor circuit reading out of range or not as expected
+P2039	Reductant injection air pressure sensor circuit signal too low
+P2040	Reductant injection air pressure sensor circuit signal too high
+P2041	Reductant injection air pressure sensor circuit signal comes and goes
+P2042	Reductant temperature sensor circuit
+P2043	Reductant temperature sensor circuit reading out of range or not as expected
+P2044	Reductant temperature sensor circuit signal too low
+P2045	Reductant temperature sensor circuit signal too high
+P2046	Reductant temperature sensor circuit signal comes and goes
+P2047	Reductant injector circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2048	Reductant injector circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2049	Reductant injector circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2050	Reductant injector circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2051	Reductant injector circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2052	Reductant injector circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2053	Reductant injector circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2054	Reductant injector circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2055	Reductant injector circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2056	Reductant injector circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2057	Reductant injector circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2058	Reductant injector circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2059	Reductant injection air pump control circuit open
+P2060	Reductant injection air pump control circuit signal too low
+P2061	Reductant injection air pump control circuit signal too high
+P2062	Reductant supply control circuit open
+P2063	Reductant supply control circuit signal too low
+P2064	Reductant supply control circuit signal too high
+P2065	Fuel level sensor B circuit
+P2066	Fuel level sensor B performance
+P2067	Fuel level sensor B circuit signal too low
+P2068	Fuel level sensor B circuit signal too high
+P2069	Fuel level sensor B circuit signal comes and goes
+P2070	Intake manifold tuning (IMT) valve stuck open
+P2071	Intake manifold tuning (IMT) valve stuck closed
+P2075	Intake manifold tuning (IMT) valve position sensor/switch circuit
+P2076	Intake manifold tuning (IMT) valve position sensor/switch circuit reading out of range or not as expected
+P2077	Intake manifold tuning (IMT) valve position sensor/switch circuit signal too low
+P2078	Intake manifold tuning (IMT) valve position sensor/switch circuit signal too high
+P2079	Intake manifold tuning (IMT) valve position sensor/switch circuit signal comes and goes
+P2080	Exhaust gas temperature sensor circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2081	Exhaust gas temperature sensor circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2082	Exhaust gas temperature sensor circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2083	Exhaust gas temperature sensor circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2084	Exhaust gas temperature sensor circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2085	Exhaust gas temperature sensor circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2086	Exhaust gas temperature sensor circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2087	Exhaust gas temperature sensor circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2088	A camshaft position actuator control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2089	A camshaft position actuator control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2090	B camshaft position actuator control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2091	B camshaft position actuator control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2092	A camshaft position actuator control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2093	A camshaft position actuator control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2094	B camshaft position actuator control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2095	B camshaft position actuator control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
 P2096	Fuel trim after the catalyst: too lean (bank 1)
 P2097	Fuel trim after the catalyst: too rich (bank 1)
 P2098	Fuel trim after the catalyst: too lean (bank 2)
 P2099	Fuel trim after the catalyst: too rich (bank 2)
 P2100	Throttle actuator motor circuit open
 P2101	Throttle actuator motor circuit range or performance
+P2102	Throttle actuator control motor circuit signal too low
+P2103	Throttle actuator control motor circuit signal too high
+P2104	Throttle actuator control system: forced idle
+P2105	Throttle actuator control system: forced engine shutdown
+P2106	Throttle actuator control system: forced limited power
+P2107	Throttle actuator control module processor
+P2108	Throttle actuator control module performance
+P2109	Throttle/pedal position sensor A minimum stop performance
+P2110	Throttle actuator control system: forced limited RPM
 P2111	Throttle actuator stuck open
 P2112	Throttle actuator stuck closed
+P2113	Throttle/pedal position sensor B minimum stop performance
+P2114	Throttle/pedal position sensor C minimum stop performance
+P2115	Throttle/pedal position sensor D minimum stop performance
+P2116	Throttle/pedal position sensor E minimum stop performance
+P2117	Throttle/pedal position sensor F minimum stop performance
 P2118	Throttle actuator motor current range or performance
 P2119	Electronic throttle body range or performance
+P2120	Throttle/pedal position sensor/switch D circuit
+P2121	Throttle/pedal position sensor/switch D circuit reading out of range or not as expected
 P2122	Pedal position sensor D circuit low
 P2123	Pedal position sensor D circuit high
+P2124	Throttle/pedal position sensor/switch D circuit signal comes and goes
+P2125	Throttle/pedal position sensor/switch E circuit
+P2126	Throttle/pedal position sensor/switch E circuit reading out of range or not as expected
 P2127	Pedal position sensor E circuit low
 P2128	Pedal position sensor E circuit high
+P2129	Throttle/pedal position sensor/switch E circuit signal comes and goes
+P2130	Throttle/pedal position sensor/switch F circuit
+P2131	Throttle/pedal position sensor/switch F circuit range performance
+P2132	Throttle/pedal position sensor/switch F circuit signal too low
+P2133	Throttle/pedal position sensor/switch F circuit signal too high
+P2134	Throttle/pedal position sensor/switch F circuit signal comes and goes
 P2135	Throttle position sensors A and B don't agree
+P2136	Throttle/pedal position sensor/switch A / C voltage correlation
+P2137	Throttle/pedal position sensor/switch B / C voltage correlation
 P2138	Pedal position sensors D and E don't agree
+P2139	Throttle/pedal position sensor/switch D / F voltage correlation
+P2140	Throttle/pedal position sensor/switch E / F voltage correlation
+P2141	Exhaust gas recirculation throttle control circuit signal too low
+P2142	Exhaust gas recirculation throttle control circuit signal too high
+P2143	Exhaust gas recirculation vent control circuit open
+P2144	Exhaust gas recirculation vent control circuit signal too low
+P2145	Exhaust gas recirculation vent control circuit signal too high
+P2146	Fuel injector group A supply voltage circuit open
+P2147	Fuel injector group A supply voltage circuit signal too low
+P2148	Fuel injector group A supply voltage circuit signal too high
+P2149	Fuel injector group B supply voltage circuit open
+P2150	Fuel injector group B supply voltage circuit signal too low
+P2151	Fuel injector group B supply voltage circuit signal too high
+P2152	Fuel injector group C supply voltage circuit open
+P2153	Fuel injector group C supply voltage circuit signal too low
+P2154	Fuel injector group C supply voltage circuit signal too high
+P2155	Fuel injector group D supply voltage circuit open
+P2156	Fuel injector group D supply voltage circuit signal too low
+P2157	Fuel injector group D supply voltage circuit signal too high
+P2158	Vehicle speed sensor B
+P2159	Vehicle speed sensor B reading out of range or not as expected
+P2160	Vehicle speed sensor B circuit signal too low
+P2161	Vehicle speed sensor B comes and goes or is erratic
+P2162	Vehicle speed sensor A / B correlation
+P2163	Throttle/pedal position sensor A maximum stop performance
+P2164	Throttle/pedal position sensor B maximum stop performance
+P2165	Throttle/pedal position sensor C maximum stop performance
+P2166	Throttle/pedal position sensor D maximum stop performance
+P2167	Throttle/pedal position sensor E maximum stop performance
+P2168	Throttle/pedal position sensor F maximum stop performance
+P2169	Exhaust pressure regulator vent solenoid control circuit open
+P2170	Exhaust pressure regulator vent solenoid control circuit signal too low
+P2171	Exhaust pressure regulator vent solenoid control circuit signal too high
+P2172	Throttle actuator control system: sudden high airflow detected
+P2173	Throttle actuator control system: high airflow detected
+P2174	Throttle actuator control system: sudden low airflow detected
+P2175	Throttle actuator control system: low airflow detected
+P2176	Throttle actuator control system: idle position not learned
 P2177	System too lean away from idle (bank 1)
 P2178	System too rich away from idle (bank 1)
+P2179	System too lean off idle (bank 2)
+P2180	System too rich off idle (bank 2)
+P2181	Cooling system performance
+P2182	Engine coolant temperature sensor 2 circuit
+P2183	Engine coolant temperature sensor 2 circuit reading out of range or not as expected
+P2184	Engine coolant temperature sensor 2 circuit signal too low
+P2185	Engine coolant temperature sensor 2 circuit signal too high
+P2186	Engine coolant temperature sensor 2 circuit signal comes and goes or is erratic
 P2187	System too lean at idle (bank 1)
 P2188	System too rich at idle (bank 1)
+P2189	System too lean at idle (bank 2)
+P2190	System too rich at idle (bank 2)
+P2191	System too lean at higher load (bank 1)
+P2192	System too rich at higher load (bank 1)
+P2193	System too lean at higher load (bank 2)
+P2194	System too rich at higher load (bank 2)
 P2195	Oxygen sensor stuck lean (bank 1 sensor 1)
 P2196	Oxygen sensor stuck rich (bank 1 sensor 1)
+P2197	Oxygen sensor signal stuck lean (bank 2 sensor 1)
+P2198	Oxygen sensor signal stuck rich (bank 2 sensor 1)
+P2199	Intake air temperature sensor 1 / 2 correlation
+P2200	NOx sensor circuit (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2201	NOx sensor circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2202	NOx sensor circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2203	NOx sensor circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2204	NOx sensor circuit signal comes and goes input (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2205	NOx sensor heater control circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2206	NOx sensor heater control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2207	NOx sensor heater control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2208	NOx sensor heater sense circuit (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2209	NOx sensor heater sense circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2210	NOx sensor heater sense circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2211	NOx sensor heater sense circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2212	NOx sensor heater sense circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2213	NOx sensor circuit (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2214	NOx sensor circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2215	NOx sensor circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2216	NOx sensor circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2217	NOx sensor circuit signal comes and goes input (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2218	NOx sensor heater control circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2219	NOx sensor heater control circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2220	NOx sensor heater control circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2221	NOx sensor heater sense circuit (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2222	NOx sensor heater sense circuit reading out of range or not as expected (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2223	NOx sensor heater sense circuit signal too low (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2224	NOx sensor heater sense circuit signal too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2225	NOx sensor heater sense circuit signal comes and goes (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2226	Barometric pressure circuit
+P2227	Barometric pressure circuit reading out of range or not as expected
+P2228	Barometric pressure circuit signal too low
+P2229	Barometric pressure circuit signal too high
+P2230	Barometric pressure circuit signal comes and goes
+P2231	Oxygen sensor signal circuit shorted to heater circuit (bank 1 sensor 1)
+P2232	Oxygen sensor signal circuit shorted to heater circuit (bank 1 sensor 2)
+P2233	Oxygen sensor signal circuit shorted to heater circuit (bank 1 sensor 3)
+P2234	Oxygen sensor signal circuit shorted to heater circuit (bank 2 sensor 1)
+P2235	Oxygen sensor signal circuit shorted to heater circuit (bank 2 sensor 2)
+P2236	Oxygen sensor signal circuit shorted to heater circuit (bank 2 sensor 3)
 P2237	Oxygen sensor positive current control circuit open (bank 1 sensor 1)
+P2238	Oxygen sensor positive current control circuit signal too low (bank 1 sensor 1)
+P2239	Oxygen sensor positive current control circuit signal too high (bank 1 sensor 1)
+P2240	Oxygen sensor positive current control circuit open (bank 2 sensor 1)
+P2241	Oxygen sensor positive current control circuit signal too low (bank 2 sensor 1)
+P2242	Oxygen sensor positive current control circuit signal too high (bank 2 sensor 1)
+P2243	Oxygen sensor reference voltage circuit open (bank 1 sensor 1)
+P2244	Oxygen sensor reference voltage performance (bank 1 sensor 1)
+P2245	Oxygen sensor reference voltage circuit signal too low (bank 1 sensor 1)
+P2246	Oxygen sensor reference voltage circuit signal too high (bank 1 sensor 1)
+P2247	Oxygen sensor reference voltage circuit open (bank 2 sensor 1)
+P2248	Oxygen sensor reference voltage performance (bank 2 sensor 1)
+P2249	Oxygen sensor reference voltage circuit signal too low (bank 2 sensor 1)
+P2250	Oxygen sensor reference voltage circuit signal too high (bank 2 sensor 1)
+P2251	Oxygen sensor negative current control circuit open (bank 1 sensor 1)
+P2252	Oxygen sensor negative current control circuit signal too low (bank 1 sensor 1)
+P2253	Oxygen sensor negative current control circuit signal too high (bank 1 sensor 1)
+P2254	Oxygen sensor negative current control circuit open (bank 2 sensor 1)
+P2255	Oxygen sensor negative current control circuit signal too low (bank 2 sensor 1)
+P2256	Oxygen sensor negative current control circuit signal too high (bank 2 sensor 1)
+P2257	Secondary air injection system control A circuit signal too low
+P2258	Secondary air injection system control A circuit signal too high
+P2259	Secondary air injection system control B circuit signal too low
+P2260	Secondary air injection system control B circuit signal too high
+P2261	Turbo or supercharger bypass valve: mechanical
+P2262	Turbo boost pressure not detected: mechanical
+P2263	Turbo or supercharger boost system performance
+P2264	Water in fuel sensor circuit
+P2265	Water in fuel sensor circuit reading out of range or not as expected
+P2266	Water in fuel sensor circuit signal too low
+P2267	Water in fuel sensor circuit signal too high
+P2268	Water in fuel sensor circuit signal comes and goes
+P2269	Water in fuel condition
 P2270	Oxygen sensor stuck lean (bank 1 sensor 2)
 P2271	Oxygen sensor stuck rich (bank 1 sensor 2)
+P2272	Oxygen sensor signal stuck lean (bank 2 sensor 2)
+P2273	Oxygen sensor signal stuck rich (bank 2 sensor 2)
+P2274	Oxygen sensor signal stuck lean (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2275	Oxygen sensor signal stuck rich (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2276	Oxygen sensor signal stuck lean (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2277	Oxygen sensor signal stuck rich (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2278	Oxygen sensor signals swapped / bank 2 sensor 3 (bank 1 sensor 3)
+P2279	Intake air system leak
+P2280	Air flow restriction / air leak between air filter and MAF
+P2281	Air leak between MAF and throttle body
+P2282	Air leak between throttle body and intake valves
+P2283	Injector control pressure sensor circuit
+P2284	Injector control pressure sensor circuit reading out of range or not as expected
+P2285	Injector control pressure sensor circuit signal too low
+P2286	Injector control pressure sensor circuit signal too high
+P2287	Injector control pressure sensor circuit signal comes and goes
+P2288	Injector control pressure too high
+P2289	Injector control pressure too high: engine off
+P2290	Injector control pressure too low
+P2291	Injector control pressure too low: engine cranking
+P2292	Injector control pressure erratic
+P2293	Fuel pressure regulator 2 performance
+P2294	Fuel pressure regulator 2 control circuit
+P2295	Fuel pressure regulator 2 control circuit signal too low
+P2296	Fuel pressure regulator 2 control circuit signal too high
+P2297	Oxygen sensor out of range during deceleration (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2298	Oxygen sensor out of range during deceleration (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2299	Brake pedal position / accelerator pedal position incompatible
+P2300	Ignition coil A primary control circuit signal too low
+P2301	Ignition coil A primary control circuit signal too high
+P2302	Ignition coil A secondary circuit
+P2303	Ignition coil B primary control circuit signal too low
+P2304	Ignition coil B primary control circuit signal too high
+P2305	Ignition coil B secondary circuit
+P2306	Ignition coil C primary control circuit signal too low
+P2307	Ignition coil C primary control circuit signal too high
+P2308	Ignition coil C secondary circuit
+P2309	Ignition coil D primary control circuit signal too low
+P2310	Ignition coil D primary control circuit signal too high
+P2311	Ignition coil D secondary circuit
+P2312	Ignition coil E primary control circuit signal too low
+P2313	Ignition coil E primary control circuit signal too high
+P2314	Ignition coil E secondary circuit
+P2315	Ignition coil F primary control circuit signal too low
+P2316	Ignition coil F primary control circuit signal too high
+P2317	Ignition coil F secondary circuit
+P2318	Ignition coil G primary control circuit signal too low
+P2319	Ignition coil G primary control circuit signal too high
+P2320	Ignition coil G secondary circuit
+P2321	Ignition coil H primary control circuit signal too low
+P2322	Ignition coil H primary control circuit signal too high
+P2323	Ignition coil H secondary circuit
+P2324	Ignition coil I primary control circuit signal too low
+P2325	Ignition coil I primary control circuit signal too high
+P2326	Ignition coil I secondary circuit
+P2327	Ignition coil J primary control circuit signal too low
+P2328	Ignition coil J primary control circuit signal too high
+P2329	Ignition coil J secondary circuit
+P2330	Ignition coil K primary control circuit signal too low
+P2331	Ignition coil K primary control circuit signal too high
+P2332	Ignition coil K secondary circuit
+P2333	Ignition coil L primary control circuit signal too low
+P2334	Ignition coil L primary control circuit signal too high
+P2335	Ignition coil L secondary circuit
+P2336	Cylinder #1 above knock threshold
+P2337	Cylinder #2 above knock threshold
+P2338	Cylinder #3 above knock threshold
+P2339	Cylinder #4 above knock threshold
+P2340	Cylinder #5 above knock threshold
+P2341	Cylinder #6 above knock threshold
+P2342	Cylinder #7 above knock threshold
+P2343	Cylinder #8 above knock threshold
+P2344	Cylinder #9 above knock threshold
+P2345	Cylinder #10 above knock threshold
+P2346	Cylinder #11 above knock threshold
+P2347	Cylinder #12 above knock threshold
+P2400	Fuel vapour (EVAP) system leak detection pump control circuit open
+P2401	Fuel vapour (EVAP) system leak detection pump control circuit signal too low
+P2402	Fuel vapour (EVAP) system leak detection pump control circuit signal too high
+P2403	Fuel vapour (EVAP) system leak detection pump sense circuit open
+P2404	Fuel vapour (EVAP) system leak detection pump sense circuit reading out of range or not as expected
+P2405	Fuel vapour (EVAP) system leak detection pump sense circuit signal too low
+P2406	Fuel vapour (EVAP) system leak detection pump sense circuit signal too high
+P2407	Fuel vapour (EVAP) system leak detection pump sense circuit signal comes and goes or is erratic
+P2408	Fuel cap sensor/switch circuit
+P2409	Fuel cap sensor/switch circuit reading out of range or not as expected
+P2410	Fuel cap sensor/switch circuit signal too low
+P2411	Fuel cap sensor/switch circuit signal too high
+P2412	Fuel cap sensor/switch circuit signal comes and goes or is erratic
+P2413	Exhaust gas recirculation system performance
+P2414	Oxygen sensor exhaust sample error (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2415	Oxygen sensor exhaust sample error (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2416	Oxygen sensor signals swapped / bank 1 sensor 3 (bank 1 sensor 2)
+P2417	Oxygen sensor signals swapped / bank 2 sensor 3 (bank 2 sensor 2)
+P2418	Fuel vapour (EVAP) system switching valve control circuit / open
+P2419	Fuel vapour (EVAP) system switching valve control circuit signal too low
+P2420	Fuel vapour (EVAP) system switching valve control circuit signal too high
+P2421	Fuel vapour (EVAP) system vent valve stuck open
+P2422	Fuel vapour (EVAP) system vent valve stuck closed
+P2423	HC adsorption catalyst efficiency below threshold (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2424	HC adsorption catalyst efficiency below threshold (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2425	Exhaust gas recirculation cooling valve control circuit open
+P2426	Exhaust gas recirculation cooling valve control circuit signal too low
+P2427	Exhaust gas recirculation cooling valve control circuit signal too high
+P2428	Exhaust gas temperature too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2429	Exhaust gas temperature too high (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2430	Secondary air injection system air flow/pressure sensor circuit (bank 1)
+P2431	Secondary air injection system air flow/pressure sensor circuit reading out of range or not as expected (bank 1)
+P2432	Secondary air injection system air flow/pressure sensor circuit signal too low (bank 1)
+P2433	Secondary air injection system air flow/pressure sensor circuit signal too high (bank 1)
+P2434	Secondary air injection system air flow/pressure sensor circuit signal comes and goes or is erratic (bank 1)
+P2435	Secondary air injection system air flow/pressure sensor circuit (bank 2)
+P2436	Secondary air injection system air flow/pressure sensor circuit reading out of range or not as expected (bank 2)
+P2437	Secondary air injection system air flow/pressure sensor circuit signal too low (bank 2)
+P2438	Secondary air injection system air flow/pressure sensor circuit signal too high (bank 2)
+P2439	Secondary air injection system air flow/pressure sensor circuit signal comes and goes or is erratic (bank 2)
+P2440	Secondary air injection system switching valve stuck open (bank 1)
+P2441	Secondary air injection system switching valve stuck closed (bank 1)
+P2442	Secondary air injection system switching valve stuck open (bank 2)
+P2443	Secondary air injection system switching valve stuck closed (bank 2)
+P2444	Secondary air injection system pump stuck on (bank 1)
+P2445	Secondary air injection system pump stuck off (bank 1)
+P2446	Secondary air injection system pump stuck on (bank 2)
+P2447	Secondary air injection system pump stuck off (bank 2)
+P2500	Generator lamp/l-terminal circuit signal too low
+P2501	Generator lamp/l-terminal circuit signal too high
+P2502	Charging system voltage
+P2503	Charging system voltage low
+P2504	Charging system voltage high
+P2505	Engine computer power input signal
+P2506	Engine computer power input signal reading out of range or not as expected
+P2507	Engine computer power input signal low
+P2508	Engine computer power input signal high
+P2509	Engine computer power input signal comes and goes
+P2510	Engine computer power relay sense circuit reading out of range or not as expected
+P2511	Engine computer power relay sense circuit signal comes and goes
+P2512	Event data recorder request circuit/ open
+P2513	Event data recorder request circuit signal too low
+P2514	Event data recorder request circuit signal too high
+P2515	Air conditioning refrigerant pressure sensor B circuit
+P2516	Air conditioning refrigerant pressure sensor B circuit reading out of range or not as expected
+P2517	Air conditioning refrigerant pressure sensor B circuit signal too low
+P2518	Air conditioning refrigerant pressure sensor B circuit signal too high
+P2519	Air conditioning request A circuit
+P2520	Air conditioning request A circuit signal too low
+P2521	Air conditioning request A circuit signal too high
+P2522	Air conditioning request B circuit
+P2523	Air conditioning request B circuit signal too low
+P2524	Air conditioning request B circuit signal too high
+P2525	Vacuum reservoir pressure sensor circuit
+P2526	Vacuum reservoir pressure sensor circuit reading out of range or not as expected
+P2527	Vacuum reservoir pressure sensor circuit signal too low
+P2528	Vacuum reservoir pressure sensor circuit signal too high
+P2529	Vacuum reservoir pressure sensor circuit signal comes and goes
+P2530	Ignition switch run position circuit
+P2531	Ignition switch run position circuit signal too low
+P2532	Ignition switch run position circuit signal too high
+P2533	Ignition switch run/start position circuit
+P2534	Ignition switch run/start position circuit signal too low
+P2535	Ignition switch run/start position circuit signal too high
+P2536	Ignition switch accessory position circuit
+P2537	Ignition switch accessory position circuit signal too low
+P2538	Ignition switch accessory position circuit signal too high
+P2539	Low pressure fuel system sensor circuit
+P2540	Low pressure fuel system sensor circuit reading out of range or not as expected
+P2541	Low pressure fuel system sensor circuit signal too low
+P2542	Low pressure fuel system sensor circuit signal too high
+P2543	Low pressure fuel system sensor circuit signal comes and goes
+P2544	Torque management request input signal A
+P2545	Torque management request input signal A reading out of range or not as expected
+P2546	Torque management request input signal A low
+P2547	Torque management request input signal A high
+P2548	Torque management request input signal B
+P2549	Torque management request input signal B reading out of range or not as expected
+P2550	Torque management request input signal B low
+P2551	Torque management request input signal B high
+P2552	Throttle/fuel inhibit circuit
+P2553	Throttle/fuel inhibit circuit reading out of range or not as expected
+P2554	Throttle/fuel inhibit circuit signal too low
+P2555	Throttle/fuel inhibit circuit signal too high
+P2556	Engine coolant level sensor/switch circuit
+P2557	Engine coolant level sensor/switch circuit reading out of range or not as expected
+P2558	Engine coolant level sensor/switch circuit signal too low
+P2559	Engine coolant level sensor/switch circuit signal too high
+P2560	Engine coolant level low
+P2561	Air conditioning control module requested check engine light illumination
+P2562	Turbocharger boost control position sensor circuit
+P2563	Turbocharger boost control position sensor circuit reading out of range or not as expected
+P2564	Turbocharger boost control position sensor circuit signal too low
+P2565	Turbocharger boost control position sensor circuit signal too high
+P2566	Turbocharger boost control position sensor circuit signal comes and goes
+P2567	Direct ozone reduction catalyst temperature sensor circuit
+P2568	Direct ozone reduction catalyst temperature sensor circuit reading out of range or not as expected
+P2569	Direct ozone reduction catalyst temperature sensor circuit signal too low
+P2570	Direct ozone reduction catalyst temperature sensor circuit signal too high
+P2571	Direct ozone reduction catalyst temperature sensor circuit signal comes and goes or is erratic
+P2572	Direct ozone reduction catalyst deterioration sensor circuit
+P2573	Direct ozone reduction catalyst deterioration sensor circuit reading out of range or not as expected
+P2574	Direct ozone reduction catalyst deterioration sensor circuit signal too low
+P2575	Direct ozone reduction catalyst deterioration sensor circuit signal too high
+P2576	Direct ozone reduction catalyst deterioration sensor circuit signal comes and goes or is erratic
+P2577	Direct ozone reduction catalyst efficiency below threshold
+P2600	Coolant pump control circuit open
+P2601	Coolant pump control circuit reading out of range or not as expected
+P2602	Coolant pump control circuit signal too low
+P2603	Coolant pump control circuit signal too high
+P2604	Intake air heater A circuit reading out of range or not as expected
+P2605	Intake air heater A circuit open (one of several codes for different banks, sensors or wires: the workshop manual says which)
+P2606	Intake air heater B circuit reading out of range or not as expected
+P2607	Intake air heater B circuit signal too low
+P2608	Intake air heater B circuit signal too high
+P2609	Intake air heater system performance
 P2610	Engine computer internal engine-off timer performance
+P2611	Air conditioning refrigerant distribution valve control circuit open
+P2612	Air conditioning refrigerant distribution valve control circuit signal too low
+P2613	Air conditioning refrigerant distribution valve control circuit signal too high
+P2614	Camshaft position signal output circuit open
+P2615	Camshaft position signal output circuit signal too low
+P2616	Camshaft position signal output circuit signal too high
+P2617	Crankshaft position signal output circuit open
+P2618	Crankshaft position signal output circuit signal too low
+P2619	Crankshaft position signal output circuit signal too high
+P2620	Throttle position output circuit open
+P2621	Throttle position output circuit signal too low
+P2622	Throttle position output circuit signal too high
+P2623	Injector control pressure regulator circuit open
+P2624	Injector control pressure regulator circuit signal too low
+P2625	Injector control pressure regulator circuit signal too high
+P2626	Oxygen sensor pumping current trim circuit open (bank 1 sensor 1)
+P2627	Oxygen sensor pumping current trim circuit signal too low (bank 1 sensor 1)
+P2628	Oxygen sensor pumping current trim circuit signal too high (bank 1 sensor 1)
+P2629	Oxygen sensor pumping current trim circuit open (bank 2 sensor 1)
+P2630	Oxygen sensor pumping current trim circuit signal too low (bank 2 sensor 1)
+P2631	Oxygen sensor pumping current trim circuit signal too high (bank 2 sensor 1)
+P2632	Fuel pump B control circuit /open
+P2633	Fuel pump B control circuit signal too low
+P2634	Fuel pump B control circuit signal too high
+P2635	Fuel pump A low flow / performance
+P2636	Fuel pump B low flow / performance
+P2637	Torque management feedback signal A
+P2638	Torque management feedback signal A reading out of range or not as expected
+P2639	Torque management feedback signal A low
+P2640	Torque management feedback signal A high
+P2641	Torque management feedback signal B
+P2642	Torque management feedback signal B reading out of range or not as expected
+P2643	Torque management feedback signal B low
+P2644	Torque management feedback signal B high
+P2645	A rocker arm actuator control circuit open (bank 1)
+P2646	A rocker arm actuator system performance or stuck off (bank 1)
+P2647	A rocker arm actuator system stuck on (bank 1)
+P2648	A rocker arm actuator control circuit signal too low (bank 1)
+P2649	A rocker arm actuator control circuit signal too high (bank 1)
+P2650	B rocker arm actuator control circuit open (bank 1)
+P2651	B rocker arm actuator system performance or stuck off (bank 1)
+P2652	B rocker arm actuator system stuck on (bank 1)
+P2653	B rocker arm actuator control circuit signal too low (bank 1)
+P2654	B rocker arm actuator control circuit signal too high (bank 1)
+P2655	A rocker arm actuator control circuit open (bank 2)
+P2656	A rocker arm actuator system performance or stuck off (bank 2)
+P2657	A rocker arm actuator system stuck on (bank 2)
+P2658	A rocker arm actuator control circuit signal too low (bank 2)
+P2659	A rocker arm actuator control circuit signal too high (bank 2)
+P2660	B rocker arm actuator control circuit open (bank 2)
+P2661	B rocker arm actuator system performance or stuck off (bank 2)
+P2662	B rocker arm actuator system stuck on (bank 2)
+P2663	B rocker arm actuator control circuit signal too low (bank 2)
+P2664	B rocker arm actuator control circuit signal too high (bank 2)
+P2665	Fuel shutoff valve B control circuit open
+P2666	Fuel shutoff valve B control circuit signal too low
+P2667	Fuel shutoff valve B control circuit signal too high
+P2668	Fuel mode indicator lamp control circuit
+P2669	Actuator supply voltage B circuit /open
+P2670	Actuator supply voltage B circuit signal too low
+P2671	Actuator supply voltage B circuit signal too high
+P2700	Transmission friction element A apply time reading out of range or not as expected
+P2701	Transmission friction element B apply time reading out of range or not as expected
+P2702	Transmission friction element C apply time reading out of range or not as expected
+P2703	Transmission friction element D apply time reading out of range or not as expected
+P2704	Transmission friction element E apply time reading out of range or not as expected
+P2705	Transmission friction element F apply time reading out of range or not as expected
+P2706	Shift solenoid F
+P2707	Shift solenoid F performance or stuck off
+P2708	Shift solenoid F stuck on
+P2709	Shift solenoid F electrical fault
+P2710	Shift solenoid F comes and goes
+P2711	Unexpected mechanical gear disengagement
+P2712	Hydraulic power unit leakage
+P2713	Pressure control solenoid D
+P2714	Pressure control solenoid D performance or stuck off
+P2715	Pressure control solenoid D stuck on
+P2716	Pressure control solenoid D electrical fault
+P2717	Pressure control solenoid D comes and goes
+P2718	Pressure control solenoid D control circuit / open
+P2719	Pressure control solenoid D control circuit reading out of range or not as expected
+P2720	Pressure control solenoid D control circuit signal too low
+P2721	Pressure control solenoid D control circuit signal too high
+P2722	Pressure control solenoid E
+P2723	Pressure control solenoid E performance or stuck off
+P2724	Pressure control solenoid E stuck on
+P2725	Pressure control solenoid E electrical fault
+P2726	Pressure control solenoid E comes and goes
+P2727	Pressure control solenoid E control circuit / open
+P2728	Pressure control solenoid E control circuit reading out of range or not as expected
+P2729	Pressure control solenoid E control circuit signal too low
+P2730	Pressure control solenoid E control circuit signal too high
+P2731	Pressure control solenoid F
+P2732	Pressure control solenoid F performance or stuck off
+P2733	Pressure control solenoid F stuck on
+P2734	Pressure control solenoid F electrical fault
+P2735	Pressure control solenoid F comes and goes
+P2736	Pressure control solenoid F control circuit open
+P2737	Pressure control solenoid F control circuit reading out of range or not as expected
+P2738	Pressure control solenoid F control circuit signal too low
+P2739	Pressure control solenoid F control circuit signal too high
+P2740	Transmission fluid temperature sensor B circuit
+P2741	Transmission fluid temperature sensor B circuit range performance
+P2742	Transmission fluid temperature sensor B circuit signal too low
+P2743	Transmission fluid temperature sensor B circuit signal too high
+P2744	Transmission fluid temperature sensor B circuit signal comes and goes
+P2745	Intermediate shaft speed sensor B circuit
+P2746	Intermediate shaft speed sensor B circuit reading out of range or not as expected
+P2747	Intermediate shaft speed sensor B circuit no signal
+P2748	Intermediate shaft speed sensor B circuit signal comes and goes
+P2749	Intermediate shaft speed sensor C circuit
+P2750	Intermediate shaft speed sensor C circuit reading out of range or not as expected
+P2751	Intermediate shaft speed sensor C circuit no signal
+P2752	Intermediate shaft speed sensor C circuit signal comes and goes
+P2753	Transmission fluid cooler control circuit open
+P2754	Transmission fluid cooler control circuit signal too low
+P2755	Transmission fluid cooler control circuit signal too high
+P2756	Torque converter clutch pressure control solenoid
+P2757	Torque converter clutch pressure control solenoid control circuit performance or stuck off
+P2758	Torque converter clutch pressure control solenoid control circuit stuck on
+P2759	Torque converter clutch pressure control solenoid control circuit electrical fault
+P2760	Torque converter clutch pressure control solenoid control circuit signal comes and goes
+P2761	Torque converter clutch pressure control solenoid control circuit open
+P2762	Torque converter clutch pressure control solenoid control circuit reading out of range or not as expected
+P2763	Torque converter clutch pressure control solenoid control circuit signal too high
+P2764	Torque converter clutch pressure control solenoid control circuit signal too low
+P2765	Input/turbine speed sensor B circuit
+P2766	Input/turbine speed sensor B circuit reading out of range or not as expected
+P2767	Input/turbine speed sensor B circuit no signal
+P2768	Input/turbine speed sensor B circuit signal comes and goes
+P2769	Torque converter clutch circuit signal too low
+P2770	Torque converter clutch circuit signal too high
+P2771	Four wheel drive (4WD) low switch circuit
+P2772	Four wheel drive (4WD) low switch circuit reading out of range or not as expected
+P2773	Four wheel drive (4WD) low switch circuit signal too low
+P2774	Four wheel drive (4WD) low switch circuit signal too high
+P2775	Upshift switch circuit reading out of range or not as expected
+P2776	Upshift switch circuit signal too low
+P2777	Upshift switch circuit signal too high
+P2778	Upshift switch circuit signal comes and goes or is erratic
+P2779	Downshift switch circuit reading out of range or not as expected
+P2780	Downshift switch circuit signal too low
+P2781	Downshift switch circuit signal too high
+P2782	Downshift switch circuit signal comes and goes or is erratic
+P2783	Torque converter temperature too high
+P2784	Input/turbine speed sensor A/B correlation
+P2785	Clutch actuator temperature too high
+P2786	Gear shift actuator temperature too high
+P2787	Clutch temperature too high
+P2788	Auto shift manual adaptive learning at limit
+P2789	Clutch adaptive learning at limit
+P2790	Gate select direction circuit
+P2791	Gate select direction circuit signal too low
+P2792	Gate select direction circuit signal too high
+P2793	Gear shift direction circuit
+P2794	Gear shift direction circuit signal too low
+P2795	Gear shift direction circuit signal too high
+P2A00	Oxygen sensor circuit reading out of range or not as expected (bank 1 sensor 1)
+P2A01	Oxygen sensor circuit reading out of range or not as expected (bank 1 sensor 2)
+P2A02	Oxygen sensor circuit reading out of range or not as expected (bank 1 sensor 3)
+P2A03	Oxygen sensor circuit reading out of range or not as expected (bank 2 sensor 1)
+P2A04	Oxygen sensor circuit reading out of range or not as expected (bank 2 sensor 2)
+P2A05	Oxygen sensor circuit reading out of range or not as expected (bank 2 sensor 3)
+P3400	Cylinder deactivation system (bank 1)
+P3401	Cylinder 1 deactivation/intake valve control circuit open
+P3402	Cylinder 1 deactivation/intake valve control performance
+P3403	Cylinder 1 deactivation/intake valve control circuit signal too low
+P3404	Cylinder 1 deactivation/intake valve control circuit signal too high
+P3405	Cylinder 1 exhaust valve control circuit open
+P3406	Cylinder 1 exhaust valve control performance
+P3407	Cylinder 1 exhaust valve control circuit signal too low
+P3408	Cylinder 1 exhaust valve control circuit signal too high
+P3409	Cylinder 2 deactivation/intake valve control circuit open
+P3410	Cylinder 2 deactivation/intake valve control performance
+P3411	Cylinder 2 deactivation/intake valve control circuit signal too low
+P3412	Cylinder 2 deactivation/intake valve control circuit signal too high
+P3413	Cylinder 2 exhaust valve control circuit open
+P3414	Cylinder 2 exhaust valve control performance
+P3415	Cylinder 2 exhaust valve control circuit signal too low
+P3416	Cylinder 2 exhaust valve control circuit signal too high
+P3417	Cylinder 3 deactivation/intake valve control circuit open
+P3418	Cylinder 3 deactivation/intake valve control performance
+P3419	Cylinder 3 deactivation/intake valve control circuit signal too low
+P3420	Cylinder 3 deactivation/intake valve control circuit signal too high
+P3421	Cylinder 3 exhaust valve control circuit open
+P3422	Cylinder 3 exhaust valve control performance
+P3423	Cylinder 3 exhaust valve control circuit signal too low
+P3424	Cylinder 3 exhaust valve control circuit signal too high
+P3425	Cylinder 4 deactivation/intake valve control circuit open
+P3426	Cylinder 4 deactivation/intake valve control performance
+P3427	Cylinder 4 deactivation/intake valve control circuit signal too low
+P3428	Cylinder 4 deactivation/intake valve control circuit signal too high
+P3429	Cylinder 4 exhaust valve control circuit open
+P3430	Cylinder 4 exhaust valve control performance
+P3431	Cylinder 4 exhaust valve control circuit signal too low
+P3432	Cylinder 4 exhaust valve control circuit signal too high
+P3433	Cylinder 5 deactivation/intake valve control circuit open
+P3434	Cylinder 5 deactivation/intake valve control performance
+P3435	Cylinder 5 deactivation/intake valve control circuit signal too low
+P3436	Cylinder 5 deactivation/intake valve control circuit signal too high
+P3437	Cylinder 5 exhaust valve control circuit open
+P3438	Cylinder 5 exhaust valve control performance
+P3439	Cylinder 5 exhaust valve control circuit signal too low
+P3440	Cylinder 5 exhaust valve control circuit signal too high
+P3441	Cylinder 6 deactivation/intake valve control circuit open
+P3442	Cylinder 6 deactivation/intake valve control performance
+P3443	Cylinder 6 deactivation/intake valve control circuit signal too low
+P3444	Cylinder 6 deactivation/intake valve control circuit signal too high
+P3445	Cylinder 6 exhaust valve control circuit open
+P3446	Cylinder 6 exhaust valve control performance
+P3447	Cylinder 6 exhaust valve control circuit signal too low
+P3448	Cylinder 6 exhaust valve control circuit signal too high
+P3449	Cylinder 7 deactivation/intake valve control circuit open
+P3450	Cylinder 7 deactivation/intake valve control performance
+P3451	Cylinder 7 deactivation/intake valve control circuit signal too low
+P3452	Cylinder 7 deactivation/intake valve control circuit signal too high
+P3453	Cylinder 7 exhaust valve control circuit open
+P3454	Cylinder 7 exhaust valve control performance
+P3455	Cylinder 7 exhaust valve control circuit signal too low
+P3456	Cylinder 7 exhaust valve control circuit signal too high
+P3457	Cylinder 8 deactivation/intake valve control circuit open
+P3458	Cylinder 8 deactivation/intake valve control performance
+P3459	Cylinder 8 deactivation/intake valve control circuit signal too low
+P3460	Cylinder 8 deactivation/intake valve control circuit signal too high
+P3461	Cylinder 8 exhaust valve control circuit open
+P3462	Cylinder 8 exhaust valve control performance
+P3463	Cylinder 8 exhaust valve control circuit signal too low
+P3464	Cylinder 8 exhaust valve control circuit signal too high
+P3465	Cylinder 9 deactivation/intake valve control circuit open
+P3466	Cylinder 9 deactivation/intake valve control performance
+P3467	Cylinder 9 deactivation/intake valve control circuit signal too low
+P3468	Cylinder 9 deactivation/intake valve control circuit signal too high
+P3469	Cylinder 9 exhaust valve control circuit open
+P3470	Cylinder 9 exhaust valve control performance
+P3471	Cylinder 9 exhaust valve control circuit signal too low
+P3472	Cylinder 9 exhaust valve control circuit signal too high
+P3473	Cylinder 10 deactivation/intake valve control circuit open
+P3474	Cylinder 10 deactivation/intake valve control performance
+P3475	Cylinder 10 deactivation/intake valve control circuit signal too low
+P3476	Cylinder 10 deactivation/intake valve control circuit signal too high
+P3477	Cylinder 10 exhaust valve control circuit open
+P3478	Cylinder 10 exhaust valve control performance
+P3479	Cylinder 10 exhaust valve control circuit signal too low
+P3480	Cylinder 10 exhaust valve control circuit signal too high
+P3481	Cylinder 11 deactivation/intake valve control circuit open
+P3482	Cylinder 11 deactivation/intake valve control performance
+P3483	Cylinder 11 deactivation/intake valve control circuit signal too low
+P3484	Cylinder 11 deactivation/intake valve control circuit signal too high
+P3485	Cylinder 11 exhaust valve control circuit open
+P3486	Cylinder 11 exhaust valve control performance
+P3487	Cylinder 11 exhaust valve control circuit signal too low
+P3488	Cylinder 11 exhaust valve control circuit signal too high
+P3489	Cylinder 12 deactivation/intake valve control circuit open
+P3490	Cylinder 12 deactivation/intake valve control performance
+P3491	Cylinder 12 deactivation/intake valve control circuit signal too low
+P3492	Cylinder 12 deactivation/intake valve control circuit signal too high
+P3493	Cylinder 12 exhaust valve control circuit open
+P3494	Cylinder 12 exhaust valve control performance
+P3495	Cylinder 12 exhaust valve control circuit signal too low
+P3496	Cylinder 12 exhaust valve control circuit signal too high
+P3497	Cylinder deactivation system (bank 2)
 C0035	On cars that use GM's chassis numbers: left front wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
 C0040	On cars that use GM's chassis numbers: right front wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
 C0045	On cars that use GM's chassis numbers: left rear wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
 C0050	On cars that use GM's chassis numbers: right rear wheel speed sensor circuit. Other makes use this number for other faults: check the maker's list
 U0001	High-speed CAN communication bus
+U0002	High speed CAN communication bus (performance)
+U0003	High speed CAN communication bus (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0004	High speed CAN communication bus (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0005	High speed CAN communication bus (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0006	High speed CAN communication bus (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0007	High speed CAN communication bus (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0008	High speed CAN communication bus (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0009	High speed CAN communication bus (shorted to bus)
+U0010	Medium speed CAN communication bus
+U0011	Medium speed CAN communication bus (performance)
+U0012	Medium speed CAN communication bus (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0013	Medium speed CAN communication bus (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0014	Medium speed CAN communication bus (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0015	Medium speed CAN communication bus (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0016	Medium speed CAN communication bus (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0017	Medium speed CAN communication bus (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0018	Medium speed CAN communication bus (shorted to bus)
+U0019	Low speed CAN communication bus
+U0020	Low speed CAN communication bus (performance)
+U0021	Low speed CAN communication bus (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0022	Low speed CAN communication bus (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0023	Low speed CAN communication bus (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0024	Low speed CAN communication bus (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0025	Low speed CAN communication bus (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0026	Low speed CAN communication bus (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0027	Low speed CAN communication bus (shorted to bus)
+U0028	Vehicle communication bus A
+U0029	Vehicle communication bus A (performance)
+U0030	Vehicle communication bus A (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0031	Vehicle communication bus A (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0032	Vehicle communication bus A (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0033	Vehicle communication bus A (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0034	Vehicle communication bus A (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0035	Vehicle communication bus A (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0036	Vehicle communication bus A (shorted to bus A)
+U0037	Vehicle communication bus B
+U0038	Vehicle communication bus B (performance)
+U0039	Vehicle communication bus B (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0040	Vehicle communication bus B (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0041	Vehicle communication bus B (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0042	Vehicle communication bus B (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0043	Vehicle communication bus B (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0044	Vehicle communication bus B (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0045	Vehicle communication bus B (shorted to bus B)
+U0046	Vehicle communication bus C
+U0047	Vehicle communication bus C (performance)
+U0048	Vehicle communication bus C (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0049	Vehicle communication bus C (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0050	Vehicle communication bus C (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0051	Vehicle communication bus C (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0052	Vehicle communication bus C (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0053	Vehicle communication bus C (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0054	Vehicle communication bus C (shorted to bus C)
+U0055	Vehicle communication bus D
+U0056	Vehicle communication bus D (performance)
+U0057	Vehicle communication bus D (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0058	Vehicle communication bus D (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0059	Vehicle communication bus D (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0060	Vehicle communication bus D (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0061	Vehicle communication bus D (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0062	Vehicle communication bus D (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0063	Vehicle communication bus D (shorted to bus D)
+U0064	Vehicle communication bus E
+U0065	Vehicle communication bus E (performance)
+U0066	Vehicle communication bus E (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0067	Vehicle communication bus E (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0068	Vehicle communication bus E (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0069	Vehicle communication bus E (open) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0070	Vehicle communication bus E (low) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0071	Vehicle communication bus E (high) (one of several codes for different banks, sensors or wires: the workshop manual says which)
+U0072	Vehicle communication bus E (shorted to bus E)
 U0073	Module communication bus A off
 U0100	Lost communication with the engine computer (ECM/PCM A)
 U0101	Lost communication with the gearbox computer (TCM)
+U0102	Lost communication with the transfer case control module
+U0103	Lost communication with the gear shift module
+U0104	Lost communication with the cruise control module
+U0105	Lost communication with the fuel injector control module
+U0106	Lost communication with the glow plug control module
+U0107	Lost communication with the throttle actuator control module
+U0108	Lost communication with the alternative fuel control module
+U0109	Lost communication with the fuel pump control module
+U0110	Lost communication with the drive motor control module
+U0111	Lost communication with the battery energy control module A
+U0112	Lost communication with the battery energy control module B
+U0113	Lost communication with the emissions critical control information
+U0114	Lost communication with the four-wheel drive clutch control module
+U0115	Lost communication with the engine computer B
 U0121	Lost communication with the ABS module
+U0122	Lost communication with the vehicle dynamics control module
+U0123	Lost communication with the yaw rate sensor module
+U0124	Lost communication with the lateral acceleration sensor module
+U0125	Lost communication with the multi-axis acceleration sensor module
 U0126	Lost communication with the steering angle sensor module
+U0127	Lost communication with the tire pressure monitor module
+U0128	Lost communication with the park brake control module
+U0129	Lost communication with the brake system control module
+U0130	Lost communication with the steering effort control module
+U0131	Lost communication with the power steering control module
+U0132	Lost communication with the ride level control module
 U0140	Lost communication with the body control module
+U0141	Lost communication with the body control module A
+U0142	Lost communication with the body control module B
+U0143	Lost communication with the body control module C
+U0144	Lost communication with the body control module D
+U0145	Lost communication with the body control module E
+U0146	Lost communication with the gateway A
+U0147	Lost communication with the gateway B
+U0148	Lost communication with the gateway C
+U0149	Lost communication with the gateway D
+U0150	Lost communication with the gateway E
 U0151	Lost communication with the airbag (restraints) module
+U0152	Lost communication with the side restraints control module left
+U0153	Lost communication with the side restraints control module right
+U0154	Lost communication with the restraints occupant sensing control module
 U0155	Lost communication with the instrument cluster
+U0156	Lost communication with the information center A
+U0157	Lost communication with the information center B
+U0158	Lost communication with the head up display
+U0159	Lost communication with the parking assist control module
+U0160	Lost communication with the audible alert control module
+U0161	Lost communication with the compass module
+U0162	Lost communication with the navigation display module
+U0163	Lost communication with the navigation control module
 U0164	Lost communication with the climate control (HVAC) module
+U0165	Lost communication with the HVAC control module rear
+U0166	Lost communication with the auxiliary heater control module
+U0167	Lost communication with the vehicle immobilizer control module
+U0168	Lost communication with the vehicle security control module
+U0169	Lost communication with the sunroof control module
+U0170	Lost communication with the restraints system sensor A
+U0171	Lost communication with the restraints system sensor B
+U0172	Lost communication with the restraints system sensor C
+U0173	Lost communication with the restraints system sensor D
+U0174	Lost communication with the restraints system sensor E
+U0175	Lost communication with the restraints system sensor F
+U0176	Lost communication with the restraints system sensor G
+U0177	Lost communication with the restraints system sensor H
+U0178	Lost communication with the restraints system sensor I
+U0179	Lost communication with the restraints system sensor J
+U0180	Lost communication with the automatic lighting control module
+U0181	Lost communication with the headlamp leveling control module
+U0182	Lost communication with the lighting control module front
+U0183	Lost communication with the lighting control module rear
+U0184	Lost communication with the radio
+U0185	Lost communication with the antenna control module
+U0186	Lost communication with the audio amplifier
+U0187	Lost communication with the digital disc player/changer module A
+U0188	Lost communication with the digital disc player/changer module B
+U0189	Lost communication with the digital disc player/changer module C
+U0190	Lost communication with the digital disc player/changer module D
+U0191	Lost communication with the television
+U0192	Lost communication with the personal computer
+U0193	Lost communication with the digital audio control module A
+U0194	Lost communication with the digital audio control module B
+U0195	Lost communication with the subscription entertainment receiver module
+U0196	Lost communication with the rear seat entertainment control module
+U0197	Lost communication with the telephone control module
+U0198	Lost communication with the telematic control module
+U0199	Lost communication with the door control module A
+U0200	Lost communication with the door control module B
+U0201	Lost communication with the door control module C
+U0202	Lost communication with the door control module D
+U0203	Lost communication with the door control module E
+U0204	Lost communication with the door control module F
+U0205	Lost communication with the door control module G
+U0206	Lost communication with the folding top control module
+U0207	Lost communication with the moveable roof control module
+U0208	Lost communication with the seat control module A
+U0209	Lost communication with the seat control module B
+U0210	Lost communication with the seat control module C
+U0211	Lost communication with the seat control module D
+U0212	Lost communication with the steering column control module
+U0213	Lost communication with the mirror control module
+U0214	Lost communication with the remote function actuation
+U0215	Lost communication with the door switch A
+U0216	Lost communication with the door switch B
+U0217	Lost communication with the door switch C
+U0218	Lost communication with the door switch D
+U0219	Lost communication with the door switch E
+U0220	Lost communication with the door switch F
+U0221	Lost communication with the door switch G
+U0222	Lost communication with the door window motor A
+U0223	Lost communication with the door window motor B
+U0224	Lost communication with the door window motor C
+U0225	Lost communication with the door window motor D
+U0226	Lost communication with the door window motor E
+U0227	Lost communication with the door window motor F
+U0228	Lost communication with the door window motor G
+U0229	Lost communication with the heated steering wheel module
+U0230	Lost communication with the rear gate module
+U0231	Lost communication with the rain sensing module
+U0232	Lost communication with the side obstacle detection control module left
+U0233	Lost communication with the side obstacle detection control module right
+U0234	Lost communication with the convenience recall module
+U0235	Lost communication with the cruise control front distance range sensor
+U0300	Internal control module software incompatibility
+U0301	Software doesn't match the engine computer
+U0302	Software doesn't match the transmission control module
+U0303	Software doesn't match the transfer case control module
+U0304	Software doesn't match the gear shift control module
+U0305	Software doesn't match the cruise control module
+U0306	Software doesn't match the fuel injector control module
+U0307	Software doesn't match the glow plug control module
+U0308	Software doesn't match the throttle actuator control module
+U0309	Software doesn't match the alternative fuel control module
+U0310	Software doesn't match the fuel pump control module
+U0311	Software doesn't match the drive motor control module
+U0312	Software doesn't match the battery energy control module A
+U0313	Software doesn't match the battery energy control module B
+U0314	Software doesn't match the four-wheel drive clutch control module
+U0315	Software doesn't match the anti-lock brake system control module
+U0316	Software doesn't match the vehicle dynamics control module
+U0317	Software doesn't match the park brake control module
+U0318	Software doesn't match the brake system control module
+U0319	Software doesn't match the steering effort control module
+U0320	Software doesn't match the power steering control module
+U0321	Software doesn't match the ride level control module
+U0322	Software doesn't match the body control module
+U0323	Software doesn't match the instrument panel control module
+U0324	Software doesn't match the HVAC control module
+U0325	Software doesn't match the auxiliary heater control module
+U0326	Software doesn't match the vehicle immobilizer control module
+U0327	Software doesn't match the vehicle security control module
+U0328	Software doesn't match the steering angle sensor module
+U0329	Software doesn't match the steering column control module
+U0330	Software doesn't match the tire pressure monitor module
+U0331	Software doesn't match the body control module A
+U0400	Invalid data received
 U0401	Invalid data from the engine computer (ECM/PCM A)
 U0402	Invalid data from the gearbox computer (TCM)
+U0403	Invalid data received from the transfer case control module
+U0404	Invalid data received from the gear shift control module
+U0405	Invalid data received from the cruise control module
+U0406	Invalid data received from the fuel injector control module
+U0407	Invalid data received from the glow plug control module
+U0408	Invalid data received from the throttle actuator control module
+U0409	Invalid data received from the alternative fuel control module
+U0410	Invalid data received from the fuel pump control module
+U0411	Invalid data received from the drive motor control module
+U0412	Invalid data received from the battery energy control module A
+U0413	Invalid data received from the battery energy control module B
+U0414	Invalid data received from the four-wheel drive clutch control module
 U0415	Invalid data from the ABS module
+U0416	Invalid data received from the vehicle dynamics control module
+U0417	Invalid data received from the park brake control module
+U0418	Invalid data received from the brake system control module
+U0419	Invalid data received from the steering effort control module
+U0420	Invalid data received from the power steering control module
+U0421	Invalid data received from the ride level control module
+U0422	Invalid data received from the body control module
+U0423	Invalid data received from the instrument panel control module
+U0424	Invalid data received from the HVAC control module
+U0425	Invalid data received from the auxiliary heater control module
+U0426	Invalid data received from the vehicle immobilizer control module
+U0427	Invalid data received from the vehicle security control module
+U0428	Invalid data received from the steering angle sensor module
+U0429	Invalid data received from the steering column control module
+U0430	Invalid data received from the tire pressure monitor module
+U0431	Invalid data received from the body control module A

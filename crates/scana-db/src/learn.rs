@@ -169,6 +169,15 @@ mod tests {
     }
 
     #[test]
+    fn glossary_words_are_unique() {
+        let mut seen = std::collections::HashSet::new();
+        for t in glossary() {
+            assert!(seen.insert(t.name.to_lowercase()), "glossary has '{}' twice", t.name);
+        }
+        assert!(glossary().len() >= 150, "glossary: {}", glossary().len());
+    }
+
+    #[test]
     fn plain_text_rules() {
         for p in PIDS.iter() {
             assert!(no_dashes(&p.what) && p.normal.as_deref().is_none_or(no_dashes));

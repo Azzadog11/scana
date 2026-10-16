@@ -161,9 +161,9 @@ mod tests {
 
     #[test]
     fn unknown_and_maker_codes_still_get_a_group() {
-        let i = lookup(Dtc::parse("P0699").unwrap());
+        let i = lookup(Dtc::parse("P0AFF").unwrap());
         assert!(i.title.is_none());
-        assert!(i.summary().contains("engine computer"));
+        assert!(i.summary().contains("hybrid"));
         let m = lookup(Dtc::parse("P1135").unwrap());
         assert!(m.manufacturer_specific && m.group.contains("maker-specific"));
         assert!(lookup(Dtc::parse("U0299").unwrap()).group.contains("lost communication"));

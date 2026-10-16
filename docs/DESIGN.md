@@ -237,9 +237,10 @@ Sessions: a discovery's frames are recorded like everything else, and `modules.t
 
 PID formulas and the mode 06 tables are protocol facts, so they live in code (`scana-proto/src/pids.rs`, `mode06.rs`; mode 06 scaling checked against python-OBD's table, 2026-10-16). Everything a person might want to read or change is a text file in `crates/scana-db/data/`:
 
-- `dtc/generic.tsv`: 363 generic codes with **Scana's own plain-English descriptions**. SAE's J2012 text is copyright and the only openly licensed list found had wrong descriptions. Codes not in the list get a description of their group, worked out from the number.
+- `dtc/generic.tsv`: about 2,000 generic codes with **Scana's own plain-English descriptions**. SAE's J2012 text is copyright. About 360 were written one by one; the rest from each code's component and fault, checked against the open python-OBD list (GPL-2.0-or-later) and reworded in Scana's style, with bank and sensor positions added where the family's pattern is known (the description says so where it isn't). Codes not in the list get a description of their group, worked out from the number. C0035 to C0050 are described as GM-numbered: other makes use those numbers differently.
 - `dtc/advice.toml`: what common codes usually mean and what to check first (general guidance).
-- `learn/pids.toml`, `glossary.toml`, `jobs.toml`, `pages.toml`, `lesson.toml`: the Learn content.
+- `learn/pids.toml`, `glossary.toml` (about 160 words), `jobs.toml`, `pages.toml`, `lesson.toml`: the Learn content. The Learn page looks up any code, word or tool.
+- `diag/*.toml` and `diag/tools.toml`: the diagnosis guides (section 15).
 - `vehicles/*.toml`: profiles. A profile matches when the engine ECU's live PID list equals its `match_pids`. The Hijet's has ECU names, notes, warning limits (coolant 107/112 °C, charging 12.8-15.2 V running) and the 2026-10-10 scan values.
 - Later: vehicle history keyed by VIN, where the car reports one.
 
@@ -310,6 +311,8 @@ A fault code says what the engine computer saw, not what broke. A diagnosis guid
 - **Causes**, each with a weight: how often it is the cause, relative to the others (an estimate from the sources; it only sets the starting order), what fixes it, and a parts cost class.
 - **Tests**, each with steps in simplified technical English, the tools it needs (`data/diag/tools.toml`; none means eyes, ears and hands), and possible answers. Each answer has effects on causes: +1 doubles a cause's score, +2 multiplies it by 4, -1 halves it. Shares are the scores scaled to 100 %. An answer can carry a note, point to another guide, or say "fix this first".
 - **Automatic answers** (`auto`) on a connected CAN car: `codes` (groups of code patterns), `live` (a measure over samples taken only while a hold condition is met, after a precondition: mean, min, max, spread, fuel trim total, oxygen sensor switches per minute, rear/front switch ratio, difference), `mode06` (how far the worst named monitor result is past its limit), `readiness`, `freeze`. The user can always change the answer.
+
+Some code numbers mean different things on different makes (a Toyota's C0200 is a wheel speed sensor). A guide can list such numbers per make (`maker_codes`); Scana opens the guide when the car's make (from its vehicle profile, or its diagnostic family: Daihatsu follows Toyota) matches, and otherwise says the number is maker-specific and offers it.
 
 `scana_core::diagnose` holds the arithmetic and the measures, as pure functions: the app and the command line collect the samples. The app's Diagnose page and `scana diagnose CODE` (no car needed; `--car` to measure) run the guides; `scana explain` and the Learn panel are the fallback for any code or word. A diagnosis can be saved as an HTML report (`<sessions>/diagnoses/`).
 

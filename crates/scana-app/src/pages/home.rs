@@ -4,6 +4,7 @@ use crate::app::{Page, ScanaApp, SourceChoice};
 use egui::{RichText, Ui};
 use scana_core::report::Tone;
 use scana_core::session::{Command, LinkState};
+use scana_proto::Bus;
 
 impl ScanaApp {
     pub fn page_home(&mut self, ui: &mut Ui) {
@@ -72,6 +73,31 @@ impl ScanaApp {
                         ui.label(RichText::new("No USB serial port found. Is the Uno plugged in?").color(pal.note));
                     });
                 }
+                // Which pair of OBD-II pins the cable or switch reaches.
+                ui.horizontal(|ui| {
+                    ui.add_space(24.0);
+                    ui.vertical(|ui| {
+                        ui.radio_value(&mut self.bus_choice, Bus::Main, "Pins 6 and 14 (main bus)");
+                        ui.radio_value(
+                            &mut self.bus_choice,
+                            Bus::Second,
+                            "Pins 3 and 11 (second bus: some Fords, Mazdas and Volvos)",
+                        );
+                        ui.label(
+                            RichText::new("The second bus needs a cable or switch that reaches pins 3 and 11.")
+                                .small()
+                                .color(pal.dim),
+                        );
+                        if self.bus_choice == Bus::Second {
+                            ui.horizontal(|ui| {
+                                ui.label("Make (optional, for module names):");
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut self.make_text).desired_width(120.0).hint_text("Ford"),
+                                );
+                            });
+                        }
+                    });
+                });
             }
             ui.radio_value(&mut self.source_choice, SourceChoice::Demo, "Demo car: a simulated Hijet, engine running, with a dash display polling the same port");
             ui.radio_value(
@@ -84,16 +110,27 @@ impl ScanaApp {
                 SourceChoice::DemoCorolla,
                 "Demo Corolla: a simulated 2006 Corolla with P0420 (a worn catalyst), engine warm. Try the diagnosis guide on it",
             );
+            ui.radio_value(
+                &mut self.source_choice,
+                SourceChoice::DemoSecondBus,
+                "Demo second bus: an invented simulated car on pins 3 and 11, with body modules. Scana only listens, then names modules",
+            );
             ui.add_space(6.0);
             let busy = matches!(self.model.state, Some(LinkState::Connecting(_)));
             if ui.add_enabled(!busy, crate::theme::accent_button(&pal, "Connect")).clicked() {
                 self.connect_choice();
             }
-            ui.label(
-                RichText::new("Scana listens first, then sends one standard request at a time to find the car's bus speed. It stops at the first sign of trouble.")
-                    .small()
-                    .color(pal.dim),
-            );
+            let second = match self.source_choice {
+                SourceChoice::Bridge => self.bus_choice == Bus::Second,
+                SourceChoice::DemoSecondBus => true,
+                _ => false,
+            };
+            let how = if second {
+                "On pins 3 and 11 Scana only listens, at 125, then 500, then 250 kbit/s. It sends nothing until you say the car is parked and ask for modules."
+            } else {
+                "Scana listens first, then sends one standard request at a time to find the car's bus speed. It stops at the first sign of trouble."
+            };
+            ui.label(RichText::new(how).small().color(pal.dim));
         });
         ui.add_space(10.0);
         ui.label(RichText::new("Guided jobs").size(17.0).strong());
@@ -145,6 +182,33 @@ impl ScanaApp {
             );
         }
         ui.add_space(10.0);
+        if conn.bus == Bus::Second {
+            ui.label(RichText::new("Scana is listening on the second bus (pins 3 and 11).").strong());
+            ui.label(
+                RichText::new("Health check, fault codes, live data and the other car pages need the main bus on pins 6 and 14: set the cable or switch back and connect again.")
+                    .color(pal.note),
+            );
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                if ui.add(crate::theme::accent_button(&pal, "Bus monitor")).clicked() {
+                    self.go(Page::Monitor);
+                }
+                if ui.button("Find modules").clicked() {
+                    self.go(Page::Modules);
+                }
+                let rec = self.model.recording.is_some();
+                if ui.button(if rec { "Stop recording" } else { "Record this session" }).clicked() {
+                    self.set_record(!rec);
+                }
+            });
+            ui.add_space(10.0);
+            egui::CollapsingHeader::new("How Scana found the bus").show(ui, |ui| {
+                for l in &conn.log {
+                    ui.label(RichText::new(l).color(pal.dim));
+                }
+            });
+            return;
+        }
         ui.horizontal_wrapped(|ui| {
             if ui.add(crate::theme::accent_button(&pal, "Health check")).clicked() {
                 self.session.send(Command::HealthCheck);
@@ -187,7 +251,7 @@ impl ScanaApp {
             "Health check",
             "The check engine light, every code, readiness, the freeze frame, test results and key values, in one go.",
         );
-        if !self.need_car(ui) {
+        if !self.need_obd(ui) {
             return;
         }
         ui.horizontal(|ui| {

@@ -10,7 +10,7 @@
 //! the read-only console. Long jobs check for [`Command::Stop`] between requests.
 
 use crate::client::{Addressing, Channel, Client, CoreError, FrameSink};
-use crate::detect::{DetectOptions, detect};
+use crate::detect::{DetectOptions, SECOND_BUS_LISTEN_MS, detect, detect_second_bus};
 use crate::modules::{self, DataItem, DataKind, DiscoverOptions, ModuleInfo, Progress};
 use crate::poller::Poller;
 use crate::readers::{self, FreezeFrame, PidReading, VehicleInfo};
@@ -19,11 +19,11 @@ use crate::report::{self, HealthReport};
 use crate::safety::{self, ClearConsent, ClearOutcome};
 use scana_link::serial::SlcanLink;
 use scana_link::sim::SimLink;
-use scana_link::{Link, LinkError};
+use scana_link::{Link, LinkError, OpenMode};
 use scana_proto::mode06::TestResult;
 use scana_proto::obd::Reply;
 use scana_proto::pids::MonitorStatus;
-use scana_proto::{Bitrate, CanId, Dtc, Frame, obd};
+use scana_proto::{Bitrate, Bus, CanId, Dtc, Frame, obd};
 use scana_sim::VirtualCar;
 use std::collections::VecDeque;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -37,8 +37,9 @@ use std::time::{Duration, Instant};
 /// Where the car is.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Source {
-    /// The scana-bridge on USB; `None` finds the port.
-    Bridge { port: Option<String> },
+    /// The scana-bridge on USB; `None` finds the port. `bus`: which OBD pins the cable or
+    /// switch reaches (the main bus is pins 6 and 14, the second pins 3 and 11).
+    Bridge { port: Option<String>, bus: Bus },
     /// The simulated Hijet, engine running, with a dash display polling the same port.
     Demo,
     /// The simulated Hijet with faults, key on and engine off, so clearing codes can be tried.
@@ -46,20 +47,41 @@ pub enum Source {
     /// A simulated 2006 Corolla with P0420 and a worn catalyst, engine running and warm.
     DemoCorolla,
     /// One of the invented test cars (`scana_sim::VirtualCar::by_name`). `engine_off`: key on,
-    /// engine off, so clearing codes can be tried.
-    SimCar { name: String, engine_off: bool },
+    /// engine off, so clearing codes can be tried. `bus`: the pins the simulated link is
+    /// wired to (the `ford-ms-can` car is on the second bus).
+    SimCar { name: String, engine_off: bool, bus: Bus },
 }
 
+/// The words for a command that needs the main bus, shown when it is asked of the second.
+pub const NEEDS_MAIN_BUS: &str =
+    "That needs the main bus on pins 6 and 14: set the cable or switch back and connect again.";
+
+/// The vehicle label of a connection to the second bus.
+pub const SECOND_BUS_LABEL: &str = "Second CAN bus (pins 3 and 11)";
+
+/// The app's words for sending on the second bus without the parked tick.
+pub const NEEDS_PARKED_APP: &str =
+    "Scana can't read the car's speed on pins 3 and 11. Park the car, tick the box to say so, then try again.";
+
 impl Source {
-    pub fn label(&self) -> String {
+    /// Which pins this source is wired to.
+    pub fn bus(&self) -> Bus {
         match self {
-            Source::Bridge { port: Some(p) } => format!("Scana bridge on {p}"),
-            Source::Bridge { port: None } => "Scana bridge (USB)".into(),
+            Source::Bridge { bus, .. } | Source::SimCar { bus, .. } => *bus,
+            _ => Bus::Main,
+        }
+    }
+
+    pub fn label(&self) -> String {
+        let pins = if self.bus() == Bus::Second { ", pins 3 and 11" } else { "" };
+        match self {
+            Source::Bridge { port: Some(p), .. } => format!("Scana bridge on {p}{pins}"),
+            Source::Bridge { port: None, .. } => format!("Scana bridge (USB){pins}"),
             Source::Demo => "Demo car".into(),
             Source::DemoFaults => "Demo car with faults".into(),
             Source::DemoCorolla => "Demo Corolla with P0420".into(),
-            Source::SimCar { name, engine_off: false } => format!("Simulated car: {name}"),
-            Source::SimCar { name, engine_off: true } => format!("Simulated car: {name} (engine off)"),
+            Source::SimCar { name, engine_off: false, .. } => format!("Simulated car: {name}{pins}"),
+            Source::SimCar { name, engine_off: true, .. } => format!("Simulated car: {name} (engine off){pins}"),
         }
     }
 }
@@ -82,8 +104,15 @@ pub enum Command {
         alone_ms: u64,
         shared_ms: u64,
     },
-    /// Stage 3: find every module, then read each one's identity and codes.
-    FindModules,
+    /// Stage 3: find every module, then read each one's identity and codes. On the second
+    /// bus this sends requests, and Scana can't read speed there: `parked` is the user saying
+    /// the car is parked, and without it the search is refused. Ignored on the main bus.
+    FindModules {
+        parked: bool,
+    },
+    /// The car's make, if the user gives it, for the second bus where no VIN can be read.
+    /// Send it before `Connect`. It picks the module names and gateways.
+    SetMake(Option<String>),
     /// Read one module again: identity and codes.
     ReadModule(Channel),
     /// Read every data ID from `from` to `to` on one module (the data explorer).
@@ -146,6 +175,8 @@ pub struct EcuView {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConnectionInfo {
     pub source: Source,
+    /// Which pins this connection is on.
+    pub bus: Bus,
     pub link: String,
     pub bitrate: Bitrate,
     pub addressing: Addressing,
@@ -162,7 +193,10 @@ pub struct ConnectionInfo {
 
 impl ConnectionInfo {
     pub fn protocol(&self) -> String {
-        format!("ISO 15765-4 CAN, {}, {}", self.addressing.name(), self.bitrate)
+        match self.bus {
+            Bus::Main => format!("ISO 15765-4 CAN, {}, {}", self.addressing.name(), self.bitrate),
+            Bus::Second => format!("CAN on pins 3 and 11, {}, {}", self.addressing.name(), self.bitrate),
+        }
     }
 }
 
@@ -400,6 +434,11 @@ struct Worker {
     pending: VecDeque<Command>,
     /// When this connection began: the app's clock, kept through reconnects.
     started: Instant,
+    /// The make the user gave for the second bus.
+    make_hint: Option<String>,
+    /// Second bus: the user said the car is parked (this connection), so Scana may send
+    /// module requests there. Cleared when the link is lost and found again.
+    parked: bool,
 }
 
 /// Collects commands that arrive during a long job. True if the job should stop: the user
@@ -443,12 +482,70 @@ impl Worker {
             watch_turn: false,
             pending: VecDeque::new(),
             started: Instant::now(),
+            make_hint: None,
+            parked: false,
+        }
+    }
+
+    /// Which pins the connection is on.
+    fn bus(&self) -> Bus {
+        self.source.as_ref().map_or(Bus::Main, Source::bus)
+    }
+
+    /// Refuses (with the app's words) a job that needs the main bus, when on the second.
+    /// True means it was refused.
+    fn refuse_on_second_bus(&self) -> bool {
+        if self.bus() == Bus::Second {
+            self.send(Update::Error(NEEDS_MAIN_BUS.into()));
+            return true;
+        }
+        false
+    }
+
+    /// Second bus: a job that sends needs the parked tick first.
+    fn parked_or_refuse(&self) -> Result<(), CoreError> {
+        if self.bus() == Bus::Second && !self.parked { Err(CoreError::NeedsParked) } else { Ok(()) }
+    }
+
+    /// Second bus: opens the bus in normal mode (it can transmit) for a job that sends, after
+    /// the parked check. Listening alone keeps it listen-only.
+    fn open_for_sending(&mut self) -> Result<(), CoreError> {
+        if self.bus() != Bus::Second {
+            return Ok(());
+        }
+        self.parked_or_refuse()?;
+        let rate =
+            self.conn.as_ref().map(|c| c.bitrate).ok_or_else(|| CoreError::BadRequest("not connected".into()))?;
+        let client = self.client()?;
+        if client.link().mode() != Some(OpenMode::Normal) {
+            if client.link().mode().is_some() {
+                client.link().close()?;
+            }
+            client.link().set_bitrate(rate)?;
+            client.link().open(OpenMode::Normal)?;
+        }
+        Ok(())
+    }
+
+    /// Second bus: back to listen-only once nothing needs to send.
+    fn back_to_listening(&mut self) {
+        if self.bus() != Bus::Second || self.watch.is_some() {
+            return;
+        }
+        let rate = self.conn.as_ref().map(|c| c.bitrate);
+        if let (Some(rate), Some(client)) = (rate, self.client.as_mut())
+            && client.link().mode() == Some(OpenMode::Normal)
+        {
+            let _ = client.link().close();
+            let _ = client.link().set_bitrate(rate);
+            let _ = client.link().open(OpenMode::ListenOnly);
         }
     }
 
     /// Sets up a new link's client: the frame sink, the gaps, and the app clock offset.
     fn attach(&self, client: &mut Client) {
         client.set_sink(Box::new(WorkerSink(self.shared.clone())));
+        client.set_bus(self.bus());
         client.options.min_gap_ms = self.gaps.0;
         client.options.shared_gap_ms = self.gaps.1;
         let since = self.started.elapsed().as_millis() as u64;
@@ -511,10 +608,21 @@ impl Worker {
             Command::Connect(src) => self.connect(src),
             Command::Disconnect => self.disconnect(true),
             Command::SetLive(list) => {
-                self.live = list;
+                // The second bus has no OBD-II values to poll.
+                self.live = if self.bus() == Bus::Second { vec![] } else { list };
                 let now = self.client.as_ref().map_or(0, Client::now_ms);
                 self.poller.set(&self.live, now);
             }
+            // Everything OBD-II needs the main bus. On the second bus these are refused here, and
+            // the client would refuse the frames too. Nothing is ever cleared there.
+            Command::ReadCodes
+            | Command::ReadFreeze
+            | Command::ReadReadiness
+            | Command::ReadTests
+            | Command::ReadInfo
+            | Command::HealthCheck
+            | Command::ClearCodes(_)
+                if self.refuse_on_second_bus() => {}
             Command::ReadCodes => self.one_off("Reading fault codes", Worker::read_codes),
             Command::ReadFreeze => self.one_off("Reading freeze frames", Worker::read_freeze),
             Command::ReadReadiness => self.one_off("Reading readiness", Worker::read_readiness),
@@ -522,6 +630,9 @@ impl Worker {
             Command::ReadInfo => self.one_off("Reading vehicle information", Worker::read_info),
             Command::HealthCheck => self.one_off("Running the health check", |w| w.health_check().map(|_| ())),
             Command::ClearCodes(consent) => self.one_off("Clearing codes", move |w| w.clear(consent)),
+            Command::SetMake(make) => {
+                self.make_hint = make.map(|m| m.trim().to_string()).filter(|m| !m.is_empty());
+            }
             Command::Record(on) => {
                 self.record_wanted = on;
                 if on { self.start_recording() } else { self.stop_recording() }
@@ -542,12 +653,24 @@ impl Worker {
                     c.options.shared_gap_ms = self.gaps.1;
                 }
             }
-            Command::FindModules => self.one_off("Looking for modules", Worker::find_modules),
+            Command::FindModules { parked } => {
+                if self.bus() == Bus::Second {
+                    self.parked = parked;
+                }
+                self.one_off("Looking for modules", Worker::find_modules);
+            }
             Command::ReadModule(ch) => self.one_off("Reading the module", move |w| w.read_one_module(ch)),
             Command::ScanData { channel, kind, from, to } => {
                 self.one_off("Scanning data IDs", move |w| w.scan(channel, kind, from, to));
             }
-            Command::Watch(spec) => self.watch = spec.map(|s| (s, 0)),
+            Command::Watch(spec) => {
+                if spec.is_some() && self.parked_or_refuse().is_err() {
+                    self.send(Update::Error(NEEDS_PARKED_APP.into()));
+                } else {
+                    self.watch = spec.map(|s| (s, 0));
+                    self.back_to_listening();
+                }
+            }
             Command::Console { channel, request } => {
                 self.one_off("Sending the request", move |w| w.console(channel, request));
             }
@@ -580,6 +703,8 @@ impl Worker {
         let conn = self.conn.clone().ok_or_else(|| CoreError::BadRequest("not connected".into()))?;
         let family = self.family();
         let ecus = self.ecus();
+        let bus = self.bus();
+        self.open_for_sending()?;
         let mut client = self.client.take().ok_or_else(|| CoreError::BadRequest("not connected".into()))?;
         self.modules.clear();
         self.watch = None;
@@ -589,8 +714,16 @@ impl Worker {
         let pending = &mut self.pending;
         let mut found = Vec::new();
         let result = (|| -> Result<DiscoverySummary, CoreError> {
-            let note = modules::check_still(&mut client, &ecus)?;
-            let mut opts = DiscoverOptions::for_car(conn.addressing, family);
+            let note = if bus == Bus::Second {
+                Some("Scana can't check the car is still on pins 3 and 11. You said it is parked.".to_string())
+            } else {
+                modules::check_still(&mut client, &ecus)?
+            };
+            let mut opts = if bus == Bus::Second {
+                DiscoverOptions::for_second_bus(family)
+            } else {
+                DiscoverOptions::for_car(conn.addressing, family)
+            };
             opts.still_ecus = ecus.clone();
             let mut last = Instant::now() - Duration::from_secs(1);
             let d = modules::discover(&mut client, &opts, |p| {
@@ -606,7 +739,7 @@ impl Worker {
                         }
                     }
                     Progress::Found(f) => {
-                        shared.send(Update::Module(Box::new(ModuleInfo::named(f.channel, family))));
+                        shared.send(Update::Module(Box::new(ModuleInfo::named_on(f.channel, family, bus))));
                     }
                 }
                 !stop_requested(rx, pending)
@@ -641,6 +774,7 @@ impl Worker {
             self.modules.push(m);
         }
         self.send(Update::Progress(None));
+        self.back_to_listening();
         let summary = result?;
         self.write_modules_file();
         self.send(Update::Discovery(summary));
@@ -649,7 +783,10 @@ impl Worker {
 
     fn read_one_module(&mut self, ch: Channel) -> Result<(), CoreError> {
         let family = self.family();
-        let mut m = modules::read_module(self.client()?, ch, None, family)?;
+        self.open_for_sending()?;
+        let m = modules::read_module(self.client()?, ch, None, family);
+        self.back_to_listening();
+        let mut m = m?;
         self.name_from_conn(&mut m);
         match self.modules.iter_mut().find(|x| x.channel == ch) {
             Some(x) => *x = m.clone(),
@@ -662,6 +799,7 @@ impl Worker {
     fn scan(&mut self, ch: Channel, kind: DataKind, from: u16, to: u16) -> Result<(), CoreError> {
         let (from, to) = (from.min(to), from.max(to));
         self.watch = None;
+        self.open_for_sending()?;
         let mut client = self.client.take().ok_or_else(|| CoreError::BadRequest("not connected".into()))?;
         let shared = self.shared.clone();
         let rx = &self.rx;
@@ -680,13 +818,17 @@ impl Worker {
         });
         self.client = Some(client);
         self.send(Update::Progress(None));
+        self.back_to_listening();
         let items = result?;
         self.send(Update::DataScan { channel: ch, kind, items, complete });
         Ok(())
     }
 
     fn console(&mut self, ch: Channel, request: Vec<u8>) -> Result<(), CoreError> {
-        let reply = match modules::console_request(self.client()?, ch, &request) {
+        self.open_for_sending()?;
+        let result = modules::console_request(self.client()?, ch, &request);
+        self.back_to_listening();
+        let reply = match result {
             Ok(r) => Ok(r),
             Err(e) if modules::is_fatal(&e) && !matches!(e, CoreError::Unsafe(_)) => return Err(e),
             Err(e) => Err(e.to_string()),
@@ -704,6 +846,9 @@ impl Worker {
         let id = spec.ids[*idx % spec.ids.len()];
         *idx = (*idx + 1) % spec.ids.len();
         let (ch, kind) = (spec.channel, spec.kind);
+        if let Err(e) = self.open_for_sending() {
+            return Some(Err(e));
+        }
         let client = self.client.as_mut()?;
         match modules::read_data(client, ch, kind, id) {
             Ok(bytes) => {
@@ -770,10 +915,10 @@ impl Worker {
 
     fn open_link(source: &Source) -> Result<Box<dyn Link>, LinkError> {
         Ok(match source {
-            Source::Bridge { port } => Box::new(SlcanLink::connect(port.as_deref())?),
+            Source::Bridge { port, .. } => Box::new(SlcanLink::connect(port.as_deref())?),
             Source::Demo => Box::new(SimLink::new(VirtualCar::hijet().with_dash())),
             Source::DemoCorolla => Box::new(SimLink::new(VirtualCar::corolla_2006())),
-            Source::SimCar { name, engine_off } => {
+            Source::SimCar { name, engine_off, bus } => {
                 let mut car = VirtualCar::by_name(name).ok_or_else(|| LinkError::Open {
                     path: format!("simulated car {name}"),
                     reason: format!("no such car. Try one of: {}", VirtualCar::CAR_NAMES.join(", ")),
@@ -781,7 +926,7 @@ impl Worker {
                 if *engine_off {
                     car.set_engine_running(false);
                 }
-                Box::new(SimLink::new(car))
+                Box::new(SimLink::new(car).on_bus(*bus))
             }
             Source::DemoFaults => {
                 let mut car = VirtualCar::hijet_with_faults();
@@ -818,7 +963,8 @@ impl Worker {
         // Take the client out while detecting, so errors can be handled with `self` free.
         let Some(mut client) = self.client.take() else { return };
         self.send(Update::State(LinkState::Connecting("Looking for the car".into())));
-        let found = Self::detect_and_describe(&mut client, self.source.clone().unwrap_or(Source::Demo));
+        let found =
+            Self::detect_and_describe(&mut client, self.source.clone().unwrap_or(Source::Demo), self.make_hint.clone());
         self.client = Some(client);
         let (info, profile_live) = match found {
             Ok(x) => x,
@@ -852,6 +998,13 @@ impl Worker {
         }
         self.lost = None;
         self.misses = 0;
+        if self.bus() == Bus::Second {
+            // A new look at the bus: the parked tick is asked for again.
+            self.parked = false;
+            if !first {
+                self.watch = None;
+            }
+        }
         if first || self.live.is_empty() {
             self.live = profile_live;
         }
@@ -862,8 +1015,11 @@ impl Worker {
         self.conn = Some(info.clone());
         self.send(Update::Connected(info));
         self.send(Update::State(LinkState::Connected));
-        // One request, so the top bar can show the check engine light straight away.
-        if let Err(e) = self.read_readiness() {
+        // One request, so the top bar can show the check engine light straight away. Not on the
+        // second bus: nothing there is asked an OBD-II question.
+        if self.bus() == Bus::Main
+            && let Err(e) = self.read_readiness()
+        {
             self.on_error(e, false);
             return;
         }
@@ -876,7 +1032,27 @@ impl Worker {
     fn detect_and_describe(
         client: &mut Client,
         source: Source,
+        make_hint: Option<String>,
     ) -> Result<(ConnectionInfo, Vec<(CanId, u8)>), CoreError> {
+        if source.bus() == Bus::Second {
+            // Listen only: no OBD-II ECUs, no VIN, no live values.
+            let d = detect_second_bus(client, SECOND_BUS_LISTEN_MS)?;
+            let info = ConnectionInfo {
+                source,
+                bus: Bus::Second,
+                link: client.link().describe(),
+                bitrate: d.bitrate,
+                addressing: d.addressing,
+                profile_id: None,
+                vehicle: SECOND_BUS_LABEL.into(),
+                make: make_hint,
+                other_tester: d.other_tester,
+                log: d.log,
+                ecus: vec![],
+                live: vec![],
+            };
+            return Ok((info, vec![]));
+        }
         let detected = detect(client, &DetectOptions::default())?;
         let mut ecus = Vec::new();
         for id in &detected.ecus {
@@ -895,6 +1071,7 @@ impl Worker {
         }
         let info = ConnectionInfo {
             source,
+            bus: Bus::Main,
             link: client.link().describe(),
             bitrate: detected.bitrate,
             addressing: detected.addressing,
@@ -917,6 +1094,7 @@ impl Worker {
         self.lost = None;
         self.modules.clear();
         self.watch = None;
+        self.parked = false;
         if tell {
             self.source = None;
             self.send(Update::State(LinkState::Disconnected));
@@ -962,7 +1140,10 @@ impl Worker {
                 self.send(Update::Error(msg.into()));
             }
             other => {
-                let msg = other.to_string();
+                let msg = match other {
+                    CoreError::NeedsParked => NEEDS_PARKED_APP.to_string(),
+                    other => other.to_string(),
+                };
                 if during_connect {
                     self.send(Update::State(LinkState::Failed(msg.clone())));
                 }
@@ -1415,7 +1596,7 @@ mod tests {
         let h = handle(&dir, true);
         h.send(Command::Connect(Source::DemoFaults));
         wait_for(&h, 10, |u| matches!(u, Update::Connected(_)).then_some(()));
-        h.send(Command::FindModules);
+        h.send(Command::FindModules { parked: false });
         let summary = wait_for(&h, 90, |u| if let Update::Discovery(s) = u { Some(s) } else { None });
         assert_eq!(summary.found, 6, "{summary:?}");
         assert!(!summary.stopped_early);
@@ -1451,7 +1632,7 @@ mod tests {
         let h = handle(&dir, false);
         h.send(Command::Connect(Source::Demo));
         wait_for(&h, 10, |u| matches!(u, Update::Connected(_)).then_some(()));
-        h.send(Command::FindModules);
+        h.send(Command::FindModules { parked: false });
         wait_for(&h, 10, |u| matches!(u, Update::Progress(Some(_))).then_some(()));
         h.send(Command::Stop);
         let summary = wait_for(&h, 20, |u| if let Update::Discovery(s) = u { Some(s) } else { None });
@@ -1479,5 +1660,149 @@ mod tests {
         assert!(codes[0].stored.is_empty() && codes[0].pending.is_empty());
         drop(h);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    // The second bus (pins 3 and 11).
+
+    fn second_bus_source() -> Source {
+        Source::SimCar { name: "ford-ms-can".into(), engine_off: false, bus: Bus::Second }
+    }
+
+    /// Every update up to `secs`, or until `done` says so (it sees the updates so far).
+    fn collect(h: &SessionHandle, secs: u64, done: impl Fn(&[Update]) -> bool) -> Vec<Update> {
+        let mut all = Vec::new();
+        let end = Instant::now() + Duration::from_secs(secs);
+        while Instant::now() < end && !done(&all) {
+            if let Some(u) = h.wait(Duration::from_millis(100)) {
+                all.push(u);
+            }
+        }
+        all
+    }
+
+    fn outgoing(updates: &[Update]) -> Vec<Frame> {
+        updates
+            .iter()
+            .filter_map(|u| if let Update::Frame { frame, outgoing: true, .. } = u { Some(*frame) } else { None })
+            .collect()
+    }
+
+    fn errors(updates: &[Update]) -> Vec<String> {
+        updates.iter().filter_map(|u| if let Update::Error(e) = u { Some(e.clone()) } else { None }).collect()
+    }
+
+    fn connect_second_bus(h: &SessionHandle) -> ConnectionInfo {
+        h.send(Command::Connect(second_bus_source()));
+        wait_for(h, 15, |u| if let Update::Connected(i) = u { Some(i) } else { None })
+    }
+
+    #[test]
+    fn the_second_bus_connects_by_listening_and_does_nothing_obd() {
+        let dir = std::env::temp_dir().join(format!("scana-session-second1-{}", std::process::id()));
+        let h = handle(&dir, true);
+        let info = connect_second_bus(&h);
+        assert_eq!((info.bus, info.bitrate), (Bus::Second, Bitrate::K125));
+        assert!(info.ecus.is_empty() && info.live.is_empty() && info.make.is_none());
+        assert_eq!(info.vehicle, "Second CAN bus (pins 3 and 11)");
+        assert!(info.protocol().contains("pins 3 and 11"), "{}", info.protocol());
+        // A few seconds of life: frames come in, and nothing at all goes out. No values, no
+        // readiness, no OBD-II of any kind, though the app asks for live values.
+        h.send(Command::SetLive(vec![(CanId::Standard(0x7E8), 0x0C)]));
+        let seen = collect(&h, 3, |_| false);
+        assert!(errors(&seen).is_empty(), "{:?}", errors(&seen));
+        assert!(seen.iter().any(|u| matches!(u, Update::Frame { outgoing: false, .. })));
+        assert!(outgoing(&seen).is_empty(), "{:?}", outgoing(&seen));
+        assert!(!seen.iter().any(|u| matches!(u, Update::Values(_) | Update::Readiness(_))));
+        h.send(Command::Disconnect);
+        drop(h);
+        // The recording holds the frames and the events, and no values.
+        let session = std::fs::read_dir(&dir).unwrap().filter_map(Result::ok).next().unwrap().path();
+        let frames = std::fs::read_to_string(session.join("frames.log")).unwrap();
+        assert!(!frames.is_empty() && !frames.lines().any(|l| l.ends_with(" T")));
+        assert!(std::fs::read_to_string(session.join("events.log")).unwrap().contains("recording started"));
+        let values = std::fs::read_to_string(session.join("values.csv")).unwrap_or_default();
+        assert!(values.lines().count() <= 1, "{values}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn obd_commands_are_refused_on_the_second_bus() {
+        let dir = std::env::temp_dir().join(format!("scana-session-second2-{}", std::process::id()));
+        let h = handle(&dir, false);
+        connect_second_bus(&h);
+        for c in [
+            Command::ReadCodes,
+            Command::ReadFreeze,
+            Command::ReadReadiness,
+            Command::ReadTests,
+            Command::ReadInfo,
+            Command::HealthCheck,
+            Command::ClearCodes(ClearConsent::confirmed_by_user()),
+        ] {
+            h.send(c);
+        }
+        let seen = collect(&h, 10, |u| errors(u).len() >= 7);
+        assert_eq!(errors(&seen), vec![NEEDS_MAIN_BUS.to_string(); 7]);
+        assert_eq!(NEEDS_MAIN_BUS, CoreError::NeedsMainBus.to_string());
+        assert!(!seen.iter().any(|u| matches!(u, Update::Cleared { .. } | Update::Codes(_) | Update::Health { .. })));
+        assert!(outgoing(&seen).is_empty());
+        drop(h);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn module_requests_on_the_second_bus_need_the_parked_tick() {
+        let dir = std::env::temp_dir().join(format!("scana-session-second3-{}", std::process::id()));
+        let h = handle(&dir, false);
+        connect_second_bus(&h);
+        // Without the tick: refused, and nothing is sent.
+        let cluster = Channel::parse("720").unwrap();
+        h.send(Command::FindModules { parked: false });
+        h.send(Command::ReadModule(cluster));
+        h.send(Command::Console { channel: cluster, request: vec![0x22, 0xF1, 0x87] });
+        let seen = collect(&h, 10, |u| errors(u).len() >= 3);
+        assert_eq!(errors(&seen), vec![NEEDS_PARKED_APP.to_string(); 3]);
+        assert!(!seen.iter().any(|u| matches!(u, Update::DiscoveryStarted | Update::Module(_))));
+        assert!(outgoing(&seen).is_empty());
+        // With it, and a make: the modules are found, and named from the second-bus entries.
+        h.send(Command::SetMake(Some("Ford".into())));
+        h.send(Command::Disconnect);
+        let info = connect_second_bus(&h);
+        assert_eq!(info.make.as_deref(), Some("Ford"));
+        h.send(Command::FindModules { parked: true });
+        let seen = collect(&h, 90, |u| u.iter().any(|x| matches!(x, Update::Discovery(_))));
+        assert!(errors(&seen).is_empty(), "{:?}", errors(&seen));
+        let summary = seen.iter().find_map(|u| if let Update::Discovery(s) = u { Some(s.clone()) } else { None });
+        assert_eq!(summary.map(|s| s.found), Some(7));
+        let named: Vec<String> =
+            seen.iter().filter_map(|u| if let Update::Module(m) = u { Some(m.display_name()) } else { None }).collect();
+        assert!(named.iter().any(|n| n == "FG Falcon instrument cluster (probably)"), "{named:?}");
+        assert!(!named.iter().any(|n| n.contains("Engine computer")), "{named:?}");
+        // Whatever was sent, none of it was an OBD-II request.
+        let sent = outgoing(&seen);
+        assert!(!sent.is_empty());
+        assert!(sent.iter().all(|f| !crate::client::Addressing::is_request_id(f.id)), "{sent:?}");
+        // The tick holds for later reads on this connection.
+        h.send(Command::ReadModule(cluster));
+        let seen = collect(&h, 10, |u| u.iter().any(|x| matches!(x, Update::Module(_))));
+        assert!(errors(&seen).is_empty());
+        drop(h);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_quiet_second_bus_fails_with_the_plain_message() {
+        let dir = std::env::temp_dir().join(format!("scana-session-second4-{}", std::process::id()));
+        let h = handle(&dir, false);
+        // A car with nothing on pins 3 and 11: the hybrid's bus is on the main pins.
+        h.send(Command::Connect(Source::SimCar { name: "hybrid".into(), engine_off: false, bus: Bus::Second }));
+        let seen = collect(&h, 20, |u| !errors(u).is_empty());
+        assert_eq!(errors(&seen), vec![CoreError::NothingHeard.to_string()]);
+        assert!(seen.iter().any(
+            |u| matches!(u, Update::State(LinkState::Failed(m)) if m.starts_with("Nothing heard on pins 3 and 11"))
+        ));
+        assert!(outgoing(&seen).is_empty());
+        drop(h);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

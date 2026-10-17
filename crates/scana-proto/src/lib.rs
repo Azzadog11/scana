@@ -15,5 +15,5 @@ pub mod pids;
 pub mod slcan;
 pub mod uds;
 
-pub use can::{Bitrate, CanId, Frame, FrameError};
+pub use can::{Bitrate, Bus, CanId, Frame, FrameError};
 pub use dtc::Dtc;

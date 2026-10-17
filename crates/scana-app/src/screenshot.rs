@@ -8,7 +8,7 @@ use egui::{ColorImage, ViewportCommand};
 use scana_core::Channel;
 use scana_core::modules::DataKind;
 use scana_core::session::{Command, Source, WatchSpec};
-use scana_proto::{CanId, Dtc};
+use scana_proto::{Bus, CanId, Dtc};
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
@@ -54,6 +54,15 @@ enum Act {
     Lookup(&'static str),
     /// Type in the sidebar's search box.
     Search(&'static str),
+    Disconnect,
+    /// On the Home page: the bridge, set to the second bus, with a make typed.
+    PickSecondBus(&'static str),
+    /// Connect to the simulated second-bus car (the Home page's demo choice).
+    ConnectSecondBusDemo,
+    /// The "is the car parked?" dialog opens, as when Find modules is pressed there.
+    OpenParked,
+    /// The dialog's tick and button: find modules, with the car said to be parked.
+    ConfirmParked,
 }
 
 pub struct ShotPlan {
@@ -257,6 +266,42 @@ impl ShotPlan {
             Wait(1.5),
             Shot("32-corolla-diagnose-result"),
             CloseDiag,
+            // The second bus (pins 3 and 11), on a simulated car only. First the Home page with
+            // the choice of pins, then connected: Home, the bus monitor, the parked question,
+            // the modules found, and pages that need the main bus.
+            Disconnect,
+            Wait(1.0),
+            PickSecondBus("Ford"),
+            Go(Page::Home),
+            Wait(0.8),
+            Shot("40-home-pins-choice"),
+            ConnectSecondBusDemo,
+            WaitConnected,
+            Go(Page::Home),
+            Wait(1.0),
+            Shot("41-second-bus-home"),
+            Go(Page::Monitor),
+            Wait(2.0),
+            Shot("42-second-bus-monitor"),
+            Go(Page::Modules),
+            Wait(0.5),
+            OpenParked,
+            Wait(0.8),
+            Shot("43-second-bus-parked-question"),
+            ConfirmParked,
+            WaitDiscovery,
+            Wait(1.5),
+            SelectModule("720"),
+            Wait(1.0),
+            Shot("44-second-bus-modules"),
+            Go(Page::Codes),
+            Wait(0.8),
+            Shot("45-second-bus-needs-main-bus"),
+            Diagnose("P0171"),
+            OpenTest("other-codes"),
+            Wait(1.0),
+            Shot("46-second-bus-diagnose"),
+            CloseDiag,
         ];
         ShotPlan { dir, steps, idx: 0, started: None, pending: None }
     }
@@ -266,7 +311,7 @@ impl ShotPlan {
         use Act::*;
         let steps = vec![
             Size(1366.0, 768.0),
-            Connect(Source::Bridge { port: None }),
+            Connect(Source::Bridge { port: None, bus: Bus::Main }),
             Wait(9.0),
             Shot("bridge-1-home"),
             Go(Page::Monitor),
@@ -342,7 +387,31 @@ pub fn step(app: &mut ScanaApp, mut plan: ShotPlan, ctx: &egui::Context) -> Opti
             true
         }
         Act::FindModules => {
-            app.session.send(Command::FindModules);
+            app.session.send(Command::FindModules { parked: false });
+            true
+        }
+        Act::Disconnect => {
+            app.session.send(Command::Disconnect);
+            true
+        }
+        Act::PickSecondBus(make) => {
+            app.source_choice = crate::app::SourceChoice::Bridge;
+            app.bus_choice = Bus::Second;
+            app.make_text = make.into();
+            true
+        }
+        Act::ConnectSecondBusDemo => {
+            app.source_choice = crate::app::SourceChoice::DemoSecondBus;
+            app.connect_choice();
+            true
+        }
+        Act::OpenParked => {
+            app.parked_dialog = Some(true);
+            true
+        }
+        Act::ConfirmParked => {
+            app.parked_dialog = None;
+            app.session.send(Command::FindModules { parked: true });
             true
         }
         Act::WaitDiscovery => (app.model.discovery.is_some() && app.model.busy.is_none()) || elapsed > 120.0,

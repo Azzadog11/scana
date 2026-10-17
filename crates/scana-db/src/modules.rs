@@ -1,6 +1,7 @@
 //! Where modules usually answer, by maker family (`data/modules/addresses.toml`): names to
 //! show before a module gives its own, and the gateways to try during module discovery.
 
+use scana_proto::Bus;
 use serde::Deserialize;
 use std::sync::LazyLock;
 
@@ -11,6 +12,16 @@ pub struct KnownAddress {
     pub at: String,
     pub name: String,
     pub source: String,
+    /// "second" for a module on OBD pins 3 and 11. Absent: the main bus (pins 6 and 14).
+    #[serde(default)]
+    pub bus: Option<String>,
+}
+
+impl KnownAddress {
+    /// The bus this entry is for.
+    pub fn bus(&self) -> Bus {
+        if self.bus.as_deref().is_some_and(|b| b.eq_ignore_ascii_case("second")) { Bus::Second } else { Bus::Main }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
@@ -54,15 +65,23 @@ pub fn addresses() -> &'static [KnownAddress] {
     &FILE.address
 }
 
-/// The usual module at `at` (a channel label such as "7B0" or "750/40"), for the family if
-/// known, else for any car.
+/// The usual module at `at` (a channel label such as "7B0" or "750/40") on the main bus, for
+/// the family if known, else for any car.
 pub fn name_for(family: Option<&str>, at: &str) -> Option<&'static KnownAddress> {
+    name_for_bus(family, at, Bus::Main)
+}
+
+/// The usual module at `at` on one bus. The main bus uses the family's main entries, then
+/// "any". The second bus (pins 3 and 11) uses only entries marked for it, for the family: the
+/// OBD-II names of "any" (7E0 "Engine computer") never apply there.
+pub fn name_for_bus(family: Option<&str>, at: &str, bus: Bus) -> Option<&'static KnownAddress> {
     let at = at.to_ascii_uppercase();
     let fam = family.map(str::to_ascii_lowercase);
-    FILE.address
-        .iter()
-        .find(|a| Some(a.family.as_str()) == fam.as_deref() && a.at.eq_ignore_ascii_case(&at))
-        .or_else(|| FILE.address.iter().find(|a| a.family == "any" && a.at.eq_ignore_ascii_case(&at)))
+    let on_bus = |a: &&KnownAddress| a.bus() == bus && a.at.eq_ignore_ascii_case(&at);
+    FILE.address.iter().filter(on_bus).find(|a| Some(a.family.as_str()) == fam.as_deref()).or_else(|| match bus {
+        Bus::Main => FILE.address.iter().filter(on_bus).find(|a| a.family == "any"),
+        Bus::Second => None,
+    })
 }
 
 /// 11-bit gateway IDs to try with address bytes, for a family.
@@ -195,7 +214,7 @@ mod tests {
         assert_eq!(make_of_vin("ZZZ00000000000000"), None);
         assert_eq!(make_of_vin("JTD").and_then(family_of_make), Some("toyota"));
         for a in addresses() {
-            assert!(matches!(a.source.as_str(), "iso" | "opendbc" | "toyotadx"), "{a:?}");
+            assert!(matches!(a.source.as_str(), "iso" | "opendbc" | "toyotadx" | "fgfalcon"), "{a:?}");
         }
     }
 
@@ -309,6 +328,32 @@ mod tests {
         }
     }
 
+    #[test]
+    fn second_bus_and_main_bus_names_stay_apart() {
+        let second = |f: Option<&str>, at: &str| name_for_bus(f, at, Bus::Second).map(|a| a.name.as_str());
+        let main = |f: Option<&str>, at: &str| name_for_bus(f, at, Bus::Main).map(|a| a.name.as_str());
+        // The FG Falcon's modules are on the second bus only.
+        assert_eq!(second(Some("ford"), "720"), Some("FG Falcon instrument cluster"));
+        assert_eq!(second(Some("ford"), "7a6"), Some("FG Falcon front display interface module (FDIM)"));
+        assert_eq!(main(Some("ford"), "720"), None);
+        assert_eq!(name_for(Some("ford"), "720"), None);
+        // The second bus never borrows main names, from the family or from "any".
+        assert_eq!(second(Some("ford"), "7E0"), None);
+        assert_eq!(second(None, "7E0"), None);
+        assert_eq!(second(Some("ford"), "732"), None);
+        assert_eq!(main(Some("ford"), "7E0"), Some("Engine computer (PCM)"));
+        assert_eq!(main(None, "7E0"), Some("Engine computer (ECM)"));
+        // Another family has no second-bus names.
+        assert_eq!(second(Some("toyota"), "720"), None);
+        assert_eq!(second(None, "720"), None);
+        let falcon: Vec<_> = addresses().iter().filter(|a| a.source == "fgfalcon").collect();
+        assert_eq!(falcon.len(), 7);
+        for a in falcon {
+            assert_eq!((a.family.as_str(), a.bus()), ("ford", Bus::Second), "{a:?}");
+            assert!(a.name.contains("FG Falcon"), "{a:?}");
+        }
+    }
+
     fn valid_label(at: &str) -> bool {
         let hex = |s: &str, n: usize| s.len() == n && s.chars().all(|c| matches!(c, '0'..='9' | 'A'..='F'));
         match at.split_once('/') {
@@ -332,6 +377,7 @@ mod tests {
             assert!(valid_label(&a.at), "{a:?}: bad label");
             assert!(described(&a.source), "{a:?}: source not described in the header");
             assert!(!a.name.is_empty(), "{a:?}");
+            assert!(a.bus.is_none() || a.bus.as_deref() == Some("second"), "{a:?}: bus is absent or second");
         }
         for g in &FILE.gateway {
             assert!(known(&g.family), "{g:?}");
@@ -343,7 +389,10 @@ mod tests {
         // No family names one address twice.
         for (i, a) in addresses().iter().enumerate() {
             for b in &addresses()[i + 1..] {
-                assert!(!(a.family == b.family && a.at.eq_ignore_ascii_case(&b.at)), "{a:?} twice");
+                assert!(
+                    !(a.family == b.family && a.bus() == b.bus() && a.at.eq_ignore_ascii_case(&b.at)),
+                    "{a:?} twice"
+                );
             }
         }
         assert!(valid_label("750/40") && valid_label("18DA28F1") && valid_label("7B0"));

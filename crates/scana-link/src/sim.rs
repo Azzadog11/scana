@@ -3,7 +3,7 @@
 //! rate gives bus errors instead of frames.
 
 use crate::{BusEvent, Health, Link, LinkError, LinkEvent, OpenMode, SelfTestResult, TimedFrame};
-use scana_proto::{Bitrate, Frame};
+use scana_proto::{Bitrate, Bus, Frame};
 use scana_sim::VirtualCar;
 use std::collections::VecDeque;
 use std::thread;
@@ -11,6 +11,9 @@ use std::time::{Duration, Instant};
 
 pub struct SimLink {
     car: VirtualCar,
+    /// The OBD pins this link is wired to. A car on the other pins is out of reach: the bus
+    /// is silent and nobody acknowledges a frame.
+    bus: Bus,
     start: Instant,
     bitrate: Bitrate,
     mode: Option<OpenMode>,
@@ -28,6 +31,7 @@ impl SimLink {
     pub fn new(car: VirtualCar) -> Self {
         SimLink {
             car,
+            bus: Bus::Main,
             start: Instant::now(),
             bitrate: Bitrate::K500,
             mode: None,
@@ -41,12 +45,21 @@ impl SimLink {
         }
     }
 
+    /// Wires this link to the second bus (pins 3 and 11) or back to the main one.
+    pub fn on_bus(mut self, bus: Bus) -> Self {
+        self.bus = bus;
+        self
+    }
+
     pub fn car_mut(&mut self) -> &mut VirtualCar {
         &mut self.car
     }
 
     fn pump(&mut self, now: u64) {
         let frames = self.car.poll(now);
+        if self.bus != self.car.bus {
+            return; // the car is on the other pins: nothing reaches this link
+        }
         match self.mode {
             Some(OpenMode::Normal | OpenMode::ListenOnly) if self.bitrate == self.car.bitrate => {
                 for frame in frames {
@@ -83,11 +96,12 @@ impl SimLink {
 impl Link for SimLink {
     fn describe(&self) -> String {
         format!(
-            "simulated car ({} ECU{}, {}, {})",
+            "simulated car ({} ECU{}, {}, {}{})",
             self.car.ecus.len(),
             if self.car.ecus.len() == 1 { "" } else { "s" },
             self.car.bitrate,
-            if self.car.extended_ids { "29-bit IDs" } else { "11-bit IDs" }
+            if self.car.extended_ids { "29-bit IDs" } else { "11-bit IDs" },
+            if self.bus == Bus::Second { ", pins 3 and 11" } else { "" }
         )
     }
 
@@ -137,7 +151,7 @@ impl Link for SimLink {
         match self.mode {
             Some(OpenMode::Normal) => {
                 self.pump(now);
-                if self.bitrate == self.car.bitrate {
+                if self.bitrate == self.car.bitrate && self.bus == self.car.bus {
                     self.tx += 1;
                     self.car.receive(frame, now);
                 } else {
@@ -152,9 +166,13 @@ impl Link for SimLink {
                 self.queue.push_back(LinkEvent::Frame(TimedFrame { frame: *frame, at_ms: now, bridge_us: None }));
                 Ok(())
             }
-            _ => Err(LinkError::Refused(
-                "send a frame (the bus isn't open in normal mode, or the send queue is full)".into(),
-            )),
+            _ => {
+                // The bridge counts a refused frame as a bad command.
+                self.bad_commands += 1;
+                Err(LinkError::Refused(
+                    "send a frame (the bus isn't open in normal mode, or the send queue is full)".into(),
+                ))
+            }
         }
     }
 
@@ -255,5 +273,20 @@ mod tests {
             Some(LinkEvent::Frame(f)) => assert_eq!(f.frame, rpm_request()),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn a_car_on_the_other_pins_is_silent() {
+        // The second-bus car on a link wired to pins 6 and 14: nothing heard, nothing acknowledged.
+        let mut l = SimLink::new(VirtualCar::ms_can_ford());
+        l.set_bitrate(Bitrate::K125).unwrap();
+        l.open(OpenMode::ListenOnly).unwrap();
+        assert_eq!(l.recv(Duration::from_millis(150)).unwrap(), None);
+        l.close().unwrap();
+        // Wired to pins 3 and 11, the same car is heard at its own rate.
+        let mut l = SimLink::new(VirtualCar::ms_can_ford()).on_bus(Bus::Second);
+        l.set_bitrate(Bitrate::K125).unwrap();
+        l.open(OpenMode::ListenOnly).unwrap();
+        assert!(matches!(l.recv(Duration::from_millis(150)).unwrap(), Some(LinkEvent::Frame(_))));
     }
 }

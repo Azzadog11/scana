@@ -4,10 +4,13 @@
 //! 2. On a quiet bus (common: many OBD ports are silent until a tester asks), send one
 //!    standard request (01 00) at a time, following ISO 15765-4: 11-bit, then 29-bit, for
 //!    each rate not ruled out. The first frame nobody acknowledges ends that rate.
+//!
+//! The second bus (OBD pins 3 and 11) is found by [`detect_second_bus`], which only listens:
+//! 125, then 500, then 250 kbit/s. It never sends anything.
 
 use crate::client::{Addressing, Client, CoreError, Target};
 use scana_link::{BusEvent, LinkEvent, OpenMode};
-use scana_proto::{Bitrate, CanId};
+use scana_proto::{Bitrate, Bus, CanId};
 use std::time::Duration;
 
 #[derive(Clone, Debug)]
@@ -28,6 +31,8 @@ impl Default for DetectOptions {
 
 #[derive(Clone, Debug)]
 pub struct Detected {
+    /// Which pins this was found on.
+    pub bus: Bus,
     pub bitrate: Bitrate,
     pub addressing: Addressing,
     /// The IDs the OBD ECUs reply from.
@@ -111,6 +116,7 @@ pub fn detect(client: &mut Client, opts: &DetectOptions) -> Result<Detected, Cor
     if !opts.transmit {
         return match confirmed {
             Some((bitrate, ext)) => Ok(Detected {
+                bus: Bus::Main,
                 bitrate,
                 addressing: if ext { Addressing::Extended } else { Addressing::Standard },
                 ecus: vec![],
@@ -142,7 +148,15 @@ pub fn detect(client: &mut Client, opts: &DetectOptions) -> Result<Detected, Cor
                         ecus.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(", ")
                     ));
                     client.expected_ecus = Some(ecus.clone());
-                    return Ok(Detected { bitrate: b, addressing, ecus, traffic_seen, other_tester, log });
+                    return Ok(Detected {
+                        bus: Bus::Main,
+                        bitrate: b,
+                        addressing,
+                        ecus,
+                        traffic_seen,
+                        other_tester,
+                        log,
+                    });
                 }
                 Ok(_) => {
                     log.push(format!(
@@ -170,10 +184,61 @@ pub fn detect(client: &mut Client, opts: &DetectOptions) -> Result<Detected, Cor
     )))
 }
 
+/// The bit rates tried on the second bus, in order: Ford's medium-speed bus is 125 kbit/s;
+/// some newer cars may use 500 or 250.
+pub const SECOND_BUS_RATES: [Bitrate; 3] = [Bitrate::K125, Bitrate::K500, Bitrate::K250];
+
+/// How long to listen at each rate on the second bus.
+pub const SECOND_BUS_LISTEN_MS: u64 = 1000;
+
+/// Finds the bit rate of the second bus (OBD pins 3 and 11) by listening only. It never
+/// transmits: not a request, not an acknowledgement of a frame it sent (the bus is only ever
+/// open listen-only here). The first rate with clean traffic (frames, no errors) wins, and
+/// the bus is left open listen-only at that rate. No OBD ECUs are looked for: nothing on this
+/// bus is known to answer OBD-II, and Scana sends no OBD-II request there at all.
+pub fn detect_second_bus(client: &mut Client, listen_ms: u64) -> Result<Detected, CoreError> {
+    client.set_bus(Bus::Second);
+    let mut log = Vec::new();
+    let mut any_traffic = false;
+    let mut any_errors = false;
+    if client.link().mode().is_some() {
+        client.link().close()?;
+    }
+    for b in SECOND_BUS_RATES {
+        client.link().set_bitrate(b)?;
+        client.link().open(OpenMode::ListenOnly)?;
+        let heard = listen(client, listen_ms);
+        client.link().close()?;
+        let heard = heard?;
+        log.push(format!("Listened at {b} for {listen_ms} ms: {} frames, {} errors.", heard.frames, heard.errors));
+        any_traffic |= heard.frames > 0;
+        any_errors |= heard.errors > 0;
+        if heard.frames > 0 && heard.errors == 0 {
+            client.link().set_bitrate(b)?;
+            client.link().open(OpenMode::ListenOnly)?;
+            let other_tester = client.foreign_requests > 0;
+            return Ok(Detected {
+                bus: Bus::Second,
+                bitrate: b,
+                addressing: if heard.extended > heard.frames / 2 { Addressing::Extended } else { Addressing::Standard },
+                ecus: vec![],
+                traffic_seen: true,
+                other_tester,
+                log,
+            });
+        }
+        if heard.errors > 0 {
+            log.push(format!("Errors at {b}: not this bit rate."));
+        }
+    }
+    Err(if any_traffic || any_errors { CoreError::OnlyErrors } else { CoreError::NothingHeard })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use scana_link::sim::SimLink;
+    use scana_proto::Frame;
     use scana_sim::VirtualCar;
 
     fn fast() -> DetectOptions {
@@ -228,5 +293,83 @@ mod tests {
         let opts = DetectOptions { transmit: false, ..fast() };
         assert!(matches!(detect(&mut c, &opts), Err(CoreError::NoCar(_))));
         assert_eq!(c.requests_sent, 0);
+    }
+
+    /// A client that keeps every frame it sends, to prove a test transmitted nothing.
+    #[derive(Default)]
+    struct Outgoing(std::sync::Arc<std::sync::Mutex<Vec<Frame>>>);
+
+    impl crate::client::FrameSink for Outgoing {
+        fn frame(&mut self, frame: &Frame, _at_ms: u64, outgoing: bool) {
+            if outgoing && let Ok(mut v) = self.0.lock() {
+                v.push(*frame);
+            }
+        }
+    }
+
+    fn second_bus_client(car: VirtualCar) -> (Client, std::sync::Arc<std::sync::Mutex<Vec<Frame>>>) {
+        let mut c = Client::new(Box::new(SimLink::new(car).on_bus(Bus::Second)));
+        let sink = Outgoing::default();
+        let sent = sink.0.clone();
+        c.set_sink(Box::new(sink));
+        (c, sent)
+    }
+
+    #[test]
+    fn the_second_bus_is_found_at_125k_and_nothing_is_sent() {
+        let (mut c, sent) = second_bus_client(VirtualCar::ms_can_ford());
+        let d = detect_second_bus(&mut c, 150).unwrap();
+        assert_eq!((d.bus, d.bitrate, d.addressing), (Bus::Second, Bitrate::K125, Addressing::Standard));
+        assert!(d.ecus.is_empty() && d.traffic_seen);
+        // Left open listen-only at the found rate.
+        assert_eq!(c.link().mode(), Some(OpenMode::ListenOnly));
+        assert_eq!(c.link().bitrate(), Bitrate::K125);
+        // Not one frame went out: no request, and the link's own counters agree.
+        assert_eq!(c.requests_sent, 0);
+        assert!(sent.lock().unwrap().is_empty());
+        let h = c.link().health().unwrap().unwrap();
+        assert_eq!((h.tx, h.tx_errors, h.bad_commands), (0, 0, 0));
+        // The IDs heard are the car's, none of them an OBD-II request or reply.
+        assert!(c.seen_ids().len() >= 4);
+        assert!(c.seen_ids().iter().all(|id| !Addressing::Standard.is_reply_id(*id)));
+    }
+
+    #[test]
+    fn a_second_bus_at_500k_is_found_after_trying_125k() {
+        let (mut c, sent) = second_bus_client(VirtualCar::ms_can_ford().at_bitrate(Bitrate::K500));
+        let d = detect_second_bus(&mut c, 150).unwrap();
+        assert_eq!(d.bitrate, Bitrate::K500);
+        assert!(d.log.iter().any(|l| l.contains("Errors at 125 kbit/s")));
+        assert!(sent.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_quiet_second_bus_says_nothing_was_heard() {
+        // A car with no bus on pins 3 and 11 (or the wrong pins): silence at every rate.
+        let (mut c, sent) = second_bus_client(VirtualCar::hijet());
+        let e = detect_second_bus(&mut c, 100).unwrap_err();
+        assert!(matches!(e, CoreError::NothingHeard), "{e}");
+        assert_eq!(
+            e.to_string(),
+            "Nothing heard on pins 3 and 11. This car may not have a bus there, the ignition may be off \
+             (switch it on), or the cable or switch is set to pins 6 and 14."
+        );
+        assert!(sent.lock().unwrap().is_empty());
+        assert_eq!(c.link().mode(), None);
+    }
+
+    #[test]
+    fn a_second_bus_with_only_errors_says_so() {
+        // 100 kbit/s is none of the three rates tried, so every rate shows errors only.
+        let (mut c, sent) = second_bus_client(VirtualCar::ms_can_ford().at_bitrate(Bitrate::K100));
+        let e = detect_second_bus(&mut c, 150).unwrap_err();
+        assert!(matches!(e, CoreError::OnlyErrors), "{e}");
+        assert_eq!(
+            e.to_string(),
+            "Pins 3 and 11 carry something Scana can't read at 125, 250 or 500 kbit/s. The two wires may be \
+             swapped (CAN high is pin 3, CAN low pin 11), or it is another kind of bus (GM's single-wire bus \
+             on pin 1 needs other hardware)."
+        );
+        assert!(sent.lock().unwrap().is_empty());
     }
 }

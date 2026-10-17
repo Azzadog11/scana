@@ -5,19 +5,20 @@
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use scana_core::describe::frame_meaning;
+use scana_core::detect::{SECOND_BUS_LISTEN_MS, detect_second_bus};
 use scana_core::modules::{self, DataKind, DiscoverOptions, ModuleInfo};
 use scana_core::readers::{self, PidReading};
 use scana_core::recorder::{self, Recorder};
 use scana_core::report;
 use scana_core::safety::{self, CLEAR_WARNING, ClearConsent};
 use scana_core::session::{Command, LinkState, SessionHandle, Source, Update, WorkerSettings};
-use scana_core::{Channel, Client, DetectOptions, Detected, FrameSink, detect};
+use scana_core::{Channel, Client, CoreError, DetectOptions, Detected, FrameSink, detect};
 use scana_db::dtc as dtcdb;
 use scana_link::serial::{SlcanLink, list_ports};
 use scana_link::sim::SimLink;
 use scana_link::{Link, LinkEvent, OpenMode};
 use scana_proto::obd::Reply;
-use scana_proto::{Bitrate, CanId, Frame, candump, mode06, obd, pids, uds};
+use scana_proto::{Bitrate, Bus, CanId, Frame, candump, mode06, obd, pids, uds};
 use scana_sim::VirtualCar;
 use std::fs::File;
 use std::io::{BufRead, BufWriter, Write};
@@ -42,7 +43,8 @@ struct Cli {
     /// Use a simulated 2006 Corolla with P0420 (a worn catalyst) instead of the bridge.
     #[arg(long, global = true)]
     sim_corolla: bool,
-    /// Use an invented test car instead of the bridge: ute-diesel, hatch-two-ecus or hybrid.
+    /// Use an invented test car instead of the bridge: ute-diesel, hatch-two-ecus, hybrid, or
+    /// ford-ms-can (a second bus on pins 3-11).
     #[arg(long, global = true, value_name = "NAME")]
     sim_car: Option<String>,
     /// With --sim-car: key on, engine off, so clearing codes can be tried.
@@ -51,6 +53,19 @@ struct Cli {
     /// The bridge's serial port (default: find it).
     #[arg(long, global = true)]
     port: Option<String>,
+    /// Which OBD-II pins the cable or switch reaches: 6-14 (the main bus, the default) or 3-11
+    /// (the second bus some Fords, Mazdas and Volvos have). On 3-11 Scana only listens, and
+    /// everything OBD-II is refused. With --sim-car ford-ms-can the default is 3-11.
+    #[arg(long, global = true, value_name = "6-14|3-11")]
+    pins: Option<String>,
+    /// The car's make, for module names and maker-specific code numbers (for example Ford).
+    /// On pins 3-11 no VIN can be read, so the make is only known if you give it.
+    #[arg(long, global = true, value_name = "NAME")]
+    make: Option<String>,
+    /// On pins 3-11, say the car is parked. Scana can't read speed there, and `modules` and
+    /// `module` send requests, so they refuse without it.
+    #[arg(long, global = true)]
+    parked: bool,
     /// Write every frame to this file, in candump format.
     #[arg(long, global = true)]
     log: Option<PathBuf>,
@@ -72,15 +87,16 @@ enum Cmd {
     },
     /// Show frames on the bus in listen-only mode. Never sends anything.
     Monitor {
-        #[arg(long, default_value = "500k")]
-        bitrate: String,
+        /// The bit rate (default 500k, or 125k on pins 3-11).
+        #[arg(long)]
+        bitrate: Option<String>,
         /// Stop after this many seconds (default: run until Ctrl-C).
         #[arg(long)]
         seconds: Option<u64>,
     },
     /// Find the car: bit rate, addressing and OBD ECUs.
     Detect {
-        /// Only listen; never send a request.
+        /// Only listen; never send a request. (On pins 3-11 this is always so.)
         #[arg(long)]
         listen_only: bool,
     },
@@ -173,9 +189,6 @@ enum Cmd {
         /// Only list the guide's tests and the current ranking; ask nothing.
         #[arg(long)]
         list: bool,
-        /// The car's make, for maker-specific code numbers (for example Toyota).
-        #[arg(long)]
-        make: Option<String>,
     },
     /// Explain a fault code, a word, or a tool: Scana's knowledge base.
     Explain {
@@ -203,21 +216,47 @@ fn run(cli: Cli) -> Result<()> {
     if let Cmd::Explain { what } = &cli.cmd {
         return explain(&what.join(" "));
     }
-    if let Cmd::Diagnose { code, car, answers, list, make } = &cli.cmd {
+    let bus = bus_of(&cli)?;
+    // Everything OBD-II needs the main bus. Refuse before touching the link.
+    if bus == Bus::Second
+        && matches!(
+            cli.cmd,
+            Cmd::Pids { .. }
+                | Cmd::Codes
+                | Cmd::Info
+                | Cmd::Freeze
+                | Cmd::Tests
+                | Cmd::Health
+                | Cmd::Clear { .. }
+                | Cmd::Diagnose { car: true, .. }
+        )
+    {
+        bail!("{}", scana_core::session::NEEDS_MAIN_BUS);
+    }
+    if let Cmd::Diagnose { code, car, answers, list } = &cli.cmd {
         let client = if *car {
             let link = open_link(&cli)?;
             Some(Client::new(link))
         } else {
             None
         };
-        return diagnose(code, client, answers.as_deref(), *list, make.as_deref());
+        return diagnose(code, client, answers.as_deref(), *list, cli.make.as_deref());
     }
     if let Cmd::Record { minutes, pids, dir } = &cli.cmd {
         // The session worker opens its own link.
-        return record(source_of(&cli), *minutes, pids, dir.clone());
+        return record(source_of(&cli), *minutes, pids, dir.clone(), cli.make.clone());
+    }
+    // Modules and module reads send requests: on the second bus, only once the car is parked.
+    if bus == Bus::Second
+        && matches!(cli.cmd, Cmd::Modules { .. } | Cmd::Module { .. } | Cmd::Send { .. })
+        && !cli.parked
+    {
+        bail!("{}", CoreError::NeedsParked);
     }
     let link = open_link(&cli)?;
     let mut client = Client::new(link);
+    client.set_bus(bus);
+    let ctx = Ctx { bus, make: cli.make.clone() };
     if let Some(path) = &cli.log {
         let sink = CandumpSink::create(path)?;
         eprintln!("Logging frames to {}", path.display());
@@ -227,7 +266,10 @@ fn run(cli: Cli) -> Result<()> {
         Cmd::Ports => Ok(()),
         Cmd::Probe => probe(&mut client),
         Cmd::Loopback { count } => loopback(&mut client, count),
-        Cmd::Monitor { bitrate, seconds } => monitor(&mut client, &bitrate, seconds),
+        Cmd::Monitor { bitrate, seconds } => {
+            let default = if bus == Bus::Second { "125k" } else { "500k" };
+            monitor(&mut client, bitrate.as_deref().unwrap_or(default), seconds)
+        }
         Cmd::Detect { listen_only } => {
             find_car(&mut client, !listen_only)?;
             Ok(())
@@ -240,11 +282,11 @@ fn run(cli: Cli) -> Result<()> {
         Cmd::Health => health(&mut client).map(|_| ()),
         Cmd::Clear { yes } => clear(&mut client, yes),
         Cmd::Record { .. } => Ok(()),
-        Cmd::Modules { gateway, both, window_ms } => find_modules(&mut client, &gateway, both, window_ms),
+        Cmd::Modules { gateway, both, window_ms } => find_modules(&mut client, &gateway, both, window_ms, &ctx),
         Cmd::Module { address, scan, kind, watch, seconds } => {
-            one_module(&mut client, &address, scan.as_deref(), kind.as_deref(), watch.as_deref(), seconds)
+            one_module(&mut client, &address, scan.as_deref(), kind.as_deref(), watch.as_deref(), seconds, &ctx)
         }
-        Cmd::Send { address, request } => send(&mut client, &address, &request.join(" ")),
+        Cmd::Send { address, request } => send(&mut client, &address, &request.join(" "), &ctx),
         Cmd::Diagnose { .. } | Cmd::Explain { .. } => Ok(()),
     }
 }
@@ -717,12 +759,12 @@ fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {
         if cli.sim_engine_off {
             car.set_engine_running(false);
         }
-        let link = SimLink::new(car);
+        let link = SimLink::new(car).on_bus(bus_of(cli)?);
         eprintln!("Using a {}: an invented test car", link.describe());
         return Ok(Box::new(link));
     }
     if cli.sim_corolla {
-        let link = SimLink::new(VirtualCar::corolla_2006());
+        let link = SimLink::new(VirtualCar::corolla_2006()).on_bus(bus_of(cli)?);
         eprintln!("Using a {}: a 2006 Corolla with P0420", link.describe());
         return Ok(Box::new(link));
     }
@@ -736,7 +778,7 @@ fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {
         } else {
             VirtualCar::hijet()
         };
-        let link = SimLink::new(car);
+        let link = SimLink::new(car).on_bus(bus_of(cli)?);
         eprintln!("Using a {}", link.describe());
         return Ok(Box::new(link));
     }
@@ -749,9 +791,36 @@ fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {
     Ok(Box::new(link))
 }
 
+/// What the command line says about the car beyond the link.
+struct Ctx {
+    bus: Bus,
+    make: Option<String>,
+}
+
+impl Ctx {
+    /// The maker family for module names, from `--make` (the second bus can't read a VIN).
+    fn family(&self) -> Option<&'static str> {
+        self.make.as_deref().and_then(scana_db::modules::family_of_make)
+    }
+}
+
+/// The pins in use: `--pins`, else the second bus for a simulated car that lives there.
+fn bus_of(cli: &Cli) -> Result<Bus> {
+    match &cli.pins {
+        Some(p) => {
+            Bus::parse(p).with_context(|| format!("--pins is 6-14 (the main bus) or 3-11 (the second bus), not {p:?}"))
+        }
+        None => Ok(cli.sim_car.as_deref().and_then(VirtualCar::by_name).map_or(Bus::Main, |car| car.bus)),
+    }
+}
+
 fn source_of(cli: &Cli) -> Source {
     if let Some(name) = &cli.sim_car {
-        return Source::SimCar { name: name.clone(), engine_off: cli.sim_engine_off };
+        return Source::SimCar {
+            name: name.clone(),
+            engine_off: cli.sim_engine_off,
+            bus: bus_of(cli).unwrap_or_default(),
+        };
     }
     if cli.sim_corolla {
         return Source::DemoCorolla;
@@ -759,12 +828,18 @@ fn source_of(cli: &Cli) -> Source {
     match (cli.sim, cli.sim_faults) {
         (true, true) => Source::DemoFaults,
         (true, false) => Source::Demo,
-        _ => Source::Bridge { port: cli.port.clone() },
+        _ => Source::Bridge { port: cli.port.clone(), bus: bus_of(cli).unwrap_or_default() },
     }
 }
 
 /// Records a drive through the session worker, like the app's Record button with every value chosen.
-fn record(source: Source, minutes: Option<f64>, pids_arg: &str, dir: Option<PathBuf>) -> Result<()> {
+fn record(
+    source: Source,
+    minutes: Option<f64>,
+    pids_arg: &str,
+    dir: Option<PathBuf>,
+    make: Option<String>,
+) -> Result<()> {
     let wanted: Option<Vec<u8>> = if pids_arg.eq_ignore_ascii_case("all") {
         None
     } else {
@@ -801,6 +876,9 @@ fn record(source: Source, minutes: Option<f64>, pids_arg: &str, dir: Option<Path
             None => String::new(),
         }
     );
+    if make.is_some() {
+        h.send(Command::SetMake(make));
+    }
     h.send(Command::Connect(source));
     let mut folder: Option<PathBuf> = None;
     let mut values: u64 = 0;
@@ -818,7 +896,14 @@ fn record(source: Source, minutes: Option<f64>, pids_arg: &str, dir: Option<Path
         };
         match u {
             Update::Connected(info) => {
-                println!("Found: {}, {} computer(s): {}", info.protocol(), info.ecus.len(), info.vehicle);
+                if info.bus == Bus::Second {
+                    println!(
+                        "Found: {}. Scana only listens here: it records frames and events, and no values.",
+                        info.protocol()
+                    );
+                } else {
+                    println!("Found: {}, {} computer(s): {}", info.protocol(), info.ecus.len(), info.vehicle);
+                }
                 if info.other_tester {
                     println!("Another tester is polling (a dash display?): Scana leaves wider gaps.");
                 }
@@ -829,7 +914,9 @@ fn record(source: Source, minutes: Option<f64>, pids_arg: &str, dir: Option<Path
                     .filter(|(_, p)| !pids::is_support_pid(*p))
                     .filter(|(_, p)| wanted.as_ref().is_none_or(|w| w.contains(p)))
                     .collect();
-                println!("Polling {} live values.", live.len());
+                if info.bus == Bus::Main {
+                    println!("Polling {} live values.", live.len());
+                }
                 h.send(Command::SetLive(live));
                 if folder.is_none() {
                     h.send(Command::Record(true));
@@ -1075,6 +1162,20 @@ fn monitor(client: &mut Client, bitrate: &str, seconds: Option<u64>) -> Result<(
 }
 
 fn find_car(client: &mut Client, transmit: bool) -> Result<Detected> {
+    if client.bus() == Bus::Second {
+        // Pins 3 and 11: listen only, whatever was asked. No OBD-II ECUs are looked for.
+        println!("Listening on pins 3 and 11 (listen only: Scana sends nothing)...");
+        let d = detect_second_bus(client, SECOND_BUS_LISTEN_MS)?;
+        for line in &d.log {
+            println!("  {line}");
+        }
+        println!(
+            "Found a bus on pins 3 and 11: {}, {}. No OBD-II computers are looked for on this bus.",
+            d.bitrate,
+            d.addressing.name()
+        );
+        return Ok(d);
+    }
     println!("Looking for the car{}...", if transmit { "" } else { " (listen only)" });
     let opts = DetectOptions { transmit, ..DetectOptions::default() };
     let d = detect(client, &opts)?;
@@ -1158,9 +1259,29 @@ fn codes(client: &mut Client) -> Result<()> {
 }
 
 /// The car's maker family: from the matching vehicle profile, else the make in its VIN.
-fn family_of(client: &mut Client, d: &Detected) -> Result<Option<&'static str>> {
+fn family_of(client: &mut Client, d: &Detected, ctx: &Ctx) -> Result<Option<&'static str>> {
+    if ctx.bus == Bus::Second {
+        // No VIN can be read on the second bus: the family is only known from --make.
+        if let Some(m) = &ctx.make
+            && ctx.family().is_none()
+        {
+            println!("Note: Scana has no module names for the make {m:?}, so modules there get no usual names.");
+        }
+        return Ok(ctx.family());
+    }
     let ecus = ecus_with_pids(client, d)?;
     Ok(readers::identify(client, &ecus)?.family())
+}
+
+/// Second bus: after listening found the bit rate, opens the bus in normal mode so modules can
+/// be asked. Only called once `--parked` was given.
+fn open_for_requests(client: &mut Client, d: &Detected) -> Result<()> {
+    if d.bus == Bus::Second {
+        client.link().close()?;
+        client.link().set_bitrate(d.bitrate)?;
+        client.link().open(OpenMode::Normal)?;
+    }
+    Ok(())
 }
 
 fn print_module(m: &ModuleInfo) {
@@ -1180,17 +1301,25 @@ fn print_module(m: &ModuleInfo) {
     }
 }
 
-fn find_modules(client: &mut Client, gateways: &[String], both: bool, window_ms: u64) -> Result<()> {
+fn find_modules(client: &mut Client, gateways: &[String], both: bool, window_ms: u64, ctx: &Ctx) -> Result<()> {
     let d = find_car(client, true)?;
-    let family = family_of(client, &d)?;
+    let family = family_of(client, &d, ctx)?;
     let ecus = ecus_with_pids(client, &d)?;
-    if let Some(note) = modules::check_still(client, &ecus)? {
+    let second = d.bus == Bus::Second;
+    if second {
+        println!("Note: Scana can't check the car is still on pins 3 and 11. You said it is parked.");
+        if both {
+            println!("Note: --both is for the main bus and is ignored here.");
+        }
+        open_for_requests(client, &d)?;
+    } else if let Some(note) = modules::check_still(client, &ecus)? {
         println!("Note: {note}");
     }
-    let mut opts = DiscoverOptions::for_car(d.addressing, family);
+    let mut opts =
+        if second { DiscoverOptions::for_second_bus(family) } else { DiscoverOptions::for_car(d.addressing, family) };
     opts.window_ms = window_ms;
     opts.still_ecus = ecus.clone();
-    if both {
+    if both && !second {
         opts.standard = true;
         opts.extended = true;
     }
@@ -1274,10 +1403,13 @@ fn one_module(
     kind: Option<&str>,
     watch: Option<&str>,
     seconds: u64,
+    ctx: &Ctx,
 ) -> Result<()> {
     let ch = parse_channel(address)?;
+    refuse_obd_address(ch, ctx)?;
     let d = find_car(client, true)?;
-    let family = family_of(client, &d)?;
+    let family = family_of(client, &d, ctx)?;
+    open_for_requests(client, &d)?;
     let m = modules::read_module(client, ch, None, family)?;
     print_module(&m);
     let kind = match kind.map(str::to_ascii_lowercase).as_deref() {
@@ -1357,10 +1489,20 @@ fn one_module(
     Ok(())
 }
 
-fn send(client: &mut Client, address: &str, hex: &str) -> Result<()> {
+/// On the second bus an OBD-II request ID is never used, even for a module read.
+fn refuse_obd_address(ch: Channel, ctx: &Ctx) -> Result<()> {
+    if ctx.bus == Bus::Second && scana_core::Addressing::is_request_id(ch.tx) {
+        bail!("{}", CoreError::NeedsMainBus);
+    }
+    Ok(())
+}
+
+fn send(client: &mut Client, address: &str, hex: &str, ctx: &Ctx) -> Result<()> {
     let ch = parse_channel(address)?;
+    refuse_obd_address(ch, ctx)?;
     let request = uds::parse_hex(hex).with_context(|| format!("{hex} is not hex bytes"))?;
-    find_car(client, true)?;
+    let d = find_car(client, true)?;
+    open_for_requests(client, &d)?;
     println!("Sending {} to {} ({})", uds::hex(&request), ch.label(), uds::service_name(request[0]));
     match modules::console_request(client, ch, &request)? {
         None => println!("No answer within {} ms.", client.options.physical_timeout_ms),

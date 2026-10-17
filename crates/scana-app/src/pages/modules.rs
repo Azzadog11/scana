@@ -27,8 +27,13 @@ impl ScanaApp {
                 .on_hover_text("One harmless 'are you there?' request to each likely address, about 500 in all")
                 .clicked()
             {
-                self.module_selected = None;
-                self.session.send(Command::FindModules);
+                if self.model.second_bus() {
+                    // Scana can't read speed here: ask the user to say the car is parked.
+                    self.parked_dialog = Some(false);
+                } else {
+                    self.module_selected = None;
+                    self.session.send(Command::FindModules { parked: false });
+                }
             }
             if running && ui.button("Stop").clicked() {
                 self.session.send(Command::Stop);
@@ -40,6 +45,12 @@ impl ScanaApp {
         });
         if let Some(p) = self.model.progress {
             ui.add(egui::ProgressBar::new(p).desired_width(ui.available_width().min(520.0)).show_percentage());
+        }
+        if self.model.modules.is_empty() && !running && self.model.second_bus() {
+            ui.add_space(4.0);
+            ui.label("Press Find modules. Scana asks first whether the car is parked, because it can't read the car's speed on pins 3 and 11. Then it listens to the bus, leaves alone any address already in use, and asks each likely address once. It never sends an OBD-II request here.");
+            ui.label(RichText::new("Names come from the make, if you gave one when connecting. Without it, modules show only their address.").color(pal.dim));
+            return;
         }
         if self.model.modules.is_empty() && !running {
             ui.add_space(4.0);

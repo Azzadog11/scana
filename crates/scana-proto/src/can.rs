@@ -41,6 +41,45 @@ impl fmt::Display for CanId {
     }
 }
 
+/// Which pair of OBD-II pins a connection uses. Most cars have only the main bus. Some Fords,
+/// Mazdas and Volvos also put a medium-speed CAN on pins 3 and 11.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Bus {
+    /// Pins 6 (CAN high) and 14 (CAN low): the OBD-II bus.
+    #[default]
+    Main,
+    /// Pins 3 (CAN high) and 11 (CAN low): body modules on some makes. Scana only listens
+    /// there, and sends nothing until the user says the car is parked.
+    Second,
+}
+
+impl Bus {
+    /// "6 and 14" or "3 and 11".
+    pub fn pins(self) -> &'static str {
+        match self {
+            Bus::Main => "6 and 14",
+            Bus::Second => "3 and 11",
+        }
+    }
+
+    /// "main" or "second".
+    pub fn name(self) -> &'static str {
+        match self {
+            Bus::Main => "main",
+            Bus::Second => "second",
+        }
+    }
+
+    /// Parses "6-14" or "3-11" (also "6,14", "main", "second").
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().replace([',', ' '], "-").as_str() {
+            "6-14" | "main" => Some(Bus::Main),
+            "3-11" | "second" => Some(Bus::Second),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum FrameError {
     #[error("a CAN frame holds at most 8 data bytes, not {0}")]
@@ -229,5 +268,15 @@ mod tests {
             assert_eq!(Bitrate::from_slcan_code(b.slcan_code()), Some(b));
         }
         assert_eq!(Bitrate::K500.to_string(), "500 kbit/s");
+    }
+
+    #[test]
+    fn buses_parse_from_their_pins() {
+        assert_eq!(Bus::default(), Bus::Main);
+        assert_eq!(Bus::parse("6-14"), Some(Bus::Main));
+        assert_eq!(Bus::parse("3-11"), Some(Bus::Second));
+        assert_eq!(Bus::parse(" 3,11 "), Some(Bus::Second));
+        assert_eq!(Bus::parse("4-5"), None);
+        assert_eq!(Bus::Second.pins(), "3 and 11");
     }
 }

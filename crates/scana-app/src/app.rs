@@ -10,7 +10,7 @@ use scana_core::safety::{CLEAR_WARNING, ClearConsent};
 use scana_core::session::{Command, LinkState, SessionHandle, Source};
 use scana_core::store::{LoadedSession, SessionInfo};
 use scana_link::serial::PortCandidate;
-use scana_proto::{CanId, Dtc};
+use scana_proto::{Bus, CanId, Dtc};
 use std::collections::BTreeSet;
 use std::time::Duration;
 
@@ -159,6 +159,8 @@ pub enum SourceChoice {
     Demo,
     DemoFaults,
     DemoCorolla,
+    /// An invented car on the second bus (pins 3 and 11), simulated.
+    DemoSecondBus,
 }
 
 pub struct ScanaApp {
@@ -172,6 +174,13 @@ pub struct ScanaApp {
     pub ports: Vec<PortCandidate>,
     pub source_choice: SourceChoice,
     pub port_choice: Option<String>,
+    /// Which OBD pins the cable or switch reaches, for a bridge connection.
+    pub bus_choice: Bus,
+    /// The make typed for the second bus (optional): no VIN can be read there.
+    pub make_text: String,
+    /// The "is the car parked?" dialog for finding modules on the second bus is open; the bool
+    /// is its tick.
+    pub parked_dialog: Option<bool>,
     /// The clear-codes dialog is open; the bool is the "I understand" tick.
     pub clear_dialog: Option<bool>,
     pub graph_window_s: f64,
@@ -238,6 +247,9 @@ impl ScanaApp {
             ports: scana_link::serial::list_ports(),
             source_choice: SourceChoice::Bridge,
             port_choice: None,
+            bus_choice: Bus::Main,
+            make_text: String::new(),
+            parked_dialog: None,
             clear_dialog: None,
             graph_window_s: 60.0,
             graph_paused: false,
@@ -289,12 +301,20 @@ impl ScanaApp {
     }
 
     pub fn connect_choice(&mut self) {
-        let src = match self.source_choice {
-            SourceChoice::Bridge => Source::Bridge { port: self.port_choice.clone() },
-            SourceChoice::Demo => Source::Demo,
-            SourceChoice::DemoFaults => Source::DemoFaults,
-            SourceChoice::DemoCorolla => Source::DemoCorolla,
+        let (src, make) = match self.source_choice {
+            SourceChoice::Bridge => {
+                let make = (self.bus_choice == Bus::Second).then(|| self.make_text.trim().to_string());
+                (Source::Bridge { port: self.port_choice.clone(), bus: self.bus_choice }, make)
+            }
+            SourceChoice::Demo => (Source::Demo, None),
+            SourceChoice::DemoFaults => (Source::DemoFaults, None),
+            SourceChoice::DemoCorolla => (Source::DemoCorolla, None),
+            SourceChoice::DemoSecondBus => (
+                Source::SimCar { name: "ford-ms-can".into(), engine_off: false, bus: Bus::Second },
+                Some("Ford".to_string()),
+            ),
         };
+        self.session.send(Command::SetMake(make.filter(|m| !m.is_empty())));
         if self.settings.first_run {
             self.settings.first_run = false;
             self.save_settings();
@@ -438,7 +458,7 @@ impl ScanaApp {
         if rec && self.model.connected() {
             self.set_record(self.model.recording.is_none());
         }
-        if health && self.model.connected() {
+        if health && self.model.connected() && !self.model.second_bus() {
             self.session.send(Command::HealthCheck);
             self.go(Page::Health);
         }
@@ -509,7 +529,10 @@ impl ScanaApp {
                     self.set_record(!rec_on);
                 }
                 if ui
-                    .add_enabled(connected, crate::theme::accent_button(&pal, "Health check"))
+                    .add_enabled(
+                        connected && !self.model.second_bus(),
+                        crate::theme::accent_button(&pal, "Health check"),
+                    )
                     .on_hover_text("Codes, readiness, freeze frame and key values in one go (Ctrl+H)")
                     .clicked()
                 {
@@ -759,6 +782,46 @@ impl ScanaApp {
         }
     }
 
+    /// Asks the user to say the car is parked before Scana sends module requests on the second
+    /// bus, where it can't read the car's speed. Styled like the clear-codes dialog.
+    fn parked_dialog(&mut self, ctx: &egui::Context) {
+        let Some(mut parked) = self.parked_dialog else { return };
+        let pal = self.pal();
+        let mut close = false;
+        let mut go = false;
+        let resp = egui::Modal::new(egui::Id::unique("parked")).show(ctx, |ui| {
+            ui.set_max_width(520.0);
+            ui.heading("Is the car parked?");
+            ui.label("Scana can't read the car's speed on pins 3 and 11, so it can't check for itself.");
+            ui.label("Finding modules sends one harmless request to each likely address. Do it only with the car parked and the handbrake on.");
+            ui.add_space(6.0);
+            ui.label(RichText::new("Scana never sends an OBD-II request on this bus, and it never clears anything.").color(pal.dim));
+            ui.add_space(6.0);
+            ui.checkbox(&mut parked, "The car is parked, and I want to find modules");
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                if ui.add_enabled(parked, crate::theme::accent_button(&pal, "Find modules")).clicked() {
+                    go = true;
+                }
+                if ui.button("Cancel").clicked() {
+                    close = true;
+                }
+            });
+        });
+        if resp.should_close() {
+            close = true;
+        }
+        if go {
+            self.module_selected = None;
+            self.session.send(Command::FindModules { parked: true });
+            self.parked_dialog = None;
+        } else if close {
+            self.parked_dialog = None;
+        } else {
+            self.parked_dialog = Some(parked);
+        }
+    }
+
     fn page(&mut self, ui: &mut Ui) {
         self.banners(ui);
         egui::ScrollArea::vertical().id_salt(("page", self.page.id())).auto_shrink([false, false]).show(ui, |ui| {
@@ -790,6 +853,22 @@ impl ScanaApp {
             ui.label(RichText::new(sub).color(self.pal().dim));
         }
         ui.add_space(6.0);
+    }
+
+    /// "Connect first" for pages that need the car's OBD-II computers: also false, with one
+    /// plain line, when connected to the second bus (pins 3 and 11).
+    pub fn need_obd(&mut self, ui: &mut Ui) -> bool {
+        if !self.need_car(ui) {
+            return false;
+        }
+        if self.model.second_bus() {
+            ui.label(RichText::new(scana_core::session::NEEDS_MAIN_BUS).color(self.pal().note));
+            if ui.button("Go to Home").clicked() {
+                self.go(Page::Home);
+            }
+            return false;
+        }
+        true
     }
 
     /// "Connect first" for pages that need a car.
@@ -830,6 +909,7 @@ impl eframe::App for ScanaApp {
         let page_frame = egui::Frame::central_panel(ui.style()).fill(self.pal().page_bg);
         egui::CentralPanel::default().frame(page_frame).show(ui, |ui| self.page(ui));
         self.clear_dialog(&ctx);
+        self.parked_dialog(&ctx);
 
         if let Some(plan) = self.shot.take() {
             self.shot = crate::screenshot::step(self, plan, &ctx);

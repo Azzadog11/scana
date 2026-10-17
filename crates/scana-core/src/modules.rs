@@ -18,7 +18,7 @@ use crate::client::{Addressing, Channel, Client, CoreError};
 use crate::readers;
 use scana_proto::obd::{self, Reply};
 use scana_proto::uds::{self, CodeFormat, ModuleDtc};
-use scana_proto::{CanId, isotp};
+use scana_proto::{Bus, CanId, isotp};
 
 /// How module discovery searches.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -41,6 +41,10 @@ pub struct DiscoverOptions {
     /// The OBD ECUs and their PIDs, to check the car is still every [`STILL_CHECK_EVERY`] probes
     /// (discovery takes tens of seconds, and a hybrid may creep off by itself). Empty: no checks.
     pub still_ecus: Vec<(CanId, Vec<u8>)>,
+    /// The second bus (pins 3 and 11): the OBD-II request IDs 0x7E0-0x7E7 are left out too, so
+    /// no OBD-II request is ever sent there. (The functional ID 0x7DF and the reply IDs
+    /// 0x7E8-0x7EF are never probed on any bus.)
+    pub bus: Bus,
 }
 
 /// Discovery looks at vehicle speed again after this many probes.
@@ -57,11 +61,18 @@ impl Default for DiscoverOptions {
             reply_offsets: vec![],
             max_modules: 48,
             still_ecus: vec![],
+            bus: Bus::Main,
         }
     }
 }
 
 impl DiscoverOptions {
+    /// The search on the second bus: 11-bit IDs, never an OBD-II request ID. The maker
+    /// family's gateways and reply offsets apply only when a make was given (`family`).
+    pub fn for_second_bus(family: Option<&str>) -> Self {
+        DiscoverOptions { bus: Bus::Second, ..DiscoverOptions::for_car(Addressing::Standard, family) }
+    }
+
     /// The search for a car: its own addressing, and the gateways its maker family uses.
     pub fn for_car(addressing: Addressing, family: Option<&str>) -> Self {
         DiscoverOptions {
@@ -120,6 +131,9 @@ pub fn candidates(opts: &DiscoverOptions, seen: &std::collections::HashSet<CanId
         for id in 0x700u16..=0x7F7 {
             let can = CanId::Standard(id);
             let obd_request = (0x7E0..=0x7E7).contains(&id);
+            if opts.bus == Bus::Second && obd_request {
+                continue; // never an OBD-II request on the second bus
+            }
             if id == 0x7DF || (0x7E8..=0x7EF).contains(&id) || opts.gateways.contains(&id) {
                 continue;
             }
@@ -199,6 +213,9 @@ pub fn discover(
     let start = client.now_ms();
     client.idle_until(start + opts.listen_ms)?;
     let seen = client.seen_ids().clone();
+    // A client on the second bus always searches as the second bus, whatever the options say.
+    let opts =
+        &DiscoverOptions { bus: if client.bus() == Bus::Second { Bus::Second } else { opts.bus }, ..opts.clone() };
     let list = candidates(opts, &seen);
     let mut out = Discovery {
         skipped: {
@@ -322,7 +339,12 @@ pub struct ModuleInfo {
 impl ModuleInfo {
     /// A name for a module before anything is read from it.
     pub fn named(channel: Channel, family: Option<&str>) -> Self {
-        let (name, from) = match scana_db::modules::name_for(family, &channel.label()) {
+        Self::named_on(channel, family, Bus::Main)
+    }
+
+    /// The same on a given bus: the second bus uses only its own address book entries.
+    pub fn named_on(channel: Channel, family: Option<&str>, bus: Bus) -> Self {
+        let (name, from) = match scana_db::modules::name_for_bus(family, &channel.label(), bus) {
             Some(a) => (a.name.clone(), NameFrom::Address),
             None => (format!("Module at {}", channel.label()), NameFrom::Unknown),
         };
@@ -365,7 +387,7 @@ pub fn read_module(
     found: Option<&Found>,
     family: Option<&str>,
 ) -> Result<ModuleInfo, CoreError> {
-    let mut info = ModuleInfo::named(channel, family);
+    let mut info = ModuleInfo::named_on(channel, family, client.bus());
     let try_uds_first = found.is_none_or(Found::looks_like_uds);
     let order = if try_uds_first { [Dialect::Uds, Dialect::Kwp] } else { [Dialect::Kwp, Dialect::Uds] };
     for d in order {
@@ -868,5 +890,103 @@ mod tests {
         assert_eq!(check_still(&mut c, &ecus).unwrap(), None);
         let note = check_still(&mut c, &[(CanId::Standard(0x7E8), vec![0x0C])]).unwrap();
         assert!(note.is_some());
+    }
+
+    /// Keeps the IDs of every frame the client sends.
+    struct Outgoing(std::sync::Arc<std::sync::Mutex<Vec<CanId>>>);
+
+    impl crate::client::FrameSink for Outgoing {
+        fn frame(&mut self, frame: &scana_proto::Frame, _at_ms: u64, outgoing: bool) {
+            if outgoing && let Ok(mut v) = self.0.lock() {
+                v.push(frame.id);
+            }
+        }
+    }
+
+    /// A client on the simulated second bus, open in normal mode at its 125 kbit/s, with a log of
+    /// the IDs it sends.
+    fn second_bus_client() -> (Client, std::sync::Arc<std::sync::Mutex<Vec<CanId>>>) {
+        let mut link = SimLink::new(VirtualCar::ms_can_ford()).on_bus(Bus::Second);
+        link.set_bitrate(scana_proto::Bitrate::K125).unwrap();
+        link.open(OpenMode::Normal).unwrap();
+        let mut c = Client::new(Box::new(link));
+        c.set_bus(Bus::Second);
+        c.options.min_gap_ms = 1;
+        c.options.shared_gap_ms = 1;
+        let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        c.set_sink(Box::new(Outgoing(log.clone())));
+        (c, log)
+    }
+
+    #[test]
+    fn the_second_bus_never_probes_an_obd_request_id() {
+        let seen = std::collections::HashSet::new();
+        let main = candidates(&DiscoverOptions::default(), &seen);
+        let second = candidates(&DiscoverOptions::for_second_bus(None), &seen);
+        for id in 0x7E0u16..=0x7E7 {
+            assert!(main.contains(&(CanId::Standard(id), None)));
+            assert!(!second.contains(&(CanId::Standard(id), None)), "{id:X}");
+        }
+        assert_eq!(second.len(), main.len() - 8);
+        assert!(!second.iter().any(|(id, _)| *id == CanId::Standard(0x7DF)));
+        // A second-bus client searches as the second bus even with main-bus options.
+        let (mut c, log) = second_bus_client();
+        discover(&mut c, &DiscoverOptions { listen_ms: 50, window_ms: 2, ..DiscoverOptions::default() }, |_| true)
+            .unwrap();
+        assert!(log.lock().unwrap().iter().all(|id| !Addressing::is_request_id(*id)));
+    }
+
+    #[test]
+    fn discovery_on_the_second_bus_finds_the_modules_and_names_them_from_its_own_entries() {
+        let (mut c, log) = second_bus_client();
+        let opts = DiscoverOptions { listen_ms: 200, window_ms: 8, ..DiscoverOptions::for_second_bus(Some("ford")) };
+        let d = discover(&mut c, &opts, |_| true).unwrap();
+        let labels: Vec<String> = d.found.iter().map(|f| f.channel.label()).collect();
+        assert_eq!(labels, vec!["720", "726", "727", "736", "767", "781", "7A6"], "{labels:?}");
+        // The IDs the car sends on by itself were heard and so left alone.
+        assert!(d.skipped.contains(&CanId::Standard(0x1C0)));
+        // Never an OBD-II request, at any point.
+        let sent = log.lock().unwrap().clone();
+        assert!(!sent.is_empty());
+        assert!(sent.iter().all(|id| !Addressing::is_request_id(*id) && id.raw() >= 0x700), "{sent:?}");
+        // Names come from the second-bus entries (with "(probably)"); a module's own name wins.
+        let cluster = d.found.iter().find(|f| f.channel.label() == "720").unwrap();
+        let m = read_module(&mut c, cluster.channel, Some(cluster), Some("ford")).unwrap();
+        assert_eq!((m.name.as_str(), m.name_from), ("FG Falcon instrument cluster", NameFrom::Address));
+        assert_eq!(m.display_name(), "FG Falcon instrument cluster (probably)");
+        assert_eq!(m.dialect, Dialect::Uds);
+        assert_eq!(m.codes.as_ref().map(Vec::len), Ok(1));
+        let pam = d.found.iter().find(|f| f.channel.label() == "736").unwrap();
+        let m = read_module(&mut c, pam.channel, Some(pam), Some("ford")).unwrap();
+        assert_eq!((m.name.as_str(), m.dialect), ("FG Falcon parking aid module", Dialect::Kwp));
+        let fdim = d.found.iter().find(|f| f.channel.label() == "7A6").unwrap();
+        let m = read_module(&mut c, fdim.channel, Some(fdim), Some("ford")).unwrap();
+        assert_eq!((m.name.as_str(), m.name_from), ("FRONT DISPLAY SIM", NameFrom::Module));
+        // With no make given there are no names from the address book at all.
+        let m = read_module(&mut c, cluster.channel, Some(cluster), None).unwrap();
+        assert_eq!((m.name.as_str(), m.name_from), ("Module at 720", NameFrom::Unknown));
+    }
+
+    #[test]
+    fn obd_requests_are_refused_on_the_second_bus() {
+        use crate::client::Target;
+        let (mut c, log) = second_bus_client();
+        let e = c.request(Target::AllEcus, &[0x01, 0x00]).unwrap_err();
+        assert!(matches!(e, CoreError::NeedsMainBus), "{e}");
+        assert_eq!(
+            e.to_string(),
+            "That needs the main bus on pins 6 and 14: set the cable or switch back and connect again."
+        );
+        assert!(matches!(c.request_one(CanId::Standard(0x7E8), &[0x03]), Err(CoreError::NeedsMainBus)));
+        // Even a module read aimed at an engine-computer ID is refused before it reaches the bus.
+        let ch = Channel::parse("7E0").unwrap();
+        assert!(matches!(read_module(&mut c, ch, None, None), Err(CoreError::NeedsMainBus)));
+        assert!(matches!(console_request(&mut c, ch, &[0x22, 0xF1, 0x90]), Err(CoreError::NeedsMainBus)));
+        assert!(matches!(c.probe(CanId::Standard(0x7DF), None, &uds::PROBE, 5), Err(CoreError::NeedsMainBus)));
+        assert_eq!(c.requests_sent, 0);
+        assert!(log.lock().unwrap().is_empty());
+        // The same requests on the main bus are fine.
+        let mut main = client(VirtualCar::hijet());
+        assert!(main.request(Target::AllEcus, &[0x01, 0x00]).is_ok());
     }
 }

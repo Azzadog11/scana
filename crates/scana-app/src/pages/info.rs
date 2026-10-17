@@ -8,7 +8,7 @@ impl ScanaApp {
     pub fn page_info(&mut self, ui: &mut Ui) {
         let pal = self.pal();
         self.heading(ui, "Vehicle info", "What the car says about itself, and how Scana is talking to it.");
-        if !self.need_car(ui) {
+        if !self.need_obd(ui) {
             return;
         }
         let Some(conn) = self.model.conn.clone() else { return };

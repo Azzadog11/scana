@@ -5,6 +5,9 @@
 # byte for modules behind a gateway ("750/40": request 750 with first byte 40, reply 758),
 # or a 29-bit request ID ("18DA28F1").
 #
+# An entry can carry `bus = "second"`: it names a module on the second CAN bus (OBD pins 3 and
+# 11) and is used only there. Without `bus`, an entry is for the main bus (pins 6 and 14).
+#
 # Family "any" applies to every car. Family "toyota" covers Toyota, Lexus and Scion, and is
 # assumed for Daihatsu (part of the Toyota group) until discovery on a real Daihatsu confirms it.
 #
@@ -15,6 +18,9 @@
 #               opendbc/car/<make>/fingerprints.py for toyota, mazda, hyundai, ford, nissan,
 #               subaru, honda, volkswagen, chrysler and gm. Ecu types were turned into plain names.
 #   [toyotadx]  github.com/kaikozlov/toyota-diagnostics README (read 2026-10-16).
+#   [fgfalcon]  github.com/jakka351/FG-Falcon (read 2026-10-17): the FG Falcon's medium-speed
+#               CAN modules and their request and reply IDs, on OBD pins 3 and 11. FG Falcon
+#               only; unverified for other Fords. Low to medium confidence.
 #   [wmi]       Wikipedia, "Vehicle identification number", world manufacturer identifier list
 #               (en.wikipedia.org/wiki/Vehicle_identification_number, read 2026-10-17). It
 #               feeds the VIN prefix table in `src/modules.rs`, not an address.
@@ -382,6 +388,60 @@ family = "ford"
 at = "764"
 name = "Forward radar"
 source = "opendbc"
+
+# ---- ford, second bus (pins 3 and 11) ----
+# Medium-speed CAN at 125 kbit/s. These names apply only on the second bus, never on the main
+# bus (`bus = "second"`). The request and reply IDs follow the source: reply = request + 8.
+# The source gives BPM and AIM as letters only: they are not expanded here.
+
+[[address]]
+family = "ford"
+bus = "second"
+at = "720"
+name = "FG Falcon instrument cluster"
+source = "fgfalcon"
+
+[[address]]
+family = "ford"
+bus = "second"
+at = "726"
+name = "FG Falcon body electronics module"
+source = "fgfalcon"
+
+[[address]]
+family = "ford"
+bus = "second"
+at = "727"
+name = "FG Falcon audio control module"
+source = "fgfalcon"
+
+[[address]]
+family = "ford"
+bus = "second"
+at = "736"
+name = "FG Falcon parking aid module"
+source = "fgfalcon"
+
+[[address]]
+family = "ford"
+bus = "second"
+at = "781"
+name = "FG Falcon BPM module"
+source = "fgfalcon"
+
+[[address]]
+family = "ford"
+bus = "second"
+at = "767"
+name = "FG Falcon AIM module"
+source = "fgfalcon"
+
+[[address]]
+family = "ford"
+bus = "second"
+at = "7A6"
+name = "FG Falcon front display interface module (FDIM)"
+source = "fgfalcon"
 
 # ---- nissan ----
 

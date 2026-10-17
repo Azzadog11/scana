@@ -16,6 +16,12 @@ impl ScanaApp {
         if !self.need_car(ui) {
             return;
         }
+        if self.model.second_bus() {
+            ui.label(
+                RichText::new("Pins 3 and 11: Scana is only listening. Its own requests show as out, and only after you asked for modules.")
+                    .color(pal.dim),
+            );
+        }
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.model.frames_paused, "Pause");
             ui.checkbox(&mut self.monitor_obd_only, "OBD-II frames only");

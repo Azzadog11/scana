@@ -66,6 +66,7 @@ mod tests {
     fn conn(source: scana_core::session::Source, vehicle: &str, pids: Vec<u8>) -> ConnectionInfo {
         ConnectionInfo {
             source,
+            bus: scana_proto::Bus::Main,
             link: "simulated".into(),
             bitrate: scana_proto::Bitrate::K500,
             addressing: scana_core::Addressing::Standard,
@@ -219,6 +220,11 @@ pub struct Model {
 impl Model {
     pub fn connected(&self) -> bool {
         matches!(self.state, Some(LinkState::Connected)) && self.conn.is_some()
+    }
+
+    /// Connected to the second bus (pins 3 and 11): nothing OBD-II works.
+    pub fn second_bus(&self) -> bool {
+        self.conn.as_ref().is_some_and(|c| c.bus == scana_proto::Bus::Second)
     }
 
     pub fn profile(&self) -> Option<&'static Profile> {

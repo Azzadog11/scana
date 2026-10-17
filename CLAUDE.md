@@ -9,6 +9,7 @@ Scana has three stages built: the firmware, seven crates (`scana-proto`, `scana-
 - **Bus manners** (DESIGN section 7) and the **safety model** (section 11) are not optional. A new service that changes a module, a new raw-frame path or a change to the safety levels needs agreement first.
 - Never add programming, security access (0x27), data writes (0x2E) or communication control (0x28, 0x85).
 - Every service goes through `scana_proto::uds::level_of`. Module discovery follows DESIGN section 7a: car still, listen first, never send on an ID heard in use, 0x7DF and 0x7E8-0x7EF never used as probes.
+- **The second bus** (OBD pins 3 and 11, DESIGN section 7b): finding it is listen-only, Scana never sends an OBD-II request (0x7DF, 0x7E0-0x7E7) there, never clears there, and module requests there need the user to say the car is parked (`--parked`, the app's dialog). Second-bus module names come only from `bus = "second"` address book entries.
 - The bridge firmware never sends a frame on its own, and always starts closed.
 - `scana-proto` has no I/O, threads or clock. Time is passed in. Keep it deterministic so the simulator tests mean something.
 - No `unwrap`/`expect` outside tests. Typed errors in libraries (`thiserror`), `anyhow` in binaries.
@@ -43,7 +44,7 @@ This repo is public. Keep it about the software:
 | arduino-cli with the AVR core 1.8.8 | `arduino-cli compile --fqbn arduino:avr:uno firmware/scana-bridge` |
 | The gate | `tools/gate.sh` (or `--no-firmware`): formatting, clippy with `-D warnings`, tests, firmware host tests, firmware build with RAM under 75% |
 | Hardware checks | `cargo run -p scana-cli -- probe`, then `loopback`. With no car attached, `detect` fails after 2 frames |
-| Simulator | `--sim` (simulated Hijet), `--sim-dash` (adds a dash display polling), `--sim-faults` (codes, freeze frame, failing test; engine off), `--sim-corolla` (a 2006 Corolla with P0420; the app's `--demo-corolla`), `--sim-car NAME` (ute-diesel, hatch-two-ecus or hybrid: invented cars; add `--sim-engine-off` to try clearing codes) |
+| Simulator | `--sim` (simulated Hijet), `--sim-dash` (adds a dash display polling), `--sim-faults` (codes, freeze frame, failing test; engine off), `--sim-corolla` (a 2006 Corolla with P0420; the app's `--demo-corolla`), `--sim-car NAME` (ute-diesel, hatch-two-ecus, hybrid or ford-ms-can: invented cars; add `--sim-engine-off` to try clearing codes), `--pins 6-14\|3-11` (the OBD pins the cable reaches; `--sim-car ford-ms-can` implies 3-11, where only `monitor`, `detect`, `record`, `modules`, `module` and `send` work, the last three with `--parked`), `--make NAME` |
 | Look at the app | `cargo build -p scana-app && ./target/debug/scana-app --screenshots /tmp/scana-shots`, then look at the PNGs. `--shot-bridge DIR` uses a real bridge. Do this after any UI change |
 
 Work is done when the gate passes and the screenshots look right.

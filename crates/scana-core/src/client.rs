@@ -5,7 +5,7 @@
 use scana_link::{BusEvent, Link, LinkError, LinkEvent, TimedFrame};
 use scana_proto::isotp::{self, FlowControl, Received, Receiver, SendStep, Sender};
 use scana_proto::obd::{self, Reply};
-use scana_proto::{CanId, Frame, uds};
+use scana_proto::{Bus, CanId, Frame, uds};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::time::Duration;
@@ -16,6 +16,25 @@ pub enum CoreError {
     Link(#[from] LinkError),
     #[error("{0}")]
     NoCar(String),
+    /// Second bus: nothing at all was heard.
+    #[error(
+        "Nothing heard on pins 3 and 11. This car may not have a bus there, the ignition may be off \
+         (switch it on), or the cable or switch is set to pins 6 and 14."
+    )]
+    NothingHeard,
+    /// Second bus: only errors were heard.
+    #[error(
+        "Pins 3 and 11 carry something Scana can't read at 125, 250 or 500 kbit/s. The two wires may be \
+         swapped (CAN high is pin 3, CAN low pin 11), or it is another kind of bus (GM's single-wire bus \
+         on pin 1 needs other hardware)."
+    )]
+    OnlyErrors,
+    /// An OBD-II request, or anything that needs the car's OBD-II computers, on the second bus.
+    #[error("That needs the main bus on pins 6 and 14: set the cable or switch back and connect again.")]
+    NeedsMainBus,
+    /// Sending on the second bus before the user said the car is parked.
+    #[error("Scana can't read the car's speed on pins 3 and 11. Park the car, then run it again with --parked.")]
+    NeedsParked,
     #[error(
         "the frame wasn't acknowledged: no car on the bus, the wrong bit rate, or the key is off. \
          Scana stopped sending"
@@ -249,6 +268,8 @@ pub struct Client {
     /// Every CAN ID heard on the bus. Module discovery never sends on one of these: it
     /// belongs to someone else.
     seen_ids: HashSet<CanId>,
+    /// Which pins the link is wired to. On the second bus no OBD-II request is ever sent.
+    bus: Bus,
 }
 
 impl Client {
@@ -264,7 +285,20 @@ impl Client {
             foreign_requests: 0,
             requests_sent: 0,
             seen_ids: HashSet::new(),
+            bus: Bus::Main,
         }
+    }
+
+    /// Which pins this client talks on.
+    pub fn bus(&self) -> Bus {
+        self.bus
+    }
+
+    /// Says which pins the link is wired to. On the second bus (pins 3 and 11) every send to an
+    /// OBD-II request ID (0x7DF, 0x7E0-0x7E7, and the 29-bit OBD-II requests) is refused here,
+    /// whoever asks: nothing there is known to answer OBD-II, and Scana must not guess.
+    pub fn set_bus(&mut self, bus: Bus) {
+        self.bus = bus;
     }
 
     pub fn set_sink(&mut self, sink: Box<dyn FrameSink>) {
@@ -303,6 +337,9 @@ impl Client {
     }
 
     fn send_frame(&mut self, id: CanId, payload: &[u8]) -> Result<(), CoreError> {
+        if self.bus == Bus::Second && Addressing::is_request_id(id) {
+            return Err(CoreError::NeedsMainBus);
+        }
         let frame = Frame::new(id, payload).map_err(|e| CoreError::BadRequest(e.to_string()))?;
         match self.link.send(&frame) {
             Ok(()) => {}

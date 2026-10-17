@@ -14,7 +14,7 @@ impl ScanaApp {
             "Fault codes",
             "Stored codes are confirmed faults; pending codes were seen once; permanent codes can't be cleared by a tool. Click a code to learn about it.",
         );
-        if !self.need_car(ui) {
+        if !self.need_obd(ui) {
             return;
         }
         ui.horizontal(|ui| {

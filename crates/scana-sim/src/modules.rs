@@ -392,6 +392,61 @@ pub fn hijet_demo_modules() -> Vec<Module> {
     vec![ecm, abs, srs, meter, ac, body]
 }
 
+fn ms_cluster_odometer(t: u64) -> Vec<u8> {
+    let km = 112_300u32 + (t / 60_000) as u32;
+    km.to_be_bytes()[1..].to_vec()
+}
+
+fn ms_lamps(t: u64) -> Vec<u8> {
+    // Bit 0: a door open (6 s of every 40 s). Bit 3: parking lamps.
+    vec![bit(duty(t, 40, 6, 10), 0) | bit(duty(t, 60, 20, 30), 3), 0x00]
+}
+
+fn ms_voltage(t: u64) -> Vec<u8> {
+    vec![(wave(t, 12.4, 12.6, 13.0) * 10.0).round() as u8]
+}
+
+fn ms_volume(t: u64) -> Vec<u8> {
+    vec![(wave(t, 8.0, 12.0, 30.0)).round() as u8]
+}
+
+/// The invented second-bus car's modules (see [`crate::VirtualCar::ms_can_ford`]): IDs as the
+/// FG Falcon's medium-speed bus uses them (github.com/jakka351/FG-Falcon, read 2026-10-17),
+/// everything else made up. Reply ID is request ID + 8. Names and part numbers say SIM.
+pub fn ford_ms_can_modules() -> Vec<Module> {
+    let std = CanId::Standard;
+    let mut cluster = Module::new("Instrument cluster (simulated)", std(0x720), std(0x728), None, Dialect::Uds);
+    cluster.identity = vec![(0xF187, ascii("SIM-IC-0001")), (0xF189, ascii("01.00"))];
+    cluster.data = vec![(0x2001, ms_cluster_odometer), (0x2002, ms_lamps)];
+    // UDS status 0x28: confirmed, failed since clear, not failing now. Failure type 87: message missing.
+    cluster.dtcs = vec![(Dtc(0xC140), 0x87, 0x28)];
+
+    let mut bem = Module::new("Body electronics (simulated)", std(0x726), std(0x72E), None, Dialect::Kwp);
+    bem.kwp88 = vec![(0x01, ascii("SIM-BEM-0001    "))];
+    bem.data = vec![(0x01, ms_lamps), (0x02, ms_voltage)];
+
+    let mut acm = Module::new("Audio control (simulated)", std(0x727), std(0x72F), None, Dialect::Uds);
+    acm.identity = vec![(0xF187, ascii("SIM-ACM-0001"))];
+    acm.data = vec![(0x3001, ms_volume)];
+
+    let mut pam = Module::new("Parking aid (simulated)", std(0x736), std(0x73E), None, Dialect::Kwp);
+    pam.kwp88 = vec![(0x01, ascii("SIM-PAM-0001    "))];
+    // KWP status: stored, not present now.
+    pam.dtcs = vec![(Dtc(0x9100), 0x00, 0x20)];
+
+    let mut bpm = Module::new("BPM (simulated)", std(0x781), std(0x789), None, Dialect::Uds);
+    bpm.identity = vec![(0xF187, ascii("SIM-BPM-0001"))];
+
+    let mut aim = Module::new("AIM (simulated)", std(0x767), std(0x76F), None, Dialect::Kwp);
+    aim.kwp88 = vec![(0x01, ascii("SIM-AIM-0001    "))];
+
+    // This one names itself, so a name from the module wins over the address book.
+    let mut fdim = Module::new("Front display (simulated)", std(0x7A6), std(0x7AE), None, Dialect::Uds);
+    fdim.identity = vec![(0xF197, ascii("FRONT DISPLAY SIM")), (0xF187, ascii("SIM-FDIM-0001"))];
+
+    vec![cluster, bem, acm, pam, bpm, aim, fdim]
+}
+
 /// The demo modules with faults: the brake computer and the cluster both remember losing
 /// contact with the engine computer (U0100), as often happens after battery work.
 pub fn hijet_demo_modules_with_faults() -> Vec<Module> {

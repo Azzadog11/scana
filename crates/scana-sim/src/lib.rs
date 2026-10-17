@@ -17,7 +17,7 @@ pub mod modules;
 
 use modules::Module;
 use scana_proto::isotp::{self, SendStep, Sender};
-use scana_proto::{Bitrate, CanId, Dtc, Frame};
+use scana_proto::{Bitrate, Bus, CanId, Dtc, Frame};
 use std::collections::VecDeque;
 
 const OBD_FUNCTIONAL_11: CanId = CanId::Standard(0x7DF);
@@ -614,9 +614,24 @@ impl OtherTester {
     const PERIOD_MS: u64 = 50;
 }
 
+/// A frame a module sends by itself at a fixed period, like the status messages on a real
+/// bus. Scana can hear these while it only listens.
+#[derive(Debug)]
+struct Broadcast {
+    id: CanId,
+    period_ms: u64,
+    next_ms: u64,
+    len: u8,
+    /// The first bytes of the data; the last byte counts up so the monitor shows change.
+    base: [u8; 8],
+    count: u8,
+}
+
 /// A simulated car: one CAN bus with ECUs on it.
 #[derive(Debug)]
 pub struct VirtualCar {
+    /// Which OBD pins the bus is on. A link on the other pins hears nothing.
+    pub bus: Bus,
     pub bitrate: Bitrate,
     pub extended_ids: bool,
     pub ecus: Vec<Ecu>,
@@ -624,6 +639,8 @@ pub struct VirtualCar {
     pub modules: Vec<Module>,
     pub faults: Faults,
     other_tester: Option<OtherTester>,
+    /// Frames modules send on their own, at fixed periods.
+    broadcasts: Vec<Broadcast>,
     /// Frames waiting to appear on the bus: (time, frame), in time order.
     out: VecDeque<(u64, Frame)>,
     replies: u32,
@@ -645,12 +662,14 @@ impl VirtualCar {
         // Service 06 results, invented for the demo: whether the real Hijet reports them is unknown.
         ecm.tests = demo_tests(false);
         VirtualCar {
+            bus: Bus::Main,
             bitrate: Bitrate::K500,
             extended_ids: false,
             ecus: vec![ecm],
             modules: modules::hijet_demo_modules(),
             faults: Faults::default(),
             other_tester: None,
+            broadcasts: vec![],
             out: VecDeque::new(),
             replies: 0,
         }
@@ -699,12 +718,14 @@ impl VirtualCar {
         ecm.freeze_overrides = vec![(0x0D, vec![72])];
         ecm.tests = corolla_tests();
         VirtualCar {
+            bus: Bus::Main,
             bitrate: Bitrate::K500,
             extended_ids: false,
             ecus: vec![ecm],
             modules: vec![],
             faults: Faults::default(),
             other_tester: None,
+            broadcasts: vec![],
             out: VecDeque::new(),
             replies: 0,
         }
@@ -712,12 +733,14 @@ impl VirtualCar {
 
     fn bare(ecus: Vec<Ecu>) -> Self {
         VirtualCar {
+            bus: Bus::Main,
             bitrate: Bitrate::K500,
             extended_ids: false,
             ecus,
             modules: vec![],
             faults: Faults::default(),
             other_tester: None,
+            broadcasts: vec![],
             out: VecDeque::new(),
             replies: 0,
         }
@@ -827,18 +850,48 @@ impl VirtualCar {
         VirtualCar::bare(vec![ecm, hv])
     }
 
-    /// A simulated car by its `--sim-car` name: `ute-diesel`, `hatch-two-ecus` or `hybrid`.
+    /// A simulated car by its `--sim-car` name: `ute-diesel`, `hatch-two-ecus`, `hybrid` or
+    /// `ford-ms-can` (the second bus, pins 3 and 11).
     pub fn by_name(name: &str) -> Option<Self> {
         match name {
             "ute-diesel" => Some(VirtualCar::ute_diesel()),
             "hatch-two-ecus" => Some(VirtualCar::hatch_two_ecus()),
             "hybrid" => Some(VirtualCar::hybrid()),
+            "ford-ms-can" => Some(VirtualCar::ms_can_ford()),
             _ => None,
         }
     }
 
     /// The names [`VirtualCar::by_name`] knows.
-    pub const CAR_NAMES: [&'static str; 3] = ["ute-diesel", "hatch-two-ecus", "hybrid"];
+    pub const CAR_NAMES: [&'static str; 4] = ["ute-diesel", "hatch-two-ecus", "hybrid", "ford-ms-can"];
+
+    /// An INVENTED medium-speed CAN bus, like the one some Fords put on OBD pins 3 and 11,
+    /// made up for testing. Nothing here is read from a real car. 125 kbit/s, 11-bit IDs.
+    /// Several IDs send status frames by themselves (so listening alone hears traffic), and
+    /// seven body modules answer UDS or KWP2000 read requests on the request and reply IDs
+    /// the FG Falcon's medium-speed modules use (github.com/jakka351/FG-Falcon, read
+    /// 2026-10-17; low to medium confidence): 720/728, 726/72E, 727/72F, 736/73E, 781/789,
+    /// 767/76F and 7A6/7AE. It has no OBD-II computer: nothing answers 0x7DF. It sits on
+    /// [`Bus::Second`]: a link on pins 6 and 14 hears nothing from it.
+    pub fn ms_can_ford() -> Self {
+        let mut car = VirtualCar::bare(vec![]);
+        car.bus = Bus::Second;
+        car.bitrate = Bitrate::K125;
+        car.modules = modules::ford_ms_can_modules();
+        // (ID, period ms, length, first bytes): invented status frames.
+        for (id, period_ms, len, head) in [
+            (0x1C0u16, 20u64, 8u8, [0x00u8, 0x64, 0x00, 0x00]),
+            (0x230, 50, 8, [0x40, 0x00, 0x80, 0x00]),
+            (0x250, 100, 6, [0x01, 0x00, 0x00, 0x00]),
+            (0x3A0, 100, 8, [0x00, 0x00, 0x7F, 0x00]),
+            (0x4B0, 200, 4, [0x40, 0x00, 0x00, 0x00]),
+        ] {
+            let mut base = [0u8; 8];
+            base[..4].copy_from_slice(&head);
+            car.broadcasts.push(Broadcast { id: CanId::Standard(id), period_ms, next_ms: 0, len, base, count: 0 });
+        }
+        car
+    }
 
     /// The car without its enhanced modules (OBD-II only).
     pub fn without_modules(mut self) -> Self {
@@ -1136,6 +1189,9 @@ impl VirtualCar {
                 t = Some(t.map_or(at, |x| x.min(at)));
             }
         }
+        for b in &self.broadcasts {
+            t = Some(t.map_or(b.next_ms, |x| x.min(b.next_ms)));
+        }
         t
     }
 
@@ -1156,6 +1212,26 @@ impl VirtualCar {
                     self.receive(&req, at);
                 }
             }
+        }
+        // Frames modules send by themselves. A bus nobody listened to for a while doesn't
+        // pile up a burst: the periods start again from now.
+        let mut sent = Vec::new();
+        for b in &mut self.broadcasts {
+            if b.next_ms + 1000 < now_ms {
+                b.next_ms = now_ms;
+            }
+            while b.next_ms <= now_ms {
+                let mut d = b.base;
+                d[usize::from(b.len).saturating_sub(1)] = b.count;
+                b.count = b.count.wrapping_add(1);
+                if let Ok(f) = Frame::new(b.id, &d[..usize::from(b.len)]) {
+                    sent.push((b.next_ms, f));
+                }
+                b.next_ms += b.period_ms;
+            }
+        }
+        for (at, f) in sent {
+            self.push_out(at, f);
         }
         // Multi-frame replies in progress.
         for i in 0..self.ecus.len() {
@@ -1522,6 +1598,36 @@ mod tests {
         // Ready, so the engine computer refuses to clear codes even at 0 rpm.
         car.receive(&req(0x7E0, &[0x01, 0x04]), 400);
         assert_eq!(car.poll(410)[0].data()[..4], [0x03, 0x7F, 0x04, 0x22]);
+    }
+
+    #[test]
+    fn the_second_bus_car_talks_by_itself_and_answers_no_obd() {
+        let mut car = VirtualCar::ms_can_ford();
+        assert_eq!((car.bus, car.bitrate), (Bus::Second, Bitrate::K125));
+        assert!(car.ecus.is_empty());
+        // Frames from several IDs, with nothing sent to it.
+        let heard = car.poll(300);
+        let mut ids: Vec<CanId> = heard.iter().map(|f| f.id).collect();
+        ids.sort();
+        ids.dedup();
+        assert!(ids.len() >= 4, "{ids:?}");
+        assert!(heard.len() > 20);
+        // Nothing answers a functional or an engine-computer request.
+        car.receive(&req(0x7DF, &[0x02, 0x01, 0x00]), 400);
+        car.receive(&req(0x7E0, &[0x02, 0x01, 0x00]), 400);
+        assert!(car.poll(450).iter().all(|f| !(0x7E8..=0x7EF).contains(&f.id.raw())));
+        // The instrument cluster answers a tester-present on 720 from 728.
+        car.receive(&req(0x720, &[0x02, 0x3E, 0x00]), 500);
+        let f = car.poll(520);
+        assert!(f.iter().any(|f| f.id == CanId::Standard(0x728) && f.data()[..3] == [0x02, 0x7E, 0x00]));
+    }
+
+    #[test]
+    fn a_long_quiet_spell_does_not_pile_up_frames() {
+        let mut car = VirtualCar::ms_can_ford();
+        car.poll(10);
+        // Nobody polled for a minute: the next poll is not a burst of thousands of frames.
+        assert!(car.poll(60_000).len() < 40);
     }
 
     #[test]

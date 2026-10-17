@@ -12,7 +12,7 @@ It is tuned first for the 2024 Daihatsu Hijet Jumbo (S510P), and works with any 
 
 ## Status
 
-Version 0.3.2 (bridge firmware 0.1.2). The firmware runs on an Uno R3 with the shield; the app and the command line work end to end on built-in demo cars and talk to the real bridge. Live data has been recorded on three drives in a 2024 Hijet. Module discovery, module codes and the data explorer (stage 3) work on the simulated modules. There are 42 diagnosis guides and about 2,000 code descriptions. Most of it is not yet proven on a car: expect rough edges.
+Version 0.3.3 (bridge firmware 0.1.2). The firmware runs on an Uno R3 with the shield; the app and the command line work end to end on built-in demo cars and talk to the real bridge. Live data has been recorded on three drives in a 2024 Hijet. Module discovery, module codes and the data explorer (stage 3) work on the simulated modules. There are 42 diagnosis guides and about 2,000 code descriptions. Most of it is not yet proven on a car: expect rough edges.
 
 ## Hardware
 
@@ -44,6 +44,7 @@ cargo run --release -p scana-cli -- diagnose P0420   # step-by-step diagnosis, n
 cargo run --release -p scana-cli -- explain fuel trim          # look up a code, a word or a tool
 cargo run --release -p scana-cli -- --sim --sim-dash pids   # the simulated Hijet
 cargo run --release -p scana-cli -- --sim-corolla diagnose P0420 --car   # a simulated 2006 Corolla with a worn catalyst
+cargo run --release -p scana-cli -- --sim-car ford-ms-can --parked --make Ford modules   # a simulated second bus on pins 3 and 11: listens first, no OBD-II
 tools/gate.sh                                        # formatting, lint, tests, firmware checks
 ```
 

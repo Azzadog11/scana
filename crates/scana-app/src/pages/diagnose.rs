@@ -90,7 +90,7 @@ impl ScanaApp {
     /// wait for the user: they need the engine held at a speed.
     fn measure_quick_tests(&mut self) {
         self.diag_wait.clear();
-        if !self.model.connected() {
+        if !self.model.connected() || self.model.second_bus() {
             return;
         }
         let Some(d) = &self.diag else { return };
@@ -269,7 +269,7 @@ impl ScanaApp {
     /// True if Scana can measure this test on the car connected now.
     fn can_measure(&self, t: &Test) -> bool {
         let Some(a) = &t.auto else { return false };
-        if !self.model.connected() {
+        if !self.model.connected() || self.model.second_bus() {
             return false;
         }
         match a.kind.as_str() {
@@ -572,6 +572,12 @@ impl ScanaApp {
                     } else if ui.button(RichText::new("Let Scana measure it").strong()).clicked() {
                         self.measure(t);
                     }
+                } else if t.auto.is_some() && self.model.second_bus() {
+                    ui.label(
+                        RichText::new("Scana can't measure this here. It needs the main bus on pins 6 and 14. Choose the answer from what you see or another scan tool.")
+                            .small()
+                            .color(pal.dim),
+                    );
                 } else if t.needs.iter().any(|n| n == "scan-tool") && !self.model.connected() {
                     ui.label(
                         RichText::new(

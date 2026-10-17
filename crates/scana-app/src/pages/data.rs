@@ -11,7 +11,7 @@ impl ScanaApp {
     pub fn page_live(&mut self, ui: &mut Ui) {
         let pal = self.pal();
         self.heading(ui, "Live data", "Tick the values to watch. Click a tile to learn what it means.");
-        if !self.need_car(ui) {
+        if !self.need_obd(ui) {
             return;
         }
         ui.horizontal_wrapped(|ui| {
@@ -212,7 +212,7 @@ impl ScanaApp {
             marks = l.markers.iter().map(|m| m.0).collect();
         } else {
             self.heading(ui, "Graphs", "The live values, one graph each, on one time axis. Point at a graph to read values; pause, then drag to look back.");
-            if !self.need_car(ui) {
+            if !self.need_obd(ui) {
                 return;
             }
             let keys: Vec<(CanId, u8)> =
@@ -298,7 +298,7 @@ impl ScanaApp {
             "Readiness",
             "The engine computer's self-tests. Not complete means the test hasn't run since the codes were last cleared.",
         );
-        if !self.need_car(ui) {
+        if !self.need_obd(ui) {
             return;
         }
         if ui.add(crate::theme::accent_button(&pal, "Read readiness")).clicked() {
@@ -352,7 +352,7 @@ impl ScanaApp {
     pub fn page_tests(&mut self, ui: &mut Ui) {
         let pal = self.pal();
         self.heading(ui, "Test results", "Mode 06: the numbers behind the readiness monitors, each with its limits. Tests 80 and up are the maker's own.");
-        if !self.need_car(ui) {
+        if !self.need_obd(ui) {
             return;
         }
         if ui.add(crate::theme::accent_button(&pal, "Read test results")).clicked() {

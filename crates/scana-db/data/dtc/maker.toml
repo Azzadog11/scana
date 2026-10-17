@@ -1,0 +1,48 @@
+# Codes whose meaning depends on the make (P1xxx, P3xxx, U3xxx and some others), for the makes
+# Scana has sources for. Shown only when the car's make is in `makes`. Written for Scana
+# (2026-10-17) in its own words from the sources; check the maker's workshop manual.
+
+[[code]]
+codes = ["P1603"]
+makes = ["Toyota", "Daihatsu"]
+title = "Engine stall history: the engine stopped by itself"
+means = "The engine computer saw the engine stop without the key being turned: engine speed at 200 rpm or less for at least half a second. It is a record that a stall happened, not a failed part."
+check = [
+  "Think back: did the engine stall, for example pulling away or at a stop? Running out of fuel sets it too.",
+  "Turning the key to start while the engine was already running can also set it, even if the engine didn't stop.",
+  "If nothing felt wrong, clear it and see if it comes back. Toyota's manual says it can be cleared without fault-finding when the driver noticed no problem.",
+  "If it comes back, or comes with P1604 or P1605, look at the idle first: air leaks and a dirty throttle body (do the idle relearn after cleaning), then sensors, ignition and fuel delivery.",
+]
+sources = [
+  "Toyota Venza service manual, SFI system, 'Engine Stall History (P1603, P1605)', tovenza.com (read 2026-10-17)",
+  "'DTC P1603 エンスト検出' (engine stall detected), z-space.tech: Daihatsu models including the Hijet Jumbo; no source named (read 2026-10-17)",
+  "Daihatsu fault code list, seibisi.net, by a former dealer mechanic: P1603 engine stall detected (read 2026-10-17)",
+]
+
+[[code]]
+codes = ["P1604"]
+makes = ["Toyota", "Daihatsu"]
+title = "Startability malfunction: a slow or failed start"
+means = "The engine computer saw a start that took too long or didn't succeed."
+check = [
+  "Read the freeze frame if your tool can: it shows the conditions at that start.",
+  "General causes (unverified for each engine): a weak battery or slow cranking, fuel delivery, an air leak or a dirty throttle body.",
+]
+sources = [
+  "Toyota Venza service manual, SFI system, 'Engine Stall History (P1603, P1605)': P1604 is the startability monitor (read 2026-10-17)",
+  "Daihatsu fault code list, seibisi.net, by a former dealer mechanic: P1604 starting failure (read 2026-10-17)",
+]
+
+[[code]]
+codes = ["P1605"]
+makes = ["Toyota", "Daihatsu"]
+title = "Rough idling: the idle speed became unstable"
+means = "The engine computer saw the idle speed become unstable. It is usually stored together with P1603 when the engine stalls."
+check = [
+  "Look at the idle: air leaks and a dirty throttle body (do the idle relearn after cleaning).",
+  "If nothing felt wrong, Toyota's manual says it can be cleared without fault-finding.",
+]
+sources = [
+  "Toyota Venza service manual, SFI system, 'Engine Stall History (P1603, P1605)', tovenza.com (read 2026-10-17)",
+  "Daihatsu fault code list, seibisi.net, by a former dealer mechanic: P1605 unstable idle (read 2026-10-17)",
+]

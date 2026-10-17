@@ -21,6 +21,24 @@ struct AdviceFile {
     advice: Vec<Advice>,
 }
 
+/// A code's meaning on particular makes (`data/dtc/maker.toml`).
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+pub struct MakerCode {
+    pub makes: Vec<String>,
+    pub title: String,
+    pub sources: Vec<String>,
+    #[serde(flatten)]
+    pub advice: Advice,
+}
+
+#[derive(Default, Deserialize)]
+struct MakerFile {
+    code: Vec<MakerCode>,
+}
+
+static MAKER: LazyLock<Vec<MakerCode>> =
+    LazyLock::new(|| toml::from_str::<MakerFile>(include_str!("../data/dtc/maker.toml")).unwrap_or_default().code);
+
 static TITLES: LazyLock<HashMap<u16, &'static str>> = LazyLock::new(|| {
     include_str!("../data/dtc/generic.tsv")
         .lines()
@@ -46,6 +64,8 @@ pub struct DtcInfo {
     pub system: System,
     pub manufacturer_specific: bool,
     pub advice: Option<&'static Advice>,
+    /// The meaning on the car's make, when Scana has one.
+    pub maker: Option<&'static MakerCode>,
 }
 
 impl DtcInfo {
@@ -67,7 +87,31 @@ pub fn lookup(code: Dtc) -> DtcInfo {
         system: code.system(),
         manufacturer_specific: code.is_manufacturer_specific(),
         advice: ADVICE.iter().find(|a| a.codes.contains(&text)),
+        maker: None,
     }
+}
+
+/// Like [`lookup`], with the meaning on the car's make if Scana has it.
+pub fn lookup_for(code: Dtc, make: Option<&str>) -> DtcInfo {
+    let mut info = lookup(code);
+    if let Some(m) = make.and_then(|make| maker_meaning(code, make)) {
+        info.title = Some(m.title.as_str());
+        info.advice = Some(&m.advice);
+        info.maker = Some(m);
+    }
+    info
+}
+
+/// The code's meaning on one make, if Scana has it.
+pub fn maker_meaning(code: Dtc, make: &str) -> Option<&'static MakerCode> {
+    let text = code.to_string();
+    MAKER.iter().find(|m| m.advice.codes.contains(&text) && m.makes.iter().any(|x| x.eq_ignore_ascii_case(make)))
+}
+
+/// Every make-specific meaning Scana has for a code.
+pub fn maker_meanings(code: Dtc) -> Vec<&'static MakerCode> {
+    let text = code.to_string();
+    MAKER.iter().filter(|m| m.advice.codes.contains(&text)).collect()
 }
 
 /// How many codes have Scana descriptions.
@@ -157,6 +201,24 @@ mod tests {
             }
         }
         assert!(lookup(Dtc::parse("P0456").unwrap()).advice.is_some());
+    }
+
+    #[test]
+    fn maker_codes_need_the_make_and_sources() {
+        let code = Dtc::parse("P1603").unwrap();
+        let hijet = lookup_for(code, Some("Daihatsu"));
+        assert!(hijet.summary().starts_with("Engine stall history"), "{}", hijet.summary());
+        assert!(hijet.advice.is_some_and(|a| a.check.iter().any(|c| c.contains("fuel"))));
+        // Another make: P1603 means something else there (a memory fault on some), so no meaning.
+        assert!(lookup_for(code, Some("Ford")).maker.is_none());
+        assert!(lookup_for(code, None).summary().starts_with("Not in Scana's list"));
+        for m in MAKER.iter() {
+            assert!(m.sources.len() >= 2, "{:?} needs two sources", m.advice.codes);
+            assert!(!m.makes.is_empty() && !m.title.is_empty() && !m.advice.means.is_empty());
+            for c in &m.advice.codes {
+                assert!(Dtc::parse(c).is_some_and(|d| d.is_manufacturer_specific()), "{c}");
+            }
+        }
     }
 
     #[test]

@@ -268,9 +268,17 @@ struct Shared {
     wake: Wake,
     rec: Mutex<Option<Recorder>>,
     frames: AtomicU64,
+    /// Added to the link's clock for times the app sees. Each link's clock starts at 0, so
+    /// without this the graphs went back to the start after every reconnect.
+    offset_ms: AtomicU64,
 }
 
 impl Shared {
+    /// The app's time for a link time: it keeps counting through reconnects.
+    fn app_ms(&self, link_ms: u64) -> u64 {
+        link_ms + self.offset_ms.load(Ordering::Relaxed)
+    }
+
     fn send(&self, u: Update) {
         let _ = self.ui.send(u);
         (self.wake)();
@@ -296,7 +304,7 @@ impl FrameSink for WorkerSink {
             r.frame(frame, at_ms, outgoing);
         }
         self.0.frames.fetch_add(1, Ordering::Relaxed);
-        self.0.send(Update::Frame { frame: *frame, at_ms, outgoing });
+        self.0.send(Update::Frame { frame: *frame, at_ms: self.0.app_ms(at_ms), outgoing });
     }
 
     fn event(&mut self, text: &str, _at_ms: u64) {
@@ -316,7 +324,13 @@ impl SessionHandle {
     pub fn spawn(settings: WorkerSettings, wake: impl Fn() + Send + Sync + 'static) -> std::io::Result<Self> {
         let (tx, rx) = mpsc::channel();
         let (ui, updates) = mpsc::channel();
-        let shared = Arc::new(Shared { ui, wake: Arc::new(wake), rec: Mutex::new(None), frames: AtomicU64::new(0) });
+        let shared = Arc::new(Shared {
+            ui,
+            wake: Arc::new(wake),
+            rec: Mutex::new(None),
+            frames: AtomicU64::new(0),
+            offset_ms: AtomicU64::new(0),
+        });
         let join = thread::Builder::new()
             .name("scana-session".into())
             .spawn(move || Worker::new(shared, rx, settings).run())?;
@@ -379,6 +393,8 @@ struct Worker {
     watch_turn: bool,
     /// Commands that arrived during a long job, handled after it.
     pending: VecDeque<Command>,
+    /// When this connection began: the app's clock, kept through reconnects.
+    started: Instant,
 }
 
 /// Collects commands that arrive during a long job. True if the job should stop: the user
@@ -421,7 +437,17 @@ impl Worker {
             watch: None,
             watch_turn: false,
             pending: VecDeque::new(),
+            started: Instant::now(),
         }
+    }
+
+    /// Sets up a new link's client: the frame sink, the gaps, and the app clock offset.
+    fn attach(&self, client: &mut Client) {
+        client.set_sink(Box::new(WorkerSink(self.shared.clone())));
+        client.options.min_gap_ms = self.gaps.0;
+        client.options.shared_gap_ms = self.gaps.1;
+        let since = self.started.elapsed().as_millis() as u64;
+        self.shared.offset_ms.store(since.saturating_sub(client.now_ms()), Ordering::Relaxed);
     }
 
     fn send(&self, u: Update) {
@@ -675,7 +701,7 @@ impl Worker {
         let client = self.client.as_mut()?;
         match modules::read_data(client, ch, kind, id) {
             Ok(bytes) => {
-                let t_ms = client.now_ms();
+                let t_ms = self.shared.app_ms(client.now_ms());
                 self.send(Update::DataValue { channel: ch, kind, id, bytes, t_ms });
                 Some(Ok(()))
             }
@@ -756,12 +782,11 @@ impl Worker {
             Source::Bridge { .. } => "Opening the bridge (the Uno resets: about 2 s)".into(),
             _ => "Starting the demo car".into(),
         })));
+        self.started = Instant::now();
         match Self::open_link(&source) {
             Ok(link) => {
                 let mut client = Client::new(link);
-                client.set_sink(Box::new(WorkerSink(self.shared.clone())));
-                client.options.min_gap_ms = self.gaps.0;
-                client.options.shared_gap_ms = self.gaps.1;
+                self.attach(&mut client);
                 self.client = Some(client);
                 self.find_car(true);
             }
@@ -937,9 +962,7 @@ impl Worker {
             match Self::open_link(&source) {
                 Ok(link) => {
                     let mut client = Client::new(link);
-                    client.set_sink(Box::new(WorkerSink(self.shared.clone())));
-                    client.options.min_gap_ms = self.gaps.0;
-                    client.options.shared_gap_ms = self.gaps.1;
+                    self.attach(&mut client);
                     // The new link's clock starts at 0: keep the recording's times going forward.
                     if let Ok(mut r) = self.shared.rec.lock()
                         && let Some(r) = r.as_mut()
@@ -1004,7 +1027,8 @@ impl Worker {
                         r.value(t, ecu, x.pid, x.name, main.map(|q| q.value), main.map_or("", |q| q.unit), &text);
                     }
                 }
-                let values = readings.into_iter().map(|reading| LiveValue { ecu, t_ms: t, reading }).collect();
+                let t_app = self.shared.app_ms(t);
+                let values = readings.into_iter().map(|reading| LiveValue { ecu, t_ms: t_app, reading }).collect();
                 self.send(Update::Values(values));
             }
             Ok(None) => {}
@@ -1328,6 +1352,45 @@ mod tests {
         wait_for(&h, 5, |u| matches!(u, Update::State(LinkState::Disconnected)).then_some(()));
         drop(h);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// After a reconnect (a bridge restart mid-drive) the new link's clock starts at 0. The
+    /// app's times must keep counting, or the graphs draw back over themselves.
+    #[test]
+    fn live_value_times_keep_counting_after_a_reconnect() {
+        let dir = std::env::temp_dir().join(format!("scana-session-test-clock-{}", std::process::id()));
+        let (ui, updates) = mpsc::channel();
+        let shared = Arc::new(Shared {
+            ui,
+            wake: Arc::new(|| {}),
+            rec: Mutex::new(None),
+            frames: AtomicU64::new(0),
+            offset_ms: AtomicU64::new(0),
+        });
+        let (_tx, rx) = mpsc::channel();
+        let mut w = Worker::new(shared, rx, WorkerSettings { sessions_dir: dir.clone(), auto_record: false });
+        w.connect(Source::Demo);
+        let times = |w: &mut Worker, ticks: usize| -> Vec<u64> {
+            for _ in 0..ticks {
+                w.tick();
+            }
+            updates
+                .try_iter()
+                .filter_map(|u| if let Update::Values(v) = u { Some(v) } else { None })
+                .flatten()
+                .map(|v| v.t_ms)
+                .collect()
+        };
+        let before = times(&mut w, 30);
+        let last = *before.iter().max().expect("values before the reconnect");
+        // The link drops, as after a refused send, and the worker opens a new one.
+        w.client = None;
+        w.lost = Some((Lost::Link, Instant::now()));
+        w.try_recover();
+        let after = times(&mut w, 30);
+        assert!(!after.is_empty(), "values after the reconnect");
+        assert!(after.iter().all(|&t| t >= last), "times went back: last {last}, after {after:?}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

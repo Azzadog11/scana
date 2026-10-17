@@ -214,12 +214,17 @@ impl ScanaApp {
     /// What Scana knows about one code, on the Library page.
     fn code_card(&mut self, ui: &mut Ui, code: scana_proto::Dtc) {
         let pal = self.pal();
-        let info = dtcdb::lookup(code);
+        let info = dtcdb::lookup_for(code, self.model.make().as_deref());
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(RichText::new(format!("{code}  {}", info.summary())).size(17.0).strong());
             ui.label(RichText::new(format!("Group: {}. System: {}.", info.group, info.system.name())).color(pal.dim));
-            if info.manufacturer_specific {
+            if let Some(m) = info.maker {
+                ui.label(RichText::new(maker_line(m)).color(pal.note));
+                for src in &m.sources {
+                    ui.label(RichText::new(format!("Source: {src}")).small().color(pal.dim));
+                }
+            } else if info.manufacturer_specific {
                 ui.label(
                     RichText::new(
                         "Maker-specific: its exact meaning depends on the make. The maker's workshop manual has it.",
@@ -398,9 +403,12 @@ impl ScanaApp {
 
     fn learn_dtc(&mut self, ui: &mut Ui, code: scana_proto::Dtc) {
         let pal = self.pal();
-        let info = dtcdb::lookup(code);
+        let info = dtcdb::lookup_for(code, self.model.make().as_deref());
         ui.label(RichText::new(code.to_string()).size(22.0).strong());
         self.linked_look(ui, &info.summary(), Look { size: Some(16.0), strong: true, ..Look::default() }, &[]);
+        if let Some(m) = info.maker {
+            ui.label(RichText::new(maker_line(m)).small().color(pal.note));
+        }
         ui.add_space(4.0);
         ui.label(RichText::new("Group").strong().color(pal.dim));
         self.linked(ui, &format!("This is {}.", info.group));
@@ -493,4 +501,12 @@ impl ScanaApp {
             self.link_chips(ui, &more);
         }
     }
+}
+
+/// Where a make-specific meaning comes from, in one line.
+fn maker_line(m: &dtcdb::MakerCode) -> String {
+    format!(
+        "The meaning on {} cars, from the sources in the Library. Other makes use this code differently.",
+        m.makes.join(" and ")
+    )
 }

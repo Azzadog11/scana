@@ -361,9 +361,9 @@ static void testHostWatchdog() {
   CHECK(r.b.mode() == MODE_LOOPBACK);
   r.hal.openTakesMs = 0;
   r.cmd("C");
-  CHECK_EQ(r.cmd("#W60001"), std::string("\a"));
-  CHECK_EQ(r.cmd("#W"), std::string("\a"));
-  CHECK_EQ(r.cmd("#W1x"), std::string("\a"));
+  CHECK_EQ(r.cmd("#W60001"), std::string("#e REFUSED #W60001\r\a"));
+  CHECK_EQ(r.cmd("#W"), std::string("#e REFUSED #W\r\a"));
+  CHECK_EQ(r.cmd("#W1x"), std::string("#e REFUSED #W1x\r\a"));
 }
 
 static void testCommands() {
@@ -426,6 +426,64 @@ static void testSmallSerialBuffer() {
   CHECK_EQ(r.cmd("#I"), std::string("#I scana-bridge " SCANA_BRIDGE_VERSION " mcp2515 16MHz\r"));
 }
 
+// A line with its ";XX" check, as Scana sends it in checked mode.
+static std::string withCheck(const std::string& body) {
+  uint8_t c = slcan::crc8(body.c_str(), (uint8_t)body.size());
+  return body + ";" + slcan::hexDigit(c >> 4) + slcan::hexDigit(c);
+}
+
+static void testCrc() {
+  CHECK_EQ((int)slcan::crc8("123456789", 9), 0xF4);  // CRC-8 (0x07) check value
+  std::string good = withCheck("t7E0802010C0000000000");
+  uint8_t n = (uint8_t)good.size();
+  CHECK(slcan::checkLine(good.c_str(), n));
+  CHECK(n == 21);
+  std::string bad = good;
+  bad[6] = '1';  // one digit changed on the way
+  n = (uint8_t)bad.size();
+  CHECK(!slcan::checkLine(bad.c_str(), n));
+  n = 21;
+  CHECK(!slcan::checkLine("t7E0802010C0000000000", n));  // no check at all
+}
+
+// With events on, every refusal says why first, so the host's log shows what arrived.
+static void testRefusalReasons() {
+  Rig r;
+  r.cmd("#E1");
+  CHECK_EQ(r.cmd("t7E0802010C0000000000"), std::string("#e NOTOPEN\r\a"));
+  r.cmd("O");
+  CHECK_EQ(r.cmd("t7E0802010C00000000"), std::string("#e BADCMD t7E0802010C00000000\r\a"));  // 2 digits lost
+  CHECK_EQ(r.cmd("X1"), std::string("#e BADCMD X1\r\a"));
+  CHECK_EQ(r.cmd("O"), std::string("#e REFUSED O\r\a"));  // already open
+  CHECK_EQ(r.cmd(std::string(45, 'A')), std::string("#e TOOLONG AAAAAAAAAAAAAAAAAAAAAAAA\r\a"));
+  r.hal.holdTx = true;
+  for (int i = 0; i < 5; i++) r.cmd("t1230");
+  CHECK_EQ(r.cmd("t1230"), std::string("#e TXFULL\r\a"));
+  r.hal.holdTx = false;
+  // Events off: only the BEL, as before.
+  r.cmd("#E0");
+  CHECK_EQ(r.cmd("X1"), std::string("\a"));
+}
+
+// Checked mode: frame commands need a good ";XX", and received frames get one.
+static void testCheckedMode() {
+  Rig r;
+  r.cmd("#E1");
+  CHECK_EQ(r.cmd("#C1"), std::string("\r"));
+  r.cmd("O");
+  CHECK_EQ(r.cmd(withCheck("t7E0802010C0000000000")), std::string("z\r"));
+  CHECK(r.hal.sent.size() == 1 && r.hal.sent[0].id == 0x7E0 && r.hal.sent[0].data[2] == 0x0C);
+  CHECK_EQ(r.cmd("t7E0802010C0000000000"), std::string("#e BADCHECK t7E0802010C0000000000\r\a"));
+  std::string bad = withCheck("t7E0802010C0000000000");
+  bad[6] = '1';  // 02 01 0C would have become 12 01 0C: refused, never sent
+  CHECK(r.cmd(bad).find("#e BADCHECK") == 0);
+  CHECK(r.hal.sent.size() == 1);
+  r.hal.rxq.push_back(frame(0x7E8, {0x04, 0x41, 0x0C, 0x12, 0x34}));
+  CHECK_EQ(r.pollOut(), withCheck("t7E8504410C1234") + "\r");
+  r.cmd("#C0");
+  CHECK_EQ(r.cmd("t7E0802010C0000000000"), std::string("z\r"));
+}
+
 int main() {
   testSmallSerialBuffer();
   testHexAndParse();
@@ -442,6 +500,9 @@ int main() {
   testHostWatchdog();
   testCommands();
   testLoopbackAndFilter();
+  testCrc();
+  testRefusalReasons();
+  testCheckedMode();
   std::printf("%d checks, %d failures\n", checks, failures);
   return failures ? 1 : 0;
 }

@@ -291,6 +291,18 @@ fn explain(what: &str) -> Result<()> {
             println!("\nOn {m}, {code} means: {}.", g.title);
             println!("  Run: scana diagnose {code} --make \"{m}\"");
         }
+        for m in dtcdb::maker_meanings(code) {
+            println!("\nOn {} cars, {code} means: {}.", m.makes.join(" and "), m.title);
+            println!("{}", wrap(&m.advice.means, "  "));
+            println!("What to check first:");
+            for c in &m.advice.check {
+                println!("{}", wrap(&format!("- {c}"), "  "));
+            }
+            println!("Sources:");
+            for src in &m.sources {
+                println!("{}", wrap(&format!("- {src}"), "  "));
+            }
+        }
         return Ok(());
     }
     let q = what.to_lowercase();

@@ -298,8 +298,18 @@ impl Client {
 
     fn send_frame(&mut self, id: CanId, payload: &[u8]) -> Result<(), CoreError> {
         let frame = Frame::new(id, payload).map_err(|e| CoreError::BadRequest(e.to_string()))?;
-        if let Err(e) = self.link.send(&frame) {
-            return Err(self.send_failed(e));
+        match self.link.send(&frame) {
+            Ok(()) => {}
+            Err(e @ (LinkError::Refused(_) | LinkError::Unexpected(_))) => {
+                let refused = matches!(e, LinkError::Refused(_));
+                self.check_still_open(e)?;
+                // A refused frame was not queued, so sending it again can't double it. After an
+                // unexpected reply it may have gone out: the caller's wait for an answer decides.
+                if refused && let Err(e) = self.link.send(&frame) {
+                    return Err(self.send_failed(e));
+                }
+            }
+            Err(e) => return Err(self.send_failed(e)),
         }
         let now = self.link.now_ms();
         if let Some(s) = self.sink.as_mut() {
@@ -335,6 +345,32 @@ impl Client {
         let raw = if reset.is_empty() { String::new() } else { format!(" (report: {reset})") };
         self.note_event(&format!("the bridge restarted, scana-bridge {version}: {why}{note}{raw}"));
         CoreError::BridgeReset
+    }
+
+    /// After a refused send or an unexpected reply: did the bridge restart, or is its bus still
+    /// open? On a drive the bridge sometimes gets a command garbled on the USB cable and refuses
+    /// it; the bus is fine, and reopening the port (which resets the Uno) cost 4 s each time.
+    /// Ok means the bus is open and Scana can carry on.
+    fn check_still_open(&mut self, e: LinkError) -> Result<(), CoreError> {
+        // A restart line arrives before the bridge's reply to anything after it.
+        while let Ok(Some(ev)) = self.link.recv(Duration::ZERO) {
+            match ev {
+                LinkEvent::BridgeReady { version, reset, .. } => return Err(self.bridge_restarted(&version, &reset)),
+                LinkEvent::Frame(tf) => self.note_frame(&tf),
+                LinkEvent::Bus(b) => self.bus_event(&b)?,
+            }
+        }
+        match self.link.health() {
+            Ok(Some(h)) if h.mode == 'N' || h.mode == 'K' => {
+                self.note_event(&format!(
+                    "the bridge didn't take a command ({e}), but its bus is still open: the command was \
+                     probably garbled on the USB cable. Carrying on (bad commands so far: {})",
+                    h.bad_commands
+                ));
+                Ok(())
+            }
+            _ => Err(self.send_failed(e)),
+        }
     }
 
     /// A send that fails often means the bridge restarted: its bus is closed until Scana opens
@@ -727,6 +763,34 @@ mod tests {
         let log = log.lock().unwrap();
         assert_eq!(log.len(), 1, "{log:?}");
         assert!(log[0].contains("the bridge restarted") && log[0].contains("report: reset=warm"), "{log:?}");
+    }
+
+    /// A command garbled on the USB cable is refused, but the bus stays open: Scana sends it
+    /// again and carries on, instead of reopening the port (which resets the Uno).
+    #[test]
+    fn a_garbled_command_is_sent_again_without_reconnecting() {
+        let mut link = SimLink::new(VirtualCar::hijet());
+        link.open(OpenMode::Normal).unwrap();
+        link.garble_sends(1);
+        let mut c = Client::new(Box::new(link));
+        let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        c.set_sink(Box::new(Events(log.clone())));
+        let r = c.request(Target::AllEcus, &[0x01, 0x0C]).expect("the second try is answered");
+        assert_eq!(r.len(), 1);
+        let log = log.lock().unwrap();
+        assert!(log.iter().any(|l| l.contains("garbled") && l.contains("bad commands so far: 1")), "{log:?}");
+        assert!(!log.iter().any(|l| l.starts_with("sending failed")), "{log:?}");
+    }
+
+    /// Two in a row: the second refusal is a real failure, as before.
+    #[test]
+    fn a_command_refused_twice_still_fails() {
+        let mut link = SimLink::new(VirtualCar::hijet());
+        link.open(OpenMode::Normal).unwrap();
+        link.garble_sends(2);
+        let mut c = Client::new(Box::new(link));
+        let e = c.request(Target::AllEcus, &[0x01, 0x0C]).unwrap_err();
+        assert!(matches!(e, CoreError::Link(LinkError::Refused(_))), "{e:?}");
     }
 
     #[test]

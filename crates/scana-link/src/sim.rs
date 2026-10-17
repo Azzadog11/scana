@@ -19,6 +19,9 @@ pub struct SimLink {
     rx: u32,
     tx: u32,
     tx_errors: u32,
+    /// Sends still to refuse as garbled (for tests), and how many were.
+    garble: u32,
+    bad_commands: u32,
 }
 
 impl SimLink {
@@ -33,6 +36,8 @@ impl SimLink {
             rx: 0,
             tx: 0,
             tx_errors: 0,
+            garble: 0,
+            bad_commands: 0,
         }
     }
 
@@ -66,6 +71,12 @@ impl SimLink {
     pub fn restart_bridge(&mut self, reset: &str) {
         self.mode = None;
         self.queue.push_back(LinkEvent::BridgeReady { version: "0.1.1".into(), chip_ok: true, reset: reset.into() });
+    }
+
+    /// Acts out commands garbled on the USB cable, for tests: the next `n` sends are refused
+    /// as bad commands while the bus stays open.
+    pub fn garble_sends(&mut self, n: u32) {
+        self.garble = n;
     }
 }
 
@@ -116,6 +127,13 @@ impl Link for SimLink {
 
     fn send(&mut self, frame: &Frame) -> Result<(), LinkError> {
         let now = self.now_ms();
+        if self.garble > 0 && self.mode.is_some() {
+            self.garble -= 1;
+            self.bad_commands += 1;
+            return Err(LinkError::Refused(
+                "send a frame (the bus isn't open in normal mode, or the send queue is full)".into(),
+            ));
+        }
         match self.mode {
             Some(OpenMode::Normal) => {
                 self.pump(now);
@@ -174,6 +192,7 @@ impl Link for SimLink {
             rx: self.rx,
             tx: self.tx,
             tx_errors: self.tx_errors,
+            bad_commands: self.bad_commands,
             ..Health::default()
         }))
     }

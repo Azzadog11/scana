@@ -73,6 +73,8 @@ pub struct SlcanLink {
     watchdog_ms: u16,
     bitrate: Bitrate,
     mode: Option<OpenMode>,
+    /// Checked mode is on (firmware 0.1.2 and later): frame lines both ways carry a CRC-8.
+    checked: Arc<AtomicBool>,
 }
 
 impl SlcanLink {
@@ -103,12 +105,14 @@ impl SlcanLink {
         let (reply_tx, replies) = mpsc::channel();
         let (event_tx, events) = mpsc::channel();
         let stop = Arc::new(AtomicBool::new(false));
+        let checked = Arc::new(AtomicBool::new(false));
         let start = Instant::now();
         let reader = {
             let stop = stop.clone();
+            let checked = checked.clone();
             thread::Builder::new()
                 .name("scana-serial".into())
-                .spawn(move || read_loop(reader_port, reply_tx, event_tx, stop, start))
+                .spawn(move || read_loop(reader_port, reply_tx, event_tx, stop, checked, start))
                 .map_err(|e| LinkError::Io(e.to_string()))?
         };
 
@@ -130,6 +134,7 @@ impl SlcanLink {
             watchdog_ms: 0,
             bitrate: Bitrate::K500,
             mode: None,
+            checked,
         };
 
         // The ready line, if the reset worked.
@@ -164,6 +169,12 @@ impl SlcanLink {
             Err(e) => return Err(e),
         }
         link.expect_ok(&Command::Events(true), "turn on events")?;
+        // Lines damaged on the USB cable: from 0.1.2 the bridge refuses a frame command whose
+        // check fails, and Scana drops a received frame whose check fails.
+        if version_at_least(&link.info.version, (0, 1, 2)) {
+            link.expect_ok(&Command::Checked(true), "turn on checks")?;
+            link.checked.store(true, Ordering::Relaxed);
+        }
         link.expect_ok(&Command::MicrosTimestamps(true), "turn on timestamps")?;
         link.expect_ok(&Command::HostWatchdog(Self::HOST_WATCHDOG_MS), "start the host watchdog")?;
         link.watchdog_ms = Self::HOST_WATCHDOG_MS;
@@ -182,9 +193,10 @@ impl SlcanLink {
 
     /// Sends one command and waits for its reply.
     fn transact(&mut self, cmd: &Command) -> Result<Line, LinkError> {
+        let text = if self.checked.load(Ordering::Relaxed) { cmd.encode_checked() } else { cmd.encode() };
         // A late reply to an earlier command would be taken as this one's: drop any waiting.
         while self.replies.try_recv().is_ok() {}
-        self.write_raw(cmd.encode().as_bytes())?;
+        self.write_raw(text.as_bytes())?;
         self.last_command = Instant::now();
         match self.replies.recv_timeout(Self::REPLY_TIMEOUT) {
             Ok(line) => Ok(line),
@@ -291,7 +303,8 @@ impl Link for SlcanLink {
             match self.events.recv_timeout(left.min(Duration::from_millis(200))) {
                 Ok(ev) => {
                     if matches!(ev, LinkEvent::BridgeReady { .. }) {
-                        self.mode = None; // it reset: the bus is closed
+                        self.mode = None; // it reset: the bus is closed, checks off
+                        self.checked.store(false, Ordering::Relaxed);
                     }
                     if matches!(ev, LinkEvent::Bus(scana_proto::slcan::Event::HostWatchdog)) {
                         self.mode = None;
@@ -339,6 +352,7 @@ fn read_loop(
     replies: Sender<Line>,
     events: Sender<LinkEvent>,
     stop: Arc<AtomicBool>,
+    checked: Arc<AtomicBool>,
     start: Instant,
 ) {
     let mut reader = LineReader::new();
@@ -347,6 +361,7 @@ fn read_loop(
         match port.read(&mut buf) {
             Ok(0) => thread::sleep(Duration::from_millis(5)),
             Ok(n) => {
+                reader.require_check = checked.load(Ordering::Relaxed);
                 for line in reader.push(&buf[..n]) {
                     let sent = match line {
                         Line::Frame { frame, bridge_time } => events
@@ -360,6 +375,9 @@ fn read_loop(
                             }))
                             .is_ok(),
                         Line::Event(e) => events.send(LinkEvent::Bus(e)).is_ok(),
+                        Line::BadCheck(text) => {
+                            events.send(LinkEvent::Bus(scana_proto::slcan::Event::DamagedLine(text))).is_ok()
+                        }
                         Line::Ready { version, chip_ok, reset } => {
                             events.send(LinkEvent::BridgeReady { version, chip_ok, reset }).is_ok()
                         }
@@ -375,6 +393,13 @@ fn read_loop(
             Err(_) => return, // unplugged: the channels close and the link reports Disconnected
         }
     }
+}
+
+/// True if a bridge version such as "0.1.2" is at least `min`.
+fn version_at_least(version: &str, min: (u32, u32, u32)) -> bool {
+    let mut parts = version.split('.').map(|p| p.parse::<u32>().unwrap_or(0));
+    let v = (parts.next().unwrap_or(0), parts.next().unwrap_or(0), parts.next().unwrap_or(0));
+    v >= min
 }
 
 fn open_error(path: &str, e: serialport::Error) -> LinkError {

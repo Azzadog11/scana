@@ -145,8 +145,9 @@ impl ScanaApp {
                 ui.label(RichText::new("✔ No fault codes stored in this module.").color(pal.good));
             }
             Ok(c) => {
+                let make = self.model.make();
                 for d in c {
-                    let info = dtcdb::lookup(d.code);
+                    let info = dtcdb::lookup_for(d.code, make.as_deref());
                     let state = d.state();
                     let color = if state.active { pal.bad } else { pal.note };
                     ui.horizontal_wrapped(|ui| {

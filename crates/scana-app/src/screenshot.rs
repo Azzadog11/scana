@@ -123,6 +123,10 @@ impl ShotPlan {
             Topic(Some(crate::app::Topic::Library("reading-bus-monitor".into()))),
             Wait(1.0),
             Shot("36-monitor-topic"),
+            // A maker-specific code on the Hijet (a Daihatsu): the make's meaning shows.
+            Topic(Some(crate::app::Topic::Dtc(Dtc(0x1603)))),
+            Wait(1.0),
+            Shot("37-maker-code"),
             Lookup("P0420"),
             Topic(None),
             Wait(1.0),

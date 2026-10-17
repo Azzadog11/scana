@@ -7,12 +7,15 @@
 // - Frames are only sent in normal or loopback mode, never in listen-only.
 // - Every command gets exactly one reply: CR, BEL, "z\r", "Z\r" or one line ending in CR.
 //   Asynchronous lines are received frames (t T r R) and events ("#e ...").
+// - A refused command gets an event first, with events on, saying why: NOTOPEN, TXFULL,
+//   BADCHECK, BADCMD or REFUSED, with the start of the line.
+// - In checked mode (#C1) frame commands must end in ";XX" (CRC-8), and received frames get one.
 #pragma once
 #include <stdint.h>
 #include "frame.h"
 #include "slcan.h"
 
-#define SCANA_BRIDGE_VERSION "0.1.1"
+#define SCANA_BRIDGE_VERSION "0.1.2"
 
 enum BusMode : uint8_t { MODE_CLOSED = 0, MODE_NORMAL = 1, MODE_LISTEN = 2, MODE_LOOPBACK = 3 };
 
@@ -123,6 +126,7 @@ class Bridge {
   uint8_t rate_ = 6;  // 500k
   slcan::TimeMode timeMode_ = slcan::TIME_NONE;
   bool events_ = false;
+  bool checked_ = false;
   bool filterOn_ = false;
   uint16_t mask_ = 0, filt_ = 0;
   uint16_t watchdogMs_ = 0;
@@ -176,6 +180,24 @@ class Bridge {
   void ok() { writeAll("\r", 1); }
   void bell() { writeAll("\a", 1); }
 
+  // Refuses a command with BEL. With events on, says why first, with the start of the line, so
+  // the host's log shows what arrived (a line garbled on the USB cable, for example).
+  void refuse(const char* why, const char* line = 0) {
+    badCmd_++;
+    if (events_) {
+      char out[48];
+      uint8_t n = put(out, 0, "#e ");
+      n = put(out, n, why);
+      if (line) {
+        out[n++] = ' ';
+        for (uint8_t k = 0; line[k] && k < 24; k++) out[n++] = line[k];
+      }
+      out[n++] = '\r';
+      writeAll(out, n);
+    }
+    bell();
+  }
+
   void event(const char* what) {
     if (!events_) return;
     char out[32];
@@ -203,8 +225,8 @@ class Bridge {
       if (c < 0) return;
       if (c == '\r') {
         if (lineTooLong_) {
-          badCmd_++;
-          bell();
+          line_[lineLen_] = 0;
+          refuse("TOOLONG", line_);
         } else if (lineLen_ > 0) {
           line_[lineLen_] = 0;
           lastCommandMs_ = now;
@@ -261,14 +283,12 @@ class Bridge {
         }
         return;
       case '#': extension(s + 1, (uint8_t)(n - 1)); return;
-      default: fail(); return;
+      default: refuse("BADCMD", s); return;
     }
   }
 
-  void fail() {
-    badCmd_++;
-    bell();
-  }
+  // A known command that can't be done now, or with wrong arguments. line_ holds the command.
+  void fail() { refuse("REFUSED", line_); }
 
   void open(BusMode m) {
     if (m == MODE_CLOSED || mode_ != MODE_CLOSED || !hal_.chipOk()) {
@@ -299,10 +319,21 @@ class Bridge {
   }
 
   void queueFrame(const char* s, uint8_t n) {
+    if (mode_ != MODE_NORMAL && mode_ != MODE_LOOPBACK) {
+      refuse("NOTOPEN");
+      return;
+    }
+    if (txCount_ >= TX_SLOTS) {
+      refuse("TXFULL");
+      return;
+    }
+    if (checked_ && !slcan::checkLine(s, n)) {
+      refuse("BADCHECK", s);
+      return;
+    }
     CanFrame f;
-    if ((mode_ != MODE_NORMAL && mode_ != MODE_LOOPBACK) || txCount_ >= TX_SLOTS ||
-        !slcan::parseFrameCmd(s, n, f)) {
-      fail();
+    if (!slcan::parseFrameCmd(s, n, f)) {
+      refuse("BADCMD", s);
       return;
     }
     tx_[(uint8_t)(txHead_ + txCount_) % TX_SLOTS] = f;
@@ -396,6 +427,14 @@ class Bridge {
       case 'E':
         if (n == 2 && (s[1] == '0' || s[1] == '1')) {
           events_ = s[1] == '1';
+          ok();
+        } else {
+          fail();
+        }
+        return;
+      case 'C':
+        if (n == 2 && (s[1] == '0' || s[1] == '1')) {
+          checked_ = s[1] == '1';
           ok();
         } else {
           fail();
@@ -517,6 +556,7 @@ class Bridge {
     while (rxCount_q_) {
       CanFrame& f = rx_[rxHead_];
       uint8_t n = slcan::formatFrame(f, out, timeMode_);
+      if (checked_) n = slcan::addCheck(out, n);
       if (hal_.serialSpace() < n) return;  // try again on the next poll
       hal_.serialWrite(out, n);
       rxHead_ = (uint8_t)((rxHead_ + 1) % RX_SLOTS);

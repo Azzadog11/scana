@@ -1,6 +1,6 @@
 # Scana design
 
-How Scana works, as built in version 0.2.1 (stages 1, 2 and 3, and the diagnosis guides; bridge firmware 0.1.1). Parts marked (draft) are still plans.
+How Scana works, as built in version 0.3.2 (stages 1, 2 and 3, the diagnosis guides and the Library; bridge firmware 0.1.2). Parts marked (draft) are still plans.
 
 | Section | |
 |---|---|
@@ -48,7 +48,7 @@ The bridge is deliberately simple. The ATmega328P has 2 KB of RAM: enough to buf
 
 ## 3. Bridge firmware
 
-Folder `firmware/scana-bridge/`, version 0.1.1. Arduino sketch, built with arduino-cli for `arduino:avr:uno`: 10,634 bytes of flash (32%), 1,116 bytes of RAM (54%).
+Folder `firmware/scana-bridge/`, version 0.1.2. Arduino sketch, built with arduino-cli for `arduino:avr:uno`: 11,164 bytes of flash (34%), 1,165 bytes of RAM (56%).
 
 | File | Holds |
 |---|---|
@@ -56,7 +56,7 @@ Folder `firmware/scana-bridge/`, version 0.1.1. Arduino sketch, built with ardui
 | `bridge.h` | All the logic: commands, modes, queues, host watchdog, events. Plain C++, templated on the hardware layer |
 | `slcan.h`, `bittiming.h`, `frame.h` | Parsing and formatting, bit timing. Plain C++ |
 | `mcp2515.h`, `mcp2515.cpp` | The MCP2515 driver (own code) |
-| `test/test_bridge.cpp` | Host tests: 168 checks with a fake hardware layer, built with g++ |
+| `test/test_bridge.cpp` | Host tests: 190 checks with a fake hardware layer, built with g++ |
 
 Hardware it drives (SparkFun CAN-BUS Shield DEV-13262, checked against SparkFun's hookup guide, its schematic and a real board):
 
@@ -84,6 +84,7 @@ Responsibilities:
 - Host watchdog: when the host enables it, close the bus if no command arrives within the set time. A crashed or unplugged app then leaves the car's bus alone.
 - AVR watchdog at 250 ms: a hung sketch resets, and resets always come back closed. It runs in interrupt-then-reset mode: the interrupt notes which step of the loop stopped, for the reset report.
 - Reset report (0.1.1): the `#R` line says why the bridge started. A few bytes in `.noinit` survive a reset that keeps the power on, so the sketch can tell cold (the power was off) from warm (the reset pin, a brown-out, noise) from the watchdog, and counts warm starts. A function in `.init3` keeps MCUSR before anything clears it, but the Uno's stock boot loader clears it first: on a stock Uno it reads 0 and the report has no flags (checked on a genuine Uno R3, 2026-10-16; r2 held no flags either, so it isn't used). Checked on the same Uno: a hang made on purpose came back as `reset=watchdog step=2`.
+- Checked mode and refusal reasons (0.1.2): in the truck about one command in 250 reached the Uno damaged (2026-10-17 drives; not seen at the desk, even at 60 times the load). A damaged frame command could still parse as a different, valid frame, for example a read (`02 01 01`) turned into an engine computer reset (`02 11 01`). In checked mode every frame line, both ways, ends in `;XX`, a CRC-8 of the line: the bridge refuses a frame command whose check fails, and Scana drops a received line whose check fails. Each refusal says why first (`#e BADCHECK ...`), with the start of the line it got.
 - At power-up, look for the MCP2515 for up to 100 ms (its oscillator starts after the Uno's), and again whenever the host asks to open.
 - Never send a frame on its own. Every frame on the bus comes from a host command.
 
@@ -138,11 +139,12 @@ Scana extensions start with `#`, which Lawicel does not use, so `slcand` never s
 | `#P` | Ping: `#P`. Keeps the host watchdog fed |
 | `#Wnnnn` | Host watchdog, 1-60000 ms, `#W0` off. Any command feeds it. When it fires: bus closed and `#e HOSTWD` |
 | `#U1`, `#U0` | Microsecond timestamps on received frames (`:` and 8 hex after the data) |
-| `#E1`, `#E0` | Push events: `#e ERRWARN`, `ERRPASSIVE`, `BUSOFF`, `ACTIVE`, `RXOVR n`, `TXERR`, `TXARB`, `HOSTWD` |
+| `#E1`, `#E0` | Push events: `#e ERRWARN`, `ERRPASSIVE`, `BUSOFF`, `ACTIVE`, `RXOVR n`, `TXERR`, `TXARB`, `HOSTWD`. From 0.1.2 a refused command is preceded by why: `NOTOPEN`, `TXFULL`, `BADCHECK <line>`, `BADCMD <line>`, `TOOLONG <line>` or `REFUSED <line>` (the first 24 characters) |
+| `#C1`, `#C0` | Checked mode (0.1.2): frame commands must end in `;XX`, the CRC-8 (polynomial 0x07, start 0) of the line before the `;`, and received frame lines get one. Scana turns it on for 0.1.2 and later |
 | `#Mmmm,fff` | Standard-ID acceptance filter, only while closed; `#M` accepts everything |
-| `#R` | Ready line, sent once after reset: `#R scana-bridge 0.1.1 mcp2515=ok reset=warm step=1 count=2 flags=B` (`mcp2515=missing` if the chip didn't answer). The reset report: `reset=cold`, `warm` or `watchdog`; `step=` where the loop was (1 between tasks, 2 reading commands, 3 reading frames, 4 sending, 5 bus status, 6 passing frames on, 7 waiting to write, 8 LEDs); `count=` warm starts since power-up (opening the port counts); `flags=` the chip's reset flags, only if the boot loader left them, which the stock Uno's doesn't (P power-on, E reset pin, B brown-out, W watchdog). 0.1.0 sends no report |
+| `#R` | Ready line, sent once after reset: `#R scana-bridge 0.1.2 mcp2515=ok reset=warm step=1 count=2 flags=B` (`mcp2515=missing` if the chip didn't answer). The reset report: `reset=cold`, `warm` or `watchdog`; `step=` where the loop was (1 between tasks, 2 reading commands, 3 reading frames, 4 sending, 5 bus status, 6 passing frames on, 7 waiting to write, 8 LEDs); `count=` warm starts since power-up (opening the port counts); `flags=` the chip's reset flags, only if the boot loader left them, which the stock Uno's doesn't (P power-on, E reset pin, B brown-out, W watchdog). 0.1.0 sends no report |
 
-Every command gets exactly one reply, so replies match commands in order. Malformed or unknown lines get BEL and are counted in `#H`. Bytes outside printable ASCII are ignored (the Uno's USB chip can send one when the port opens), as are line feeds.
+Every command gets exactly one reply, so replies match commands in order. Malformed or unknown lines get BEL and are counted in `#H` (`bad=`; refused frames count too). Bytes outside printable ASCII are ignored (the Uno's USB chip can send one when the port opens), as are line feeds.
 
 ## 5. Laptop app: crates and threads
 
@@ -169,7 +171,8 @@ Threads:
 - The app never touches the serial port; it sends `Command`s (connect, live list, reads, health check, clear with consent, record, mark) and draws from `Update`s.
 - Every wait has a timeout. Every error reaches the app as a plain-English message.
 - A panic in the worker is caught: the connection resets and the app shows a message (`session.rs`, `guarded`).
-- The worker recovers by itself: a pulled cable or bridge reset reconnects every 2 s; a silent car (key off, three missed replies in a row, or an unacknowledged frame) is looked for again every 5 s. A bridge that refuses a frame or answers out of turn mid-session has restarted (its bus is closed): before dropping the link the client reads the bridge's waiting `#R` line, so its reset report reaches the events log, then the worker reconnects. Opening the port again resets the Uno once more, so that first report is the one that counts.
+- The worker recovers by itself: a pulled cable or bridge reset reconnects every 2 s; a silent car (key off, three missed replies in a row, or an unacknowledged frame) is looked for again every 5 s. A bridge that refuses a frame or answers out of turn mid-session: the client first looks for a waiting `#R` line (a restart: its report reaches the events log, and the worker reconnects). With none, it asks `#H`: if the bus is still open, the command was damaged on the way, so the client logs it, sends a refused frame once more and carries on. Before 0.3.2 every refusal reconnected, and opening the port resets the Uno: 95 four-second drop-outs in 40 minutes on the 2026-10-17 drives.
+- The app's clock keeps counting through reconnects: the worker adds an offset to each new link's times before they reach the app, so the graphs don't draw back over themselves.
 
 ## 6. Protocol stack
 

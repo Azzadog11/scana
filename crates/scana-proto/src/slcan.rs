@@ -34,6 +34,8 @@ pub enum Command {
     HostWatchdog(u16),
     MicrosTimestamps(bool),
     Events(bool),
+    /// Checked mode (firmware 0.1.2): frame lines both ways end in `;XX`, a CRC-8 of the line.
+    Checked(bool),
     /// `None` accepts every frame; `Some((mask, filter))` only standard IDs with `id & mask == filter`.
     Filter(Option<(u16, u16)>),
 }
@@ -57,12 +59,49 @@ impl Command {
             Command::HostWatchdog(ms) => format!("#W{ms}"),
             Command::MicrosTimestamps(on) => format!("#U{}", u8::from(*on)),
             Command::Events(on) => format!("#E{}", u8::from(*on)),
+            Command::Checked(on) => format!("#C{}", u8::from(*on)),
             Command::Filter(None) => "#M".into(),
             Command::Filter(Some((mask, filt))) => format!("#M{:03X},{:03X}", mask & 0x7FF, filt & 0x7FF),
         };
         s.push('\r');
         s
     }
+
+    /// The command line for checked mode: a frame gets its `;XX` check; others are the same.
+    pub fn encode_checked(&self) -> String {
+        match self {
+            Command::Send(f) => {
+                let mut s = with_check(&encode_frame(f));
+                s.push('\r');
+                s
+            }
+            other => other.encode(),
+        }
+    }
+}
+
+/// CRC-8 (polynomial 0x07, start 0; "123456789" gives 0xF4), as the bridge computes it.
+pub fn crc8(bytes: &[u8]) -> u8 {
+    let mut c = 0u8;
+    for &b in bytes {
+        c ^= b;
+        for _ in 0..8 {
+            c = if c & 0x80 != 0 { (c << 1) ^ 0x07 } else { c << 1 };
+        }
+    }
+    c
+}
+
+/// A line with its `;XX` check added (no CR).
+pub fn with_check(line: &str) -> String {
+    format!("{line};{:02X}", crc8(line.as_bytes()))
+}
+
+/// The line without its `;XX` check, if the check is there and matches.
+pub fn strip_check(line: &str) -> Option<&str> {
+    let (body, check) = line.rsplit_once(';')?;
+    let want = u8::from_str_radix(check, 16).ok().filter(|_| check.len() == 2)?;
+    (crc8(body.as_bytes()) == want).then_some(body)
 }
 
 fn encode_frame(f: &Frame) -> String {
@@ -127,6 +166,14 @@ pub enum Event {
     TxArbitration,
     /// The host watchdog closed the bus.
     HostWatchdog,
+    /// The bridge refused a command (firmware 0.1.2): why (NOTOPEN, TXFULL, BADCHECK, BADCMD,
+    /// TOOLONG, REFUSED) and the start of the line it got.
+    Refused {
+        why: String,
+        line: String,
+    },
+    /// Found by Scana, not the bridge: a frame line from the bridge failed its check.
+    DamagedLine(String),
     Other(String),
 }
 
@@ -142,6 +189,20 @@ impl Event {
             Event::TxError => "a frame wasn't acknowledged or hit a bus error".into(),
             Event::TxArbitration => "a frame lost arbitration and wasn't retried".into(),
             Event::HostWatchdog => "the bridge's host watchdog closed the bus".into(),
+            Event::Refused { why, line } => match why.as_str() {
+                "NOTOPEN" => "the bridge refused a frame: its bus isn't open".into(),
+                "TXFULL" => "the bridge refused a frame: its send queue is full".into(),
+                "BADCHECK" => format!(
+                    "the bridge refused a command whose check failed (damaged on the USB cable), so it wasn't sent: {line}"
+                ),
+                "BADCMD" | "TOOLONG" => {
+                    format!("the bridge couldn't read a command (probably damaged on the USB cable): {line}")
+                }
+                _ => format!("the bridge refused a command: {line}"),
+            },
+            Event::DamagedLine(l) => {
+                format!("a line from the bridge failed its check (damaged on the USB cable) and was dropped: {l}")
+            }
             Event::Other(s) => format!("bridge event: {s}"),
         }
     }
@@ -224,6 +285,8 @@ pub enum Line {
     Version(String),
     Serial(String),
     Event(Event),
+    /// In checked mode, a frame line whose check failed: damaged on the way, so dropped.
+    BadCheck(String),
     /// Anything else (noise, an unknown reply).
     Unknown(String),
 }
@@ -231,7 +294,7 @@ pub enum Line {
 impl Line {
     /// True for lines that answer a command; false for frames, events and the ready line.
     pub fn is_reply(&self) -> bool {
-        !matches!(self, Line::Frame { .. } | Line::Event(_) | Line::Ready { .. } | Line::Unknown(_))
+        !matches!(self, Line::Frame { .. } | Line::Event(_) | Line::Ready { .. } | Line::BadCheck(_) | Line::Unknown(_))
     }
 }
 
@@ -248,6 +311,8 @@ pub enum BridgeTime {
 pub struct LineReader {
     buf: Vec<u8>,
     discarded: u64,
+    /// Checked mode: frame lines must end in a good `;XX`.
+    pub require_check: bool,
 }
 
 impl LineReader {
@@ -269,7 +334,15 @@ impl LineReader {
                 b'\r' => {
                     let text = String::from_utf8_lossy(&self.buf).into_owned();
                     self.buf.clear();
-                    out.push(parse_line(&text));
+                    let frame_line = matches!(text.as_bytes().first(), Some(b't' | b'T' | b'r' | b'R'));
+                    if self.require_check && frame_line {
+                        out.push(match strip_check(&text) {
+                            Some(body) => parse_line(body),
+                            None => Line::BadCheck(text),
+                        });
+                    } else {
+                        out.push(parse_line(&text));
+                    }
                 }
                 0x07 => {
                     if !self.buf.is_empty() {
@@ -408,6 +481,9 @@ fn parse_event(s: &str) -> Event {
         Some("TXERR") => Event::TxError,
         Some("TXARB") => Event::TxArbitration,
         Some("HOSTWD") => Event::HostWatchdog,
+        Some(why @ ("NOTOPEN" | "TXFULL" | "BADCHECK" | "BADCMD" | "TOOLONG" | "REFUSED")) => {
+            Event::Refused { why: why.into(), line: parts.collect::<Vec<_>>().join(" ") }
+        }
         _ => Event::Other(s.into()),
     }
 }
@@ -552,5 +628,35 @@ mod tests {
         let b = describe_reset("reset=warm step=1 count=3 flags=B");
         assert!(b.contains("power kept on") && b.ends_with("the chip flagged: brown-out"), "{b}");
         assert_eq!(describe_reset("something new"), "something new");
+    }
+
+    #[test]
+    fn checks_match_the_bridge() {
+        assert_eq!(crc8(b"123456789"), 0xF4); // CRC-8 (0x07) check value, as in the firmware tests
+        let line = with_check("t7E0802010C0000000000");
+        assert_eq!(strip_check(&line), Some("t7E0802010C0000000000"));
+        let damaged = line.replacen("02010C", "12010C", 1); // a read became a reset: caught
+        assert_eq!(strip_check(&damaged), None);
+        assert_eq!(strip_check("t7E0802010C0000000000"), None);
+        let f = Frame::new(CanId::Standard(0x7E0), &[0x02, 0x01, 0x0C, 0, 0, 0, 0, 0]).unwrap();
+        assert_eq!(Command::Send(f).encode_checked(), format!("{line}\r"));
+        assert_eq!(Command::Ping.encode_checked(), "#P\r");
+        assert_eq!(Command::Checked(true).encode(), "#C1\r");
+    }
+
+    #[test]
+    fn checked_mode_drops_damaged_frame_lines() {
+        let mut r = LineReader::new();
+        r.require_check = true;
+        let good = with_check("t7E8504410C1234:000003E8");
+        let bad = good.replacen("0C12", "0C13", 1);
+        let input = format!("{good}\r{bad}\rz\r#e BADCMD t7E08020\r");
+        let lines = r.push(input.as_bytes());
+        assert!(matches!(&lines[0], Line::Frame { frame, .. } if frame.data() == [0x04, 0x41, 0x0C, 0x12, 0x34]));
+        assert_eq!(lines[1], Line::BadCheck(bad));
+        assert_eq!(lines[2], Line::Queued);
+        assert_eq!(lines[3], Line::Event(Event::Refused { why: "BADCMD".into(), line: "t7E08020".into() }));
+        assert!(!lines[1].is_reply());
+        assert!(Event::Refused { why: "BADCHECK".into(), line: "t7E0".into() }.describe().contains("wasn't sent"));
     }
 }

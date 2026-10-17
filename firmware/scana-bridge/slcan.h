@@ -66,8 +66,31 @@ inline uint8_t putHex(char* out, uint32_t v, uint8_t digits) {
 
 enum TimeMode : uint8_t { TIME_NONE = 0, TIME_MS = 1, TIME_US = 2 };
 
-// Longest line: 'T' + 8 + 1 + 16 + ':' + 8 + CR = 35.
-const uint8_t MAX_FRAME_LINE = 36;
+// Longest line: 'T' + 8 + 1 + 16 + ':' + 8 + ";XX" + CR = 38.
+const uint8_t MAX_FRAME_LINE = 39;
+
+// CRC-8 (polynomial 0x07, start 0; "123456789" gives F4): the check on frame lines in
+// checked mode (#C1), so a line damaged on the USB cable is refused or dropped, never used.
+inline uint8_t crc8(const char* s, uint8_t n) {
+  uint8_t c = 0;
+  for (uint8_t i = 0; i < n; i++) {
+    c ^= (uint8_t)s[i];
+    for (uint8_t b = 0; b < 8; b++) c = (c & 0x80) ? (uint8_t)((c << 1) ^ 0x07) : (uint8_t)(c << 1);
+  }
+  return c;
+}
+
+// Checks a line ending in ";XX" (len excludes the CR). True if the check matches; then len
+// is the length before the ';'.
+inline bool checkLine(const char* line, uint8_t& len) {
+  if (len < 4 || line[len - 3] != ';') return false;
+  uint32_t want;
+  if (!parseHex(line + len - 2, 2, want)) return false;
+  uint8_t body = (uint8_t)(len - 3);
+  if (crc8(line, body) != (uint8_t)want) return false;
+  len = body;
+  return true;
+}
 
 // Formats a received frame with its CR. Returns the length.
 // TIME_MS appends 4 hex digits of milliseconds 0-59999 (Lawicel).
@@ -87,6 +110,17 @@ inline uint8_t formatFrame(const CanFrame& f, char* out, TimeMode tm) {
   }
   out[n++] = '\r';
   return n;
+}
+
+// Puts ";XX" (the CRC-8 of the line) before the CR of a formatted line. n includes the CR.
+inline uint8_t addCheck(char* out, uint8_t n) {
+  uint8_t body = (uint8_t)(n - 1);
+  uint8_t c = crc8(out, body);
+  out[body] = ';';
+  out[body + 1] = hexDigit(c >> 4);
+  out[body + 2] = hexDigit(c);
+  out[body + 3] = '\r';
+  return (uint8_t)(n + 3);
 }
 
 }  // namespace slcan

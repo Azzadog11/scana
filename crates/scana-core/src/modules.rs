@@ -33,6 +33,9 @@ pub struct DiscoverOptions {
     pub extended: bool,
     /// 11-bit gateway IDs to try with every address byte (Toyota family: 0x750).
     pub gateways: Vec<u16>,
+    /// Extra reply offsets (reply ID minus request ID) for 11-bit probes: a reply from
+    /// request + offset counts even outside 0x700-0x7FF (Chrysler family: -0x280).
+    pub reply_offsets: Vec<i32>,
     /// Stop after this many modules: more means something answers everything.
     pub max_modules: usize,
 }
@@ -45,6 +48,7 @@ impl Default for DiscoverOptions {
             standard: true,
             extended: false,
             gateways: vec![],
+            reply_offsets: vec![],
             max_modules: 48,
         }
     }
@@ -57,6 +61,11 @@ impl DiscoverOptions {
             standard: addressing == Addressing::Standard,
             extended: addressing == Addressing::Extended,
             gateways: if addressing == Addressing::Standard { scana_db::modules::gateways(family) } else { vec![] },
+            reply_offsets: if addressing == Addressing::Standard {
+                scana_db::modules::reply_offsets(family)
+            } else {
+                vec![]
+            },
             ..DiscoverOptions::default()
         }
     }
@@ -139,9 +148,12 @@ pub fn candidates(opts: &DiscoverOptions, seen: &std::collections::HashSet<CanId
 }
 
 /// The tester-present answer in a frame heard after probing `tx` (with `ext`), if it is one.
-fn answer_in(frame: &scana_proto::Frame, tx: CanId, ext: Option<u8>) -> Option<Vec<u8>> {
+fn answer_in(frame: &scana_proto::Frame, tx: CanId, ext: Option<u8>, offsets: &[i32]) -> Option<Vec<u8>> {
     let plausible_id = match (tx, frame.id) {
-        (CanId::Standard(_), CanId::Standard(r)) => (0x700..=0x7FF).contains(&r) && frame.id != tx && r != 0x7DF,
+        (CanId::Standard(t), CanId::Standard(r)) => {
+            let family_reply = offsets.iter().any(|o| i32::from(t) + o == i32::from(r));
+            ((0x700..=0x7FF).contains(&r) || family_reply) && frame.id != tx && r != 0x7DF
+        }
         (CanId::Extended(t), CanId::Extended(r)) => {
             // 18DAF1xx from target xx.
             r & 0xFFFF_FF00 == 0x18DA_F100 && (r & 0xFF) == ((t >> 8) & 0xFF)
@@ -201,8 +213,10 @@ pub fn discover(
         }
         let heard = client.probe(tx, ext, &uds::PROBE, opts.window_ms)?;
         out.tried += 1;
-        let mut answers: Vec<(CanId, Vec<u8>)> =
-            heard.iter().filter_map(|tf| answer_in(&tf.frame, tx, ext).map(|a| (tf.frame.id, a))).collect();
+        let mut answers: Vec<(CanId, Vec<u8>)> = heard
+            .iter()
+            .filter_map(|tf| answer_in(&tf.frame, tx, ext, &opts.reply_offsets).map(|a| (tf.frame.id, a)))
+            .collect();
         answers.dedup_by_key(|(id, _)| *id);
         // More than one answer to one probe: prefer the usual reply ID.
         let conventional = Channel::conventional(tx, ext).map(|c| c.rx);
@@ -686,6 +700,45 @@ mod tests {
         assert_eq!(d.found.len(), 6);
         assert!(d.found.iter().all(|f| f.channel.tx.is_extended()));
         assert!(d.found.iter().any(|f| f.channel.tx == CanId::Extended(0x18DA_10F1) && !f.looks_like_uds()));
+    }
+
+    #[test]
+    fn a_reply_at_request_minus_0x280_is_found_only_for_the_chrysler_family() {
+        let build = || {
+            let mut car = VirtualCar::hijet().without_modules();
+            let std = CanId::Standard;
+            let mut abs = scana_sim::modules::Module::new(
+                "ABS (simulated)",
+                std(0x747),
+                std(0x4C7),
+                None,
+                scana_sim::modules::Dialect::Uds,
+            );
+            abs.identity = vec![(0xF197, b"SIM ABS".to_vec())];
+            car.modules.push(abs);
+            car
+        };
+        let opts = |family| DiscoverOptions {
+            listen_ms: 100,
+            window_ms: 8,
+            ..DiscoverOptions::for_car(Addressing::Standard, family)
+        };
+        assert_eq!(opts(Some("chrysler")).reply_offsets, vec![-0x280]);
+        assert!(opts(None).reply_offsets.is_empty());
+        let mut c = client(build());
+        let d = discover(&mut c, &opts(Some("chrysler")), |_| true).unwrap();
+        let abs = d.found.iter().find(|f| f.channel.label() == "747").expect("747 found");
+        assert_eq!(abs.channel.rx, CanId::Standard(0x4C7));
+        assert!(abs.looks_like_uds());
+        // The channel it gets works for later reads.
+        let info = read_module(&mut c, abs.channel, None, Some("chrysler")).unwrap();
+        assert!(info.identity.iter().any(|(_, v)| v.contains("SIM ABS")), "{info:?}");
+        let mut c = client(build());
+        let d = discover(&mut c, &opts(None), |_| true).unwrap();
+        assert!(d.found.iter().all(|f| f.channel.label() != "747"), "{:?}", d.found);
+        let mut c = client(build());
+        let d = discover(&mut c, &opts(Some("toyota")), |_| true).unwrap();
+        assert!(d.found.iter().all(|f| f.channel.label() != "747"));
     }
 
     #[test]

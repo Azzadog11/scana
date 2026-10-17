@@ -8,11 +8,57 @@
 # Family "any" applies to every car. Family "toyota" covers Toyota, Lexus and Scion, and is
 # assumed for Daihatsu (part of the Toyota group) until discovery on a real Daihatsu confirms it.
 #
-# Sources:
+# Sources (every `source` value below is one of these tags; addresses only, no firmware data):
 #   [iso]       ISO 15765-4 addressing as used by SAE J1979: 0x7E0-0x7E7 are the OBD-II ECUs.
-#   [opendbc]   openpilot's opendbc, opendbc/car/toyota/values.py and fingerprints.py
-#               (github.com/commaai/opendbc, read 2026-10-16): firmware query addresses.
+#   [opendbc]   openpilot's opendbc (MIT licence, github.com/commaai/opendbc, read 2026-10-16
+#               and 2026-10-17): firmware query addresses in opendbc/car/<make>/values.py and
+#               opendbc/car/<make>/fingerprints.py for toyota, mazda, hyundai, ford, nissan,
+#               subaru, honda, volkswagen, chrysler and gm. Ecu types were turned into plain names.
 #   [toyotadx]  github.com/kaikozlov/toyota-diagnostics README (read 2026-10-16).
+#   [wmi]       Wikipedia, "Vehicle identification number", world manufacturer identifier list
+#               (en.wikipedia.org/wiki/Vehicle_identification_number, read 2026-10-17). It
+#               feeds the VIN prefix table in `src/modules.rs`, not an address.
+#
+# Reply IDs: modules usually reply from request ID + 8 (11-bit) or with source and target
+# swapped (29-bit). Discovery accepts a tester-present answer from any 11-bit ID in
+# 0x700-0x7FF, so makes that reply elsewhere in that range (nissan +0x20, vw +0x6A) are found
+# and named by their request ID. Replies outside that range need the `[[family]]` table below
+# (chrysler: request - 0x280, so 747 replies from 4C7). Not found at all: gm, whose requests
+# are 0x2xx IDs outside the probed range 0x700-0x7F7. The only gm address here is a camera
+# at 24B, kept for naming. What opendbc shows [opendbc]:
+#   gm         replies from request + 0x400
+#   nissan     most modules reply from request + 0x20, some engines at + 8
+#   chrysler   ABS, steering, airbag, radar and cluster (11-bit) reply from request - 0x280;
+#              engine, gearbox and hybrid reply at + 8
+#   vw         airbag, steering, radar and camera reply from request + 0x6A; engine and
+#              gearbox reply at + 8
+# Families without a gateway entry: opendbc shows no address-byte gateway for them.
+# Families mazda, ford and hyundai answer on the plain +8 rule. Mazda and Ford share their
+# ABS, steering, camera and radar addresses (760, 730, 706, 764), as opendbc lists them.
+# Several 11-bit addresses are used by different modules in different families (for example
+# 730 and 760): the family decides the name.
+
+# Extra reply offsets (reply ID minus request ID, in decimal because TOML has no negative
+# hex) that discovery accepts for a family, next to the usual +8 and the 0x700-0x7FF rule.
+[[family]]
+name = "chrysler"
+reply_offsets = [-640] # -0x280, CHRYSLER_RX_OFFSET
+source = "opendbc"
+
+[[family]]
+name = "nissan"
+reply_offsets = [32] # +0x20, NISSAN_RX_OFFSET
+source = "opendbc"
+
+[[family]]
+name = "vw"
+reply_offsets = [106] # +0x6A, VOLKSWAGEN_RX_OFFSET
+source = "opendbc"
+
+[[family]]
+name = "gm"
+reply_offsets = [1024] # +0x400, GM_RX_OFFSET
+source = "opendbc"
 
 [[gateway]]
 family = "toyota"
@@ -193,6 +239,451 @@ at = "750/6D"
 name = "Forward camera"
 source = "opendbc"
 
+# ---- mazda ----
+
+[[address]]
+family = "mazda"
+at = "7E0"
+name = "Engine computer (ECM)"
+source = "opendbc"
+
+[[address]]
+family = "mazda"
+at = "7E1"
+name = "Gearbox computer (TCM)"
+source = "opendbc"
+
+[[address]]
+family = "mazda"
+at = "760"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "mazda"
+at = "730"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "mazda"
+at = "706"
+name = "Forward camera"
+source = "opendbc"
+
+[[address]]
+family = "mazda"
+at = "764"
+name = "Forward radar"
+source = "opendbc"
+
+# ---- hyundai ----
+
+[[address]]
+family = "hyundai"
+at = "7E1"
+name = "Gearbox computer (TCM)"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7D1"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7D4"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7C4"
+name = "Forward camera"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7D0"
+name = "Forward radar"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "730"
+name = "Driving assist computer (lane and cruise functions)"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7B1"
+name = "Parking assist computer"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7B3"
+name = "Air conditioning (HVAC control)"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7B7"
+name = "Corner radar"
+source = "opendbc"
+
+[[address]]
+family = "hyundai"
+at = "7C6"
+name = "Instrument cluster (newer CAN FD cars)"
+source = "opendbc"
+
+# ---- ford ----
+
+[[address]]
+family = "ford"
+at = "7E0"
+name = "Engine computer (PCM)"
+source = "opendbc"
+
+[[address]]
+family = "ford"
+at = "732"
+name = "Gear shift module"
+source = "opendbc"
+
+[[address]]
+family = "ford"
+at = "7D0"
+name = "Accessory protocol interface module"
+source = "opendbc"
+
+[[address]]
+family = "ford"
+at = "760"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "ford"
+at = "730"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "ford"
+at = "706"
+name = "Forward camera"
+source = "opendbc"
+
+[[address]]
+family = "ford"
+at = "764"
+name = "Forward radar"
+source = "opendbc"
+
+# ---- nissan ----
+
+[[address]]
+family = "nissan"
+at = "7E0"
+name = "Engine computer (ECM)"
+source = "opendbc"
+
+[[address]]
+family = "nissan"
+at = "740"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "nissan"
+at = "742"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "nissan"
+at = "743"
+name = "Instrument cluster (combination meter)"
+source = "opendbc"
+
+[[address]]
+family = "nissan"
+at = "707"
+name = "Forward camera"
+source = "opendbc"
+
+[[address]]
+family = "nissan"
+at = "18DAD0F1"
+name = "Gateway"
+source = "opendbc"
+
+# ---- subaru ----
+
+[[address]]
+family = "subaru"
+at = "7E0"
+name = "Engine computer (ECM)"
+source = "opendbc"
+
+[[address]]
+family = "subaru"
+at = "7A2"
+name = "Engine computer (alternate address)"
+source = "opendbc"
+
+[[address]]
+family = "subaru"
+at = "7E1"
+name = "Gearbox computer (TCM)"
+source = "opendbc"
+
+[[address]]
+family = "subaru"
+at = "7A3"
+name = "Gearbox computer (alternate address)"
+source = "opendbc"
+
+[[address]]
+family = "subaru"
+at = "7B0"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "subaru"
+at = "746"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "subaru"
+at = "787"
+name = "Forward camera (EyeSight driving assist)"
+source = "opendbc"
+
+# ---- honda ----
+
+[[address]]
+family = "honda"
+at = "18DA10F1"
+name = "Engine computer (PGM-FI)"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA1EF1"
+name = "Gearbox computer"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA0BF1"
+name = "Shift by wire (gear selector)"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA28F1"
+name = "Brake control: stability control (VSA)"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA2BF1"
+name = "Electric brake booster"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA30F1"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA53F1"
+name = "Airbag computer (SRS)"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA60F1"
+name = "Instrument cluster (combination meter)"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DA61F1"
+name = "Head-up display"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DAB0F1"
+name = "Forward radar"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DAB5F1"
+name = "Forward camera"
+source = "opendbc"
+
+[[address]]
+family = "honda"
+at = "18DAEFF1"
+name = "Gateway"
+source = "opendbc"
+
+# ---- vw ----
+
+[[address]]
+family = "vw"
+at = "7E0"
+name = "Engine computer (ECM)"
+source = "opendbc"
+
+[[address]]
+family = "vw"
+at = "7E1"
+name = "Gearbox computer (TCM)"
+source = "opendbc"
+
+[[address]]
+family = "vw"
+at = "712"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "vw"
+at = "715"
+name = "Airbag computer (SRS)"
+source = "opendbc"
+
+[[address]]
+family = "vw"
+at = "757"
+name = "Forward radar"
+source = "opendbc"
+
+[[address]]
+family = "vw"
+at = "74F"
+name = "Forward camera"
+source = "opendbc"
+
+# ---- chrysler ----
+
+[[address]]
+family = "chrysler"
+at = "7E0"
+name = "Engine computer (ECM)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "7E1"
+name = "Gearbox computer (TCM)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "7E2"
+name = "Hybrid control computer"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "747"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "7E4"
+name = "Brake control (alternate address on hybrids)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "742"
+name = "Instrument cluster (combination meter)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "75A"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "761"
+name = "Electric power steering (alternate address)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "753"
+name = "Forward radar"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "744"
+name = "Airbag computer (SRS)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "18DA10F1"
+name = "Engine computer (ECM)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "18DA18F1"
+name = "Gearbox computer (TCM)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "18DA28F1"
+name = "Brake control: ABS and stability control"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "18DA30F1"
+name = "Electric power steering"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "18DA60F1"
+name = "Instrument cluster (combination meter)"
+source = "opendbc"
+
+[[address]]
+family = "chrysler"
+at = "18DAC0F1"
+name = "Airbag computer (SRS)"
+source = "opendbc"
+
+# ---- gm ----
+
+[[address]]
+family = "gm"
+at = "24B"
+name = "Forward camera (replies from 64B, not request plus 8)"
+source = "opendbc"
+
+
 [[make]]
 name = "Toyota"
 family = "toyota"
@@ -232,4 +723,84 @@ family = "gm"
 
 [[make]]
 name = "Cadillac"
+family = "gm"
+
+[[make]]
+name = "Mazda"
+family = "mazda"
+
+[[make]]
+name = "Hyundai"
+family = "hyundai"
+
+[[make]]
+name = "Kia"
+family = "hyundai"
+
+[[make]]
+name = "Genesis"
+family = "hyundai"
+
+[[make]]
+name = "Ford"
+family = "ford"
+
+[[make]]
+name = "Nissan"
+family = "nissan"
+
+[[make]]
+name = "Infiniti"
+family = "nissan"
+
+[[make]]
+name = "Subaru"
+family = "subaru"
+
+[[make]]
+name = "Honda"
+family = "honda"
+
+[[make]]
+name = "Acura"
+family = "honda"
+
+[[make]]
+name = "Volkswagen"
+family = "vw"
+
+[[make]]
+name = "Audi"
+family = "vw"
+
+[[make]]
+name = "Skoda"
+family = "vw"
+
+[[make]]
+name = "Seat"
+family = "vw"
+
+[[make]]
+name = "Cupra"
+family = "vw"
+
+[[make]]
+name = "Jeep"
+family = "chrysler"
+
+[[make]]
+name = "Chrysler"
+family = "chrysler"
+
+[[make]]
+name = "Dodge"
+family = "chrysler"
+
+[[make]]
+name = "Ram"
+family = "chrysler"
+
+[[make]]
+name = "GM"
 family = "gm"

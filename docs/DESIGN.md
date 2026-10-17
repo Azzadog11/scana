@@ -216,6 +216,8 @@ What it tries:
 | A maker family with a gateway | the gateway ID with every address byte (Toyota family: 0x750, replies from 0x758) | 256 |
 | 29-bit OBD-II | 0x18DAxxF1 for every target xx | 255 |
 
+A tester-present answer counts from any 11-bit ID in 0x700-0x7FF, not only request + 8. A maker family can also list reply offsets (`[[family]]` in the address book; Chrysler family: request - 0x280, so 0x747 answers from 0x4C7), and an answer from request + offset counts even outside that range. The request range does not widen, and nothing changes when the family is unknown. A module found this way keeps its real reply ID in its channel, so later reads use it. GM-family requests (0x2xx) are outside the probed range and are not found.
+
 On the demo car it tries 494 addresses in about 35 s; with a dash display sharing the bus, expect about 50 s.
 
 **Names.** A module that gives its system name (UDS F197, KWP 1A 97) is shown by it. Otherwise the address book (`data/modules/addresses.toml`) gives the usual module at that address for the maker family, shown with "(probably)". The family comes from the vehicle profile's make (Daihatsu is assumed to follow the Toyota layout until a discovery on the truck shows otherwise). Each address book entry names its source.

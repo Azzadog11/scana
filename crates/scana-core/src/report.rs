@@ -134,13 +134,15 @@ impl HealthReport {
                 }
                 let avail: Vec<_> = m.monitors.iter().filter(|x| x.available).collect();
                 let done = avail.iter().filter(|x| x.complete).count();
-                if done == avail.len() {
+                if avail.is_empty() {
+                    // A gearbox computer's PID 01 may list no monitors at all: say nothing.
+                } else if done == avail.len() {
                     lines.push((Tone::Good, format!("{who}: all {} readiness monitors complete.", avail.len())));
                 } else {
                     lines.push((
                         Tone::Note,
                         format!(
-                            "{who}: {} of {} readiness monitors not complete (normal soon after codes are cleared).",
+                            "{who}: {} of {} readiness monitors not complete (they finish as the car is driven; normal soon after codes are cleared).",
                             avail.len() - done,
                             avail.len()
                         ),
@@ -218,6 +220,9 @@ impl HealthReport {
                 out.extend(codes.iter().map(|d| format!("{d} {} ({})", d.state().words(), m.channel.label())));
             }
         }
+        // Two computers may report the same code: list it once.
+        let mut seen = std::collections::HashSet::new();
+        out.retain(|c| seen.insert(c.clone()));
         out
     }
 
@@ -376,6 +381,36 @@ mod tests {
         assert!(s.iter().all(|(t, _)| *t == Tone::Good), "{s:?}");
         assert!(s.iter().any(|(_, l)| l.contains("check engine light is off")));
         assert!(r.to_html().contains("No fault codes."));
+    }
+
+    #[test]
+    fn a_diesel_is_judged_by_its_own_monitors() {
+        let r = report(VirtualCar::ute_diesel());
+        let s = r.summary();
+        assert!(s.iter().any(|(t, l)| *t == Tone::Bad && l.contains("P2002")), "{s:?}");
+        // Nothing about oxygen sensors or catalysts, which a diesel does not report this way.
+        assert!(s.iter().all(|(_, l)| !l.to_lowercase().contains("oxygen") && !l.contains("Catalyst")), "{s:?}");
+        let m = r.ecus[0].monitors.as_ref().unwrap();
+        assert!(m.compression && m.monitors.iter().any(|x| x.name == "PM filter" && !x.complete));
+        assert!(!r.to_html().contains("Oxygen sensor heater"));
+    }
+
+    #[test]
+    fn a_gearbox_with_no_monitors_gets_no_monitor_line_and_one_pending_code_is_a_note() {
+        let r = report(VirtualCar::hatch_two_ecus());
+        let s = r.summary();
+        assert!(s.iter().all(|(_, l)| !l.contains("all 0 readiness")), "{s:?}");
+        assert!(s.iter().any(|(t, l)| *t == Tone::Note && l.contains("pending code P0455")), "{s:?}");
+        assert!(s.iter().all(|(t, _)| *t != Tone::Bad), "{s:?}");
+        assert_eq!(r.all_codes(), vec!["P0455 pending"]);
+    }
+
+    #[test]
+    fn a_code_two_computers_report_is_listed_once() {
+        let mut car = VirtualCar::hatch_two_ecus();
+        car.ecus[1].pending = car.ecus[0].pending.clone();
+        let r = report(car);
+        assert_eq!(r.all_codes(), vec!["P0455 pending"]);
     }
 
     #[test]

@@ -243,11 +243,30 @@ fn fuel_type(d: &[u8]) -> Decoded {
         8 => "electric",
         9 => "bifuel, petrol",
         12 => "bifuel, LPG",
+        15 => "bifuel, electric",
+        16 => "bifuel, electric and engine",
         17 => "hybrid, petrol",
+        18 => "hybrid, ethanol",
         19 => "hybrid, diesel",
         20 => "hybrid, electric",
+        21 => "hybrid, electric and engine",
+        22 => "hybrid, regenerative",
+        23 => "bifuel, diesel",
         _ => "other",
     })
+}
+
+/// Exhaust gas temperature (0x78, 0x79) or particulate filter temperature (0x7C): a byte of
+/// sensor flags (bits 0 to 3 for sensors 1 to 4), then four temperatures of two bytes each,
+/// (256A+B)/10 - 40 degrees C. Wikipedia "OBD-II PIDs" gives the formula (read 2026-10-17);
+/// the flag meaning is from its 0x78 row and unverified for 0x7C. Sensors not flagged are left out.
+fn exhaust_temps(d: &[u8]) -> Decoded {
+    const LABELS: [&str; 4] = ["sensor 1", "sensor 2", "sensor 3", "sensor 4"];
+    let values: Vec<Quantity> = (0..4)
+        .filter(|i| d[0] & (1 << i) != 0)
+        .map(|i| Quantity { label: LABELS[i], value: ab(&d[1 + 2 * i..]) / 10.0 - 40.0, unit: "°C" })
+        .collect();
+    if values.is_empty() { Decoded::text("no sensors reported") } else { Decoded { values, text: None } }
 }
 
 fn signed16(d: &[u8]) -> f64 {
@@ -370,6 +389,8 @@ pub static PIDS: &[PidDef] = &[
     pid!(0x61, 1, "Driver's demanded engine torque", |d| Decoded::one(a(d) - 125.0, "%")),
     pid!(0x62, 1, "Actual engine torque", |d| Decoded::one(a(d) - 125.0, "%")),
     pid!(0x63, 2, "Engine reference torque", |d| Decoded::one(ab(d), "Nm")),
+    pid!(0x78, 9, "Exhaust gas temperature, bank 1", exhaust_temps),
+    pid!(0x7C, 9, "Particulate filter temperature", exhaust_temps),
     pid!(0x80, 4, "PIDs supported 81-A0", bitmask),
     pid!(0xA0, 4, "PIDs supported A1-C0", bitmask),
     pid!(0xC0, 4, "PIDs supported C1-E0", bitmask),
@@ -440,7 +461,9 @@ impl MonitorStatus {
                 "Heated catalyst",
                 "Evaporative system",
                 "Secondary air",
-                "A/C refrigerant",
+                // Bit 4: "A/C refrigerant" in the older definition, "Gasoline particulate filter" in
+                // the newer one (Wikipedia "OBD-II PIDs", PID 01, read 2026-10-17).
+                "A/C refrigerant or petrol particulate filter",
                 "Oxygen sensor",
                 "Oxygen sensor heater",
                 "EGR and VVT",
@@ -470,7 +493,7 @@ mod tests {
             assert!(w[0].pid < w[1].pid, "{:02X} before {:02X}", w[0].pid, w[1].pid);
         }
         for p in PIDS {
-            assert!((1..=5).contains(&p.len), "{:02X}", p.pid);
+            assert!((1..=9).contains(&p.len), "{:02X}", p.pid);
             // Every decoder copes with all-zero and all-FF data.
             (p.decode)(&vec![0u8; usize::from(p.len)]);
             (p.decode)(&vec![0xFFu8; usize::from(p.len)]);
@@ -549,5 +572,17 @@ mod tests {
             "MIL off, 0 codes, 7 monitors complete, 0 not complete"
         );
         assert_eq!(format_value(-0.04, "%"), "0");
+    }
+
+    #[test]
+    fn exhaust_temperatures_and_hybrid_fuel_types_decode() {
+        // Flags 0x03: sensors 1 and 2. (1900/10 - 40) = 150 C, (4400/10 - 40) = 400 C.
+        let d = decode(0x78, &[0x03, 0x07, 0x6C, 0x11, 0x30, 0, 0, 0, 0]).unwrap();
+        assert_eq!(d.display(), "sensor 1 150 °C, sensor 2 400 °C");
+        assert_eq!(decode(0x7C, &[0; 9]).unwrap().display(), "no sensors reported");
+        assert!(decode(0x7C, &[0x03, 0, 0]).is_none()); // too short
+        assert_eq!(decode(0x51, &[4]).unwrap().display(), "diesel");
+        assert_eq!(decode(0x51, &[21]).unwrap().display(), "hybrid, electric and engine");
+        assert_eq!(decode(0x51, &[22]).unwrap().display(), "hybrid, regenerative");
     }
 }

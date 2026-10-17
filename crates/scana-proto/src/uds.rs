@@ -337,6 +337,11 @@ impl ModuleDtc {
                     warning_light: s & 0x80 != 0,
                 }
             }
+            // OBD-II services 03 and 07 carry no status byte. Scana sets bit 2 for a pending
+            // code (service 07); a stored one (service 03) has no status.
+            CodeFormat::Obd if s & 0x04 != 0 => {
+                DtcState { active: false, stored: false, pending: true, earlier: false, warning_light: false }
+            }
             CodeFormat::Obd => {
                 DtcState { active: false, stored: true, pending: false, earlier: false, warning_light: false }
             }
@@ -666,5 +671,13 @@ mod tests {
         assert_eq!(failure_type_text(0x13), "the circuit is open (a broken wire or loose plug)");
         assert_eq!(service_name(0x22), "data by ID");
         assert_eq!(service_name(0x03), "stored codes");
+    }
+
+    #[test]
+    fn an_obd_pending_code_is_pending_not_stored() {
+        let stored = ModuleDtc { code: Dtc(0x0455), failure_type: None, status: None, format: CodeFormat::Obd };
+        let pending = ModuleDtc { status: Some(0x04), ..stored };
+        assert_eq!(stored.state().words(), "stored");
+        assert_eq!(pending.state().words(), "pending");
     }
 }

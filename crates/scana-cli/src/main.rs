@@ -42,6 +42,12 @@ struct Cli {
     /// Use a simulated 2006 Corolla with P0420 (a worn catalyst) instead of the bridge.
     #[arg(long, global = true)]
     sim_corolla: bool,
+    /// Use an invented test car instead of the bridge: ute-diesel, hatch-two-ecus or hybrid.
+    #[arg(long, global = true, value_name = "NAME")]
+    sim_car: Option<String>,
+    /// With --sim-car: key on, engine off, so clearing codes can be tried.
+    #[arg(long, global = true)]
+    sim_engine_off: bool,
     /// The bridge's serial port (default: find it).
     #[arg(long, global = true)]
     port: Option<String>,
@@ -704,6 +710,17 @@ fn chrono_now() -> String {
 }
 
 fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {
+    if let Some(name) = &cli.sim_car {
+        let mut car = VirtualCar::by_name(name).with_context(|| {
+            format!("no simulated car named {name:?}. Try one of: {}", VirtualCar::CAR_NAMES.join(", "))
+        })?;
+        if cli.sim_engine_off {
+            car.set_engine_running(false);
+        }
+        let link = SimLink::new(car);
+        eprintln!("Using a {}: an invented test car", link.describe());
+        return Ok(Box::new(link));
+    }
     if cli.sim_corolla {
         let link = SimLink::new(VirtualCar::corolla_2006());
         eprintln!("Using a {}: a 2006 Corolla with P0420", link.describe());
@@ -733,6 +750,9 @@ fn open_link(cli: &Cli) -> Result<Box<dyn Link>> {
 }
 
 fn source_of(cli: &Cli) -> Source {
+    if let Some(name) = &cli.sim_car {
+        return Source::SimCar { name: name.clone(), engine_off: cli.sim_engine_off };
+    }
     if cli.sim_corolla {
         return Source::DemoCorolla;
     }
@@ -1169,6 +1189,7 @@ fn find_modules(client: &mut Client, gateways: &[String], both: bool, window_ms:
     }
     let mut opts = DiscoverOptions::for_car(d.addressing, family);
     opts.window_ms = window_ms;
+    opts.still_ecus = ecus.clone();
     if both {
         opts.standard = true;
         opts.extended = true;
@@ -1222,9 +1243,18 @@ fn find_modules(client: &mut Client, gateways: &[String], both: bool, window_ms:
 
 fn parse_channel(address: &str) -> Result<Channel> {
     Channel::parse(address).with_context(|| {
-        format!(
-            "{address} is not a module address. Use a request ID like 7B0, 750/40 (with an address byte) or 18DA28F1"
-        )
+        let id = u16::from_str_radix(address.trim().trim_start_matches("0x"), 16).unwrap_or(0);
+        if (0x7E8..=0x7EF).contains(&id) {
+            format!(
+                "{address} is where an engine-side computer replies from, not where it listens. \
+                 Use its request ID instead: {:X}",
+                id - 8
+            )
+        } else {
+            format!(
+                "{address} is not a module address. Use a request ID like 7B0, 750/40 (with an address byte) or 18DA28F1"
+            )
+        }
     })
 }
 
@@ -1381,7 +1411,11 @@ fn tests(client: &mut Client) -> Result<()> {
     let d = find_car(client, true)?;
     for &ecu in &d.ecus {
         let results = readers::test_results(client, ecu)?;
-        println!("\nECU {ecu}: {} test results", results.len());
+        if results.is_empty() {
+            println!("\nECU {ecu}: no test results (this computer reports none, or doesn't support service 06)");
+        } else {
+            println!("\nECU {ecu}: {} test results", results.len());
+        }
         for t in results {
             println!(
                 "  {:<42} {:<40} {:>14}  limits {:<12} {}",
@@ -1422,6 +1456,15 @@ fn health(client: &mut Client) -> Result<PathBuf> {
     Ok(path)
 }
 
+/// The reasons every ECU refused, as one sentence for the error message.
+fn refusal_summary(refused: &[(CanId, String)]) -> String {
+    if refused.is_empty() {
+        return "No computer answered the request. Check the key is on and try again.".into();
+    }
+    let parts: Vec<String> = refused.iter().map(|(e, why)| format!("ECU {e} refused: {why}.")).collect();
+    parts.join(" ")
+}
+
 fn clear(client: &mut Client, yes: bool) -> Result<()> {
     println!("Clearing codes also erases:");
     for line in CLEAR_WARNING {
@@ -1450,6 +1493,9 @@ fn clear(client: &mut Client, yes: bool) -> Result<()> {
     }
     for (e, codes) in &out.codes_after {
         println!("ECU {e}: {} stored code(s) now.", codes.len());
+    }
+    if out.cleared.is_empty() {
+        bail!("No codes were cleared. {}", refusal_summary(&out.refused));
     }
     Ok(())
 }
@@ -1482,5 +1528,17 @@ impl FrameSink for CandumpSink {
 impl Drop for CandumpSink {
     fn drop(&mut self) {
         let _ = self.out.flush();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refusals_are_summed_up_in_plain_words() {
+        let r = vec![(CanId::Standard(0x7E8), "conditions not right".to_string())];
+        assert_eq!(refusal_summary(&r), "ECU 7E8 refused: conditions not right.");
+        assert!(refusal_summary(&[]).contains("No computer answered"));
     }
 }

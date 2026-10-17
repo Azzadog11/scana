@@ -502,3 +502,18 @@ read_with = "Driver's demanded torque: the gap shows what the engine computer is
 [[pid]]
 id = 0x63
 what = "The torque that 100 % means for the two torque values (PIDs 61 and 62)."
+
+# Exhaust temperatures, for diesels and some petrol cars (2026-10-17). Formula from the
+# Wikipedia page "OBD-II PIDs", read 2026-10-17. Typical values are estimates.
+
+[[pid]]
+id = 0x78
+what = "Exhaust gas temperature before and after parts of the exhaust, up to four sensors. Scana shows only the sensors the car says it has."
+normal = "About 150 to 250 °C when idling warm; about 500 °C or more under load or during a filter regeneration (estimate)."
+read_with = "Particulate filter temperature (PID 7C): a big gap between the two shows what the filter or catalyst is doing."
+
+[[pid]]
+id = 0x7C
+what = "Temperature at the diesel particulate filter, up to four sensors. Scana shows only the sensors the car says it has."
+normal = "Close to the exhaust gas temperature; about 550 to 650 °C during a regeneration (estimate)."
+read_with = "Exhaust gas temperature (PID 78) and any particulate filter fault codes."

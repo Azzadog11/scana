@@ -43,7 +43,7 @@ This repo is public. Keep it about the software:
 | arduino-cli with the AVR core 1.8.8 | `arduino-cli compile --fqbn arduino:avr:uno firmware/scana-bridge` |
 | The gate | `tools/gate.sh` (or `--no-firmware`): formatting, clippy with `-D warnings`, tests, firmware host tests, firmware build with RAM under 75% |
 | Hardware checks | `cargo run -p scana-cli -- probe`, then `loopback`. With no car attached, `detect` fails after 2 frames |
-| Simulator | `--sim` (simulated Hijet), `--sim-dash` (adds a dash display polling), `--sim-faults` (codes, freeze frame, failing test; engine off), `--sim-corolla` (a 2006 Corolla with P0420; the app's `--demo-corolla`) |
+| Simulator | `--sim` (simulated Hijet), `--sim-dash` (adds a dash display polling), `--sim-faults` (codes, freeze frame, failing test; engine off), `--sim-corolla` (a 2006 Corolla with P0420; the app's `--demo-corolla`), `--sim-car NAME` (ute-diesel, hatch-two-ecus or hybrid: invented cars; add `--sim-engine-off` to try clearing codes) |
 | Look at the app | `cargo build -p scana-app && ./target/debug/scana-app --screenshots /tmp/scana-shots`, then look at the PNGs. `--shot-bridge DIR` uses a real bridge. Do this after any UI change |
 
 Work is done when the gate passes and the screenshots look right.
@@ -74,6 +74,8 @@ Work is done when the gate passes and the screenshots look right.
 - Switching cars in one app session: everything read from the last car must be cleared, the health check too (it once stayed and showed under the new car's name). The same car back after a lost link keeps its results and graphs.
 - Several measurements can wait at once in the Diagnose page (`diag_wait` is a list): one slot silently dropped the first when a second started.
 - Older cars: no permanent codes (service 0A), no ECU name; say so rather than show nothing. Try a new kind of car on a simulated one first (`scana-sim`): the 2006 Corolla emulation found several of these problems.
+- A hybrid's engine stops and starts by itself while the car is ready, so 0 rpm and even a low speed do not mean "engine off" (`--sim-car hybrid` shows it). Never judge "engine off" or "car still" from one reading of rpm on one computer; `safety.rs` also uses the system voltage, and module discovery re-checks speed as it goes. A diesel has its own readiness monitors (PID 01 B bit 3), no narrow-band oxygen sensors and PIDs up to 9 bytes long (0x78, 0x7C).
+- Never let a command send on 0x7DF or an OBD reply ID (0x7E8-0x7EF): `Channel::parse` refuses them, so `scana module 7E9` says to use 7E1.
 - Toyota-family facts come from openpilot's opendbc (MIT) and the toyota-diagnostics README: addresses only, no data copied. Name sources in `addresses.toml`.
 
 ## Style

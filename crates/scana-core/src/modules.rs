@@ -35,7 +35,13 @@ pub struct DiscoverOptions {
     pub gateways: Vec<u16>,
     /// Stop after this many modules: more means something answers everything.
     pub max_modules: usize,
+    /// The OBD ECUs and their PIDs, to check the car is still every [`STILL_CHECK_EVERY`] probes
+    /// (discovery takes tens of seconds, and a hybrid may creep off by itself). Empty: no checks.
+    pub still_ecus: Vec<(CanId, Vec<u8>)>,
 }
+
+/// Discovery looks at vehicle speed again after this many probes.
+pub const STILL_CHECK_EVERY: usize = 64;
 
 impl Default for DiscoverOptions {
     fn default() -> Self {
@@ -46,6 +52,7 @@ impl Default for DiscoverOptions {
             extended: false,
             gateways: vec![],
             max_modules: 48,
+            still_ecus: vec![],
         }
     }
 }
@@ -199,6 +206,9 @@ pub fn discover(
             out.stopped_early = true;
             break;
         }
+        if i > 0 && i % STILL_CHECK_EVERY == 0 && !opts.still_ecus.is_empty() {
+            check_still(client, &opts.still_ecus)?;
+        }
         let heard = client.probe(tx, ext, &uds::PROBE, opts.window_ms)?;
         out.tried += 1;
         let mut answers: Vec<(CanId, Vec<u8>)> =
@@ -229,6 +239,8 @@ pub fn discover(
 /// Refuses while the car moves, using vehicle speed (PID 0D) where an ECU reports it.
 /// Returns a note when no ECU reports speed, so the caller can say discovery ran unchecked.
 pub fn check_still(client: &mut Client, ecus: &[(CanId, Vec<u8>)]) -> Result<Option<String>, CoreError> {
+    let mut checked = false;
+    // Every computer that reports speed: one may read 0 while another does not.
     for (ecu, supported) in ecus {
         if !supported.contains(&0x0D) {
             continue;
@@ -240,8 +252,11 @@ pub fn check_still(client: &mut Client, ecus: &[(CanId, Vec<u8>)]) -> Result<Opt
                     "The car is moving ({v:.0} km/h). Scana only looks for modules while the car is still."
                 )));
             }
-            return Ok(None);
+            checked = true;
         }
+    }
+    if checked {
+        return Ok(None);
     }
     Ok(Some("No computer reports vehicle speed, so Scana couldn't check the car is still.".into()))
 }
@@ -437,6 +452,9 @@ fn kwp_identity(client: &mut Client, ch: Channel, out: &mut Vec<(String, String)
     Ok(spoke)
 }
 
+/// The status bit that marks an OBD-II pending code (service 07) in a [`ModuleDtc`].
+const OBD_PENDING_BIT: u8 = 0x04;
+
 /// A module's fault codes, trying the ways its dialect allows.
 pub fn read_codes(client: &mut Client, ch: Channel, dialect: Dialect) -> Result<Vec<ModuleDtc>, CoreError> {
     let mut last_err = None;
@@ -474,7 +492,9 @@ pub fn read_codes(client: &mut Client, ch: Channel, dialect: Dialect) -> Result<
             if let Ok(data) = client.request_one_on(ch, &[service]) {
                 for code in scana_proto::dtc::parse_dtc_list(&data).unwrap_or_default() {
                     if !out.iter().any(|d: &ModuleDtc| d.code == code) {
-                        out.push(ModuleDtc { code, failure_type: None, status: None, format: CodeFormat::Obd });
+                        // A pending code is not stored yet: mark it so (the UDS pending bit).
+                        let status = (service == obd::PENDING_CODES).then_some(OBD_PENDING_BIT);
+                        out.push(ModuleDtc { code, failure_type: None, status, format: CodeFormat::Obd });
                     }
                 }
                 last_err = None;
@@ -761,6 +781,31 @@ mod tests {
             assert!(matches!(e, CoreError::Unsafe(_)), "{e}");
             assert_eq!(c.requests_sent, sent, "nothing sent for {bad:02X?}");
         }
+    }
+
+    #[test]
+    fn discovery_stops_when_a_hybrid_creeps_off_on_electric_power() {
+        // The hybrid stands for 20 s, then moves with its engine at 0 rpm.
+        let mut c = client(VirtualCar::hybrid());
+        let ecus = vec![(CanId::Standard(0x7E8), vec![0x0D]), (CanId::Standard(0x7EA), vec![0x0D])];
+        c.idle_until(19_000).unwrap();
+        assert_eq!(check_still(&mut c, &ecus).unwrap(), None);
+        let opts = DiscoverOptions { still_ecus: ecus.clone(), ..fast() };
+        let e = discover(&mut c, &opts, |_| true).unwrap_err();
+        assert!(matches!(e, CoreError::Unsafe(ref m) if m.contains("moving")), "{e}");
+        // Without the checks it carries on to the end.
+        let mut c = client(VirtualCar::hybrid());
+        c.idle_until(19_000).unwrap();
+        assert!(discover(&mut c, &fast(), |_| true).is_ok());
+    }
+
+    #[test]
+    fn a_pending_obd_code_is_shown_as_pending_in_the_module_view() {
+        let mut c = client(VirtualCar::hatch_two_ecus());
+        let ecm = read_module(&mut c, Channel::parse("7E0").unwrap(), None, None).unwrap();
+        let codes = ecm.codes.unwrap();
+        assert_eq!(codes.len(), 1);
+        assert_eq!(codes[0].state().words(), "pending");
     }
 
     #[test]

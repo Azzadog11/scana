@@ -156,9 +156,15 @@ impl Channel {
             let v = u32::from_str_radix(t, 16).ok()?;
             if t.len() <= 3 { CanId::standard(u16::try_from(v).ok()?) } else { CanId::extended(v) }
         };
-        match ids.split_once(':') {
+        let ch = match ids.split_once(':') {
             Some((tx, rx)) => Some(Channel { tx: id_of(tx)?, rx: id_of(rx)?, ext }),
             None => Channel::conventional(id_of(&ids)?, ext),
+        }?;
+        // Never a request ID of ours to send on: the functional ID and the OBD reply IDs
+        // (DESIGN section 7a).
+        match ch.tx {
+            CanId::Standard(0x7DF | 0x7E8..=0x7EF) => None,
+            _ => Some(ch),
         }
     }
 }
@@ -873,6 +879,10 @@ mod tests {
         assert!(c.is_obd());
         assert!(!Channel::parse("7B0").unwrap().is_obd());
         assert_eq!(Channel::parse("7FF"), None);
+        // An engine computer's reply ID and the functional ID are never sent on.
+        assert_eq!(Channel::parse("7E8"), None);
+        assert_eq!(Channel::parse("7EA"), None);
+        assert_eq!(Channel::parse("7DF"), None);
         assert_eq!(Channel::parse("zz"), None);
         assert_eq!(Channel::obd(CanId::Standard(0x7E9)).unwrap().tx, CanId::Standard(0x7E1));
     }

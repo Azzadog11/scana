@@ -45,6 +45,9 @@ pub enum Source {
     DemoFaults,
     /// A simulated 2006 Corolla with P0420 and a worn catalyst, engine running and warm.
     DemoCorolla,
+    /// One of the invented test cars (`scana_sim::VirtualCar::by_name`). `engine_off`: key on,
+    /// engine off, so clearing codes can be tried.
+    SimCar { name: String, engine_off: bool },
 }
 
 impl Source {
@@ -55,6 +58,8 @@ impl Source {
             Source::Demo => "Demo car".into(),
             Source::DemoFaults => "Demo car with faults".into(),
             Source::DemoCorolla => "Demo Corolla with P0420".into(),
+            Source::SimCar { name, engine_off: false } => format!("Simulated car: {name}"),
+            Source::SimCar { name, engine_off: true } => format!("Simulated car: {name} (engine off)"),
         }
     }
 }
@@ -585,7 +590,8 @@ impl Worker {
         let mut found = Vec::new();
         let result = (|| -> Result<DiscoverySummary, CoreError> {
             let note = modules::check_still(&mut client, &ecus)?;
-            let opts = DiscoverOptions::for_car(conn.addressing, family);
+            let mut opts = DiscoverOptions::for_car(conn.addressing, family);
+            opts.still_ecus = ecus.clone();
             let mut last = Instant::now() - Duration::from_secs(1);
             let d = modules::discover(&mut client, &opts, |p| {
                 match p {
@@ -767,6 +773,16 @@ impl Worker {
             Source::Bridge { port } => Box::new(SlcanLink::connect(port.as_deref())?),
             Source::Demo => Box::new(SimLink::new(VirtualCar::hijet().with_dash())),
             Source::DemoCorolla => Box::new(SimLink::new(VirtualCar::corolla_2006())),
+            Source::SimCar { name, engine_off } => {
+                let mut car = VirtualCar::by_name(name).ok_or_else(|| LinkError::Open {
+                    path: format!("simulated car {name}"),
+                    reason: format!("no such car. Try one of: {}", VirtualCar::CAR_NAMES.join(", ")),
+                })?;
+                if *engine_off {
+                    car.set_engine_running(false);
+                }
+                Box::new(SimLink::new(car))
+            }
             Source::DemoFaults => {
                 let mut car = VirtualCar::hijet_with_faults();
                 car.set_engine_running(false);

@@ -22,7 +22,7 @@ use std::collections::VecDeque;
 
 const OBD_FUNCTIONAL_11: CanId = CanId::Standard(0x7DF);
 const OBD_FUNCTIONAL_29: CanId = CanId::Extended(0x18DB_33F1);
-/// ECUs pad their frames with this byte (a real ECU may use 0x00, 0x55 or 0xAA).
+/// ECUs pad their frames with this byte unless told otherwise (a real ECU may use 0x00, 0x55 or 0xAA).
 const ECU_PADDING: u8 = 0xAA;
 
 /// Faults to inject, for testing how the tester copes.
@@ -45,6 +45,13 @@ pub enum EngineKind {
     /// 45 s, then holds about 2500 rpm for 45 s, like a helper holding the revs for a test.
     /// Its catalyst is worn, so the rear oxygen sensor swings almost like the front one.
     Corolla1zz,
+    /// An invented 2.2-3.2 L turbo-diesel ute of about 2016-2020. See [`VirtualCar::ute_diesel`].
+    DieselUte,
+    /// An invented 2015-2019 petrol hatch. See [`VirtualCar::hatch_two_ecus`].
+    HatchPetrol,
+    /// An invented 2019-2023 petrol hybrid whose engine stops by itself.
+    /// See [`VirtualCar::hybrid`].
+    Hybrid,
 }
 
 /// One simulated ECU.
@@ -72,6 +79,10 @@ pub struct Ecu {
     pub engine: EngineKind,
     /// Service 0A (permanent codes) arrived around 2010: older ECUs refuse it.
     pub permanent_supported: bool,
+    /// The byte this ECU pads its frames with.
+    pub padding: u8,
+    /// PID 01 reports real readiness monitors. A gearbox computer's PID 01 reports none (zeros).
+    pub monitors_reported: bool,
     /// Freeze frame values that differ from the live model (a code set while driving).
     pub freeze_overrides: Vec<(u8, Vec<u8>)>,
     reply_delay_ms: u64,
@@ -98,10 +109,32 @@ impl Ecu {
             tests: vec![],
             engine: EngineKind::HijetKf,
             permanent_supported: true,
+            padding: ECU_PADDING,
+            monitors_reported: true,
             freeze_overrides: vec![],
             reply_delay_ms: 2,
             tx: None,
         }
+    }
+
+    /// Readiness bytes B, C and D of PID 01 for the newer invented cars (the Hijet and Corolla
+    /// keep their original fixed values). After clearing codes every monitor shows not complete.
+    /// Bit layout: Wikipedia "OBD-II PIDs", PID 01, read 2026-10-17.
+    fn monitor_bytes(&self) -> Option<[u8; 3]> {
+        if !self.monitors_reported {
+            return Some([0, 0, 0]);
+        }
+        let (b, c, d) = match self.engine {
+            // Compression ignition (B bit 3). C: NMHC catalyst, NOx/SCR, boost pressure, exhaust
+            // gas sensor, PM filter, EGR/VVT. D: the particulate filter and NOx monitors not
+            // complete yet.
+            EngineKind::DieselUte => (0x0F, 0xEB, 0x42),
+            // Spark ignition. C: catalyst, evaporative system, oxygen sensor, heater, EGR/VVT.
+            EngineKind::HatchPetrol => (0x07, 0xE5, 0x04),
+            EngineKind::Hybrid => (0x07, 0xE5, 0x00),
+            _ => return None,
+        };
+        Some(if self.monitors_incomplete { [b | 0x70, c, c] } else { [b, c, d] })
     }
 
     /// PIDs stored in the freeze frame: the live ones that make sense as a snapshot.
@@ -160,14 +193,23 @@ impl Ecu {
 
     fn value_at(&self, pid: u8, t_ms: u64, running: bool) -> Vec<u8> {
         let e = Engine::at(self.engine, t_ms, running, self.stored.len());
-        let corolla = self.engine == EngineKind::Corolla1zz;
+        // The Corolla and the newer invented cars follow EOBD and report MIL distance and time.
+        let corolla = self.engine != EngineKind::HijetKf;
         let incomplete = if self.monitors_incomplete { 0x65 } else { 0x00 };
         let u8c = |v: f64| v.round().clamp(0.0, 255.0) as u8;
         let u16c = |v: f64| (v.round().clamp(0.0, 65535.0) as u16).to_be_bytes().to_vec();
         let pct = |v: f64| u8c(v * 255.0 / 100.0);
         let trim = |v: f64| u8c(v * 128.0 / 100.0 + 128.0);
         match pid {
-            0x01 | 0x41 => vec![(if e.mil { 0x80 } else { 0 }) | (e.codes.min(0x7F) as u8), 0x07, 0x65, incomplete],
+            0x01 | 0x41 => {
+                let a = (if e.mil { 0x80 } else { 0 }) | (e.codes.min(0x7F) as u8);
+                match self.monitor_bytes() {
+                    Some([b, c, d]) => vec![a, b, c, d],
+                    None => vec![a, 0x07, 0x65, incomplete],
+                }
+            }
+            // A hybrid with its engine stopped has no fuel system status to give.
+            0x03 if self.engine == EngineKind::Hybrid && e.rpm == 0.0 => vec![0, 0],
             0x03 => vec![if e.closed_loop { 2 } else { 1 }, 0],
             0x04 => vec![pct(e.load)],
             0x05 => vec![u8c(e.coolant + 40.0)],
@@ -175,13 +217,22 @@ impl Ecu {
             0x07 => vec![trim(1.6)],
             0x0B => vec![u8c(e.map)],
             0x0C => u16c(e.rpm * 4.0),
-            0x0D => vec![0],
+            0x0D => vec![u8c(e.speed)],
             0x0E => vec![u8c((e.timing + 64.0) * 2.0)],
             0x0F => vec![u8c(22.0 + 40.0)],
             0x10 => u16c(e.maf * 100.0),
             0x11 => vec![pct(e.throttle)],
             0x13 => vec![0x03],
             0x14 => vec![u8c(e.o2_front * 200.0), trim(e.stft)],
+            0x23 => u16c(e.fuel_rail / 10.0),
+            // Wide-range oxygen sensor: lambda (2/65536 per step), then volts (8/65536 per step).
+            0x24 => [u16c(e.lambda * 32768.0), u16c(2.2 * 8192.0)].concat(),
+            0x2C => vec![pct(e.egr)],
+            0x2D => vec![trim(if e.egr > 0.0 { 1.5 } else { 0.0 })],
+            0x2F => vec![pct(55.0)],
+            // Wide-range sensor, current form: lambda, then milliamps (1/256 per step, offset 128).
+            0x34 => [u16c(e.lambda * 32768.0), u16c((e.lambda - 1.0) * 6.0 * 256.0 + 128.0 * 256.0)].concat(),
+            0x46 => vec![u8c(24.0 + 40.0)],
             0x15 => vec![u8c(e.o2_rear * 200.0), 0xFF],
             // JOBD for the Hijet; EOBD for the Corolla (Australian cars follow ADR 79/01, an
             // estimate for this one).
@@ -195,6 +246,9 @@ impl Ecu {
             0x31 => u16c(1250.0),
             0x3C => u16c((e.cat_temp + 40.0) * 10.0),
             0x43 => u16c(e.load * 0.85 * 255.0 / 100.0),
+            0x44 if self.engine != EngineKind::HijetKf && self.engine != EngineKind::Corolla1zz => {
+                u16c(e.lambda * 32768.0)
+            }
             0x44 => u16c(32768.0),
             0x33 => vec![94],
             0x42 => u16c(e.volts * 1000.0),
@@ -204,6 +258,27 @@ impl Ecu {
             0x4A => vec![pct(7.5 + (e.throttle - 18.0) * 0.4)],
             0x4C => vec![pct((e.throttle - 8.0).max(0.0))],
             0x4E => u16c(45_060.0 + (t_ms / 60_000) as f64),
+            0x51 => vec![match self.engine {
+                EngineKind::DieselUte => 4,
+                EngineKind::Hybrid => 17,
+                _ => 1,
+            }],
+            0x5B => vec![pct(e.hybrid_battery)],
+            0x5C => vec![u8c(e.oil_temp + 40.0)],
+            0x5E => u16c(e.fuel_rate * 20.0),
+            // Exhaust gas temperature bank 1 (0x78) and particulate filter temperature (0x7C): a
+            // support byte (sensors 1 and 2), then four temperatures in 0.1 degree steps, offset 40.
+            0x78 | 0x7C => {
+                let temp = |v: f64| u16c((v + 40.0) * 10.0);
+                let mut d = vec![0x03];
+                // The filter's inlet is a little hotter than the exhaust manifold side reading.
+                let (first, second) =
+                    if pid == 0x7C { (e.egt_out + 25.0, e.egt_out - 15.0) } else { (e.egt_in, e.egt_out) };
+                for v in [first, second, 0.0, 0.0] {
+                    d.extend(temp(v));
+                }
+                d
+            }
             // Scaling limits. The real truck's are not known yet: 0 is a guess.
             0x4F | 0x50 => vec![0, 0, 0, 0],
             // Any other PID in the list: a plain number that changes slowly.
@@ -258,6 +333,7 @@ fn corolla_tests() -> Vec<(u8, u8, u8, u16, u16, u16)> {
 }
 
 /// An engine at a moment: a deterministic model, no randomness.
+#[derive(Default)]
 struct Engine {
     rpm: f64,
     load: f64,
@@ -275,13 +351,35 @@ struct Engine {
     closed_loop: bool,
     mil: bool,
     codes: usize,
+    /// Vehicle speed, km/h. Zero for the cars that stand still.
+    speed: f64,
+    /// Fuel rail pressure, kPa (diesel).
+    fuel_rail: f64,
+    /// Commanded EGR, percent.
+    egr: f64,
+    /// Exhaust gas temperatures, degrees C: before and after the particulate filter.
+    egt_in: f64,
+    egt_out: f64,
+    /// Air-fuel ratio as lambda (1.0 is stoichiometric); wide-band sensor reading.
+    lambda: f64,
+    /// Fuel use, L/h.
+    fuel_rate: f64,
+    oil_temp: f64,
+    /// Hybrid battery pack remaining life, percent.
+    hybrid_battery: f64,
 }
 
 impl Engine {
     fn at(kind: EngineKind, t_ms: u64, running: bool, codes: usize) -> Self {
         let t = t_ms as f64 / 1000.0;
-        if running && kind == EngineKind::Corolla1zz {
-            return Self::corolla(t, codes);
+        if running {
+            match kind {
+                EngineKind::Corolla1zz => return Self::corolla(t, codes),
+                EngineKind::DieselUte => return Self::diesel_ute(t, codes),
+                EngineKind::HatchPetrol => return Self::hatch(t, codes),
+                EngineKind::Hybrid => return Self::hybrid(t, codes),
+                EngineKind::HijetKf => {}
+            }
         }
         if !running {
             return Engine {
@@ -301,6 +399,11 @@ impl Engine {
                 closed_loop: false,
                 mil: codes > 0,
                 codes,
+                lambda: 1.0,
+                oil_temp: 30.0,
+                fuel_rail: 20_000.0,
+                hybrid_battery: 75.0,
+                ..Engine::default()
             };
         }
         // A blip of the throttle every 20 s, lasting 3 s.
@@ -326,6 +429,8 @@ impl Engine {
             closed_loop,
             mil: codes > 0,
             codes,
+            lambda: 1.0,
+            ..Engine::default()
         }
     }
 
@@ -366,6 +471,132 @@ impl Engine {
             closed_loop,
             mil: codes > 0,
             codes,
+            lambda: 1.0,
+            ..Engine::default()
+        }
+    }
+
+    /// The invented diesel ute, warm. Every 40 s the revs rise to about 1900 rpm for 6 s
+    /// (2 s ramps), as if the driver blipped the pedal. Typical diesel figures (estimates, not
+    /// measured): lean always (lambda 1.4 to 2.4), no throttle plate to speak of, high rail
+    /// pressure.
+    fn diesel_ute(t: f64, codes: usize) -> Self {
+        let c = t % 40.0;
+        let up = if c < 28.0 {
+            0.0
+        } else if c < 30.0 {
+            (c - 28.0) / 2.0
+        } else if c < 36.0 {
+            1.0
+        } else if c < 38.0 {
+            (38.0 - c) / 2.0
+        } else {
+            0.0
+        };
+        Engine {
+            rpm: 780.0 + 10.0 * (t * 0.6).sin() + 1100.0 * up,
+            load: 24.0 + 40.0 * up,
+            coolant: 87.0 + 2.0 * (t / 50.0).sin(),
+            // Boost: the intake manifold pressure is above atmosphere when the turbo works.
+            map: 101.0 + 4.0 * (t * 0.5).sin() + 110.0 * up,
+            maf: 7.5 + 0.3 * (t * 0.7).sin().abs() + 38.0 * up,
+            throttle: 12.0 + 40.0 * up,
+            volts: 14.1 + 0.05 * (t * 0.9).sin(),
+            run_s: t + 1200.0,
+            mil: codes > 0,
+            codes,
+            fuel_rail: 31_000.0 + 70_000.0 * up + 800.0 * (t * 1.1).sin(),
+            egr: 28.0 - 22.0 * up,
+            egt_in: 190.0 + 330.0 * up,
+            egt_out: 175.0 + 290.0 * up,
+            lambda: 1.9 - 0.5 * up,
+            fuel_rate: 1.4 + 9.0 * up,
+            oil_temp: 91.0 + 2.0 * (t / 50.0).sin(),
+            ..Engine::default()
+        }
+    }
+
+    /// The invented petrol hatch, warm, idling with a short rev every 30 s.
+    fn hatch(t: f64, codes: usize) -> Self {
+        let c = t % 30.0;
+        let up = if (20.0..22.0).contains(&c) {
+            (c - 20.0) / 2.0
+        } else if (22.0..26.0).contains(&c) {
+            1.0
+        } else if (26.0..28.0).contains(&c) {
+            (28.0 - c) / 2.0
+        } else {
+            0.0
+        };
+        let closed_loop = up < 0.5;
+        Engine {
+            rpm: 680.0 + 12.0 * (t * 0.7).sin() + 1500.0 * up,
+            load: 20.0 + 25.0 * up,
+            coolant: 90.0 + 1.5 * (t / 40.0).sin(),
+            map: 32.0 + 30.0 * up,
+            maf: 2.8 + 0.2 * (t * 0.7).sin().abs() + 7.0 * up,
+            timing: 12.0 + 2.0 * (t * 0.5).sin() + 14.0 * up,
+            throttle: 13.0 + 12.0 * up,
+            stft: if closed_loop { 3.0 * (t * 1.3).sin() } else { 0.0 },
+            o2_front: 0.45,
+            o2_rear: 0.62 + 0.04 * (t * 0.3).sin(),
+            volts: 14.2 + 0.05 * (t * 0.9).sin(),
+            run_s: t + 600.0,
+            cat_temp: 480.0 + 90.0 * up,
+            closed_loop,
+            mil: codes > 0,
+            codes,
+            lambda: if closed_loop { 1.0 + 0.015 * (t * 3.0).sin() } else { 0.88 },
+            fuel_rate: 0.9 + 4.0 * up,
+            oil_temp: 92.0,
+            ..Engine::default()
+        }
+    }
+
+    /// The invented hybrid, "ready" from the start. The engine is off at first (0 rpm, the car
+    /// stands), then the car creeps on electric power (0 rpm, up to 25 km/h), then the engine
+    /// starts and runs, then stops again. One turn is 90 s. The engine's own values (load,
+    /// air flow) are zero while it is off.
+    fn hybrid(t: f64, codes: usize) -> Self {
+        let c = t % 90.0;
+        // Engine run level, 0 to 1, and the road speed.
+        let (run, speed) = if c < 20.0 {
+            (0.0, 0.0)
+        } else if c < 45.0 {
+            (0.0, 25.0 * ((c - 20.0) / 5.0).min(1.0))
+        } else if c < 48.0 {
+            ((c - 45.0) / 3.0, 25.0 + 5.0 * (c - 45.0) / 3.0)
+        } else if c < 70.0 {
+            (1.0, 30.0 + 20.0 * ((c - 48.0) / 22.0))
+        } else if c < 73.0 {
+            ((73.0 - c) / 3.0, 50.0 - 10.0 * (c - 70.0) / 3.0)
+        } else {
+            (0.0, (40.0 - 8.0 * (c - 73.0)).max(0.0))
+        };
+        let on = run > 0.0;
+        Engine {
+            rpm: if on { 1000.0 + 1100.0 * run * (0.5 + 0.5 * (t * 0.3).sin()) } else { 0.0 },
+            load: if on { 30.0 * run + 5.0 } else { 0.0 },
+            coolant: 80.0 + 3.0 * (t / 60.0).sin(),
+            map: if on { 40.0 + 20.0 * run } else { 98.0 },
+            maf: if on { 2.5 + 6.0 * run } else { 0.0 },
+            timing: if on { 18.0 } else { 0.0 },
+            throttle: if on { 20.0 + 10.0 * run } else { 12.0 },
+            stft: if on { 2.0 * (t * 1.3).sin() } else { 0.0 },
+            o2_front: 0.45,
+            o2_rear: 0.62,
+            volts: 14.0,
+            run_s: t + 300.0,
+            cat_temp: if on { 520.0 } else { 380.0 },
+            closed_loop: on,
+            mil: codes > 0,
+            codes,
+            speed,
+            lambda: 1.0,
+            fuel_rate: if on { 0.8 + 2.0 * run } else { 0.0 },
+            oil_temp: 85.0,
+            hybrid_battery: 75.0,
+            ..Engine::default()
         }
     }
 }
@@ -479,6 +710,136 @@ impl VirtualCar {
         }
     }
 
+    fn bare(ecus: Vec<Ecu>) -> Self {
+        VirtualCar {
+            bitrate: Bitrate::K500,
+            extended_ids: false,
+            ecus,
+            modules: vec![],
+            faults: Faults::default(),
+            other_tester: None,
+            out: VecDeque::new(),
+            replies: 0,
+        }
+    }
+
+    /// An INVENTED 2016-2020 turbo-diesel ute (the kind sold in Australia with a 2.2 to 3.2 L
+    /// engine), made up for testing. The values and the PID list are NOT taken from any real
+    /// car's data. The engine computer (7E0/7E8) and the gearbox computer (7E1/7E9) both
+    /// answer functional (7DF) requests. 11-bit IDs, 500 kbit/s, no dash display.
+    ///
+    /// Facts used, from Wikipedia "OBD-II PIDs" (read 2026-10-17): PID 01 byte B bit 3 set means
+    /// compression ignition, and bytes C and D then hold the diesel monitors (NMHC catalyst,
+    /// NOx/SCR, boost pressure, exhaust gas sensor, PM filter, EGR/VVT); PID 0x23 is fuel rail
+    /// pressure (10 kPa per step); 0x34 is a wide-range oxygen sensor with lambda and current;
+    /// 0x78 is exhaust gas temperature and 0x7C is particulate filter temperature; 0x51 value 4
+    /// is diesel. There are no narrow-band oxygen sensor PIDs (0x13 to 0x1B). One code is
+    /// stored: P2002 (particulate filter efficiency below threshold), with a freeze frame.
+    pub fn ute_diesel() -> Self {
+        let pids = vec![
+            0x01, 0x04, 0x05, 0x0B, 0x0C, 0x0D, 0x0F, 0x10, 0x11, 0x1C, 0x1F, 0x21, 0x23, 0x2C, 0x2D, 0x2F, 0x30, 0x31,
+            0x33, 0x34, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x49, 0x4C, 0x4D, 0x4E, 0x51, 0x5C, 0x5E, 0x78, 0x7C,
+        ];
+        let mut ecm = Ecu::new("Engine (simulated diesel ute)", CanId::Standard(0x7E0), CanId::Standard(0x7E8), pids);
+        ecm.engine = EngineKind::DieselUte;
+        ecm.vin = Some("MNCSIMUTED0000001".into());
+        ecm.calibration_id = Some("SIMCAL-UTE-ENG01".into());
+        ecm.stored = vec![Dtc(0x2002)];
+        // Stored on a steady run at 85 km/h.
+        ecm.freeze = Some((Dtc(0x2002), 32_000));
+        ecm.freeze_overrides = vec![(0x0D, vec![85])];
+        let mut tcm = Ecu::new(
+            "Gearbox (simulated diesel ute)",
+            CanId::Standard(0x7E1),
+            CanId::Standard(0x7E9),
+            vec![0x01, 0x05, 0x0C, 0x0D, 0x42],
+        );
+        tcm.engine = EngineKind::DieselUte;
+        tcm.calibration_id = Some("SIMCAL-UTE-TCM01".into());
+        tcm.reply_delay_ms = 4;
+        tcm.monitors_reported = false;
+        VirtualCar::bare(vec![ecm, tcm])
+    }
+
+    /// An INVENTED 2015-2019 petrol hatch (Mazda3 or Hyundai i30 class), made up for testing.
+    /// Values and PID lists are NOT taken from any real car's data. The engine computer
+    /// (7E0/7E8) and the gearbox computer (7E1/7E9) both answer engine speed, vehicle speed and
+    /// coolant temperature, and both pad their frames with 0x00 (not 0xAA). The engine
+    /// computer reports a VIN and a calibration ID, the gearbox computer a calibration ID.
+    /// Permanent codes are supported (none stored). One code is pending, not stored: P0455 (an
+    /// evaporative system leak), so the MIL is off.
+    ///
+    /// PID formulas and the PID 01 layout: Wikipedia "OBD-II PIDs", read 2026-10-17.
+    pub fn hatch_two_ecus() -> Self {
+        let pids = vec![
+            0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x13, 0x15, 0x1C, 0x1F, 0x21,
+            0x24, 0x2E, 0x2F, 0x30, 0x31, 0x33, 0x3C, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x49, 0x4A, 0x4C, 0x4D,
+            0x4E, 0x51,
+        ];
+        let mut ecm = Ecu::new("Engine (simulated hatch)", CanId::Standard(0x7E0), CanId::Standard(0x7E8), pids);
+        ecm.engine = EngineKind::HatchPetrol;
+        ecm.padding = 0x00;
+        ecm.vin = Some("JM0SIMHATCH000001".into());
+        ecm.calibration_id = Some("SIMCAL-HATCH-E01".into());
+        ecm.pending = vec![Dtc(0x0455)];
+        let mut tcm = Ecu::new(
+            "Gearbox (simulated hatch)",
+            CanId::Standard(0x7E1),
+            CanId::Standard(0x7E9),
+            vec![0x01, 0x05, 0x0C, 0x0D, 0x1C, 0x42],
+        );
+        tcm.engine = EngineKind::HatchPetrol;
+        tcm.padding = 0x00;
+        tcm.calibration_id = Some("SIMCAL-HATCH-T01".into());
+        tcm.reply_delay_ms = 4;
+        tcm.monitors_reported = false;
+        VirtualCar::bare(vec![ecm, tcm])
+    }
+
+    /// An INVENTED 2019-2023 petrol hybrid (Toyota Corolla or RAV4 hybrid class), made up for
+    /// testing. Values and PID lists are NOT taken from any real car's data. The engine
+    /// computer (7E0/7E8) and a hybrid computer (7E2/7EA) answer. The engine stops and starts
+    /// by itself: its speed reads 0 rpm while the car is ready, also while it creeps on
+    /// electric power, then the engine runs again (a 90 s turn, see [`EngineKind::Hybrid`]).
+    /// The hybrid computer answers 0x0D (vehicle speed), 0x42 and 0x5B (hybrid battery pack
+    /// remaining life). The engine computer answers 0x51 (fuel type, 17 is hybrid gasoline) and
+    /// 0x5E (fuel rate). PID meanings: Wikipedia "OBD-II PIDs", read 2026-10-17.
+    pub fn hybrid() -> Self {
+        let pids = vec![
+            0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x11, 0x1C, 0x1F, 0x21, 0x24, 0x2E, 0x2F,
+            0x30, 0x31, 0x33, 0x3C, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x49, 0x4A, 0x4C, 0x4D, 0x4E, 0x51, 0x5C,
+            0x5E,
+        ];
+        let mut ecm = Ecu::new("Engine (simulated hybrid)", CanId::Standard(0x7E0), CanId::Standard(0x7E8), pids);
+        ecm.engine = EngineKind::Hybrid;
+        ecm.vin = Some("JTDSIMHYB00000001".into());
+        ecm.calibration_id = Some("SIMCAL-HYB-ENG01".into());
+        let mut hv = Ecu::new(
+            "Hybrid system (simulated)",
+            CanId::Standard(0x7E2),
+            CanId::Standard(0x7EA),
+            vec![0x0D, 0x42, 0x5B],
+        );
+        hv.engine = EngineKind::Hybrid;
+        hv.calibration_id = Some("SIMCAL-HYB-HV01".into());
+        hv.reply_delay_ms = 4;
+        hv.monitors_reported = false;
+        VirtualCar::bare(vec![ecm, hv])
+    }
+
+    /// A simulated car by its `--sim-car` name: `ute-diesel`, `hatch-two-ecus` or `hybrid`.
+    pub fn by_name(name: &str) -> Option<Self> {
+        match name {
+            "ute-diesel" => Some(VirtualCar::ute_diesel()),
+            "hatch-two-ecus" => Some(VirtualCar::hatch_two_ecus()),
+            "hybrid" => Some(VirtualCar::hybrid()),
+            _ => None,
+        }
+    }
+
+    /// The names [`VirtualCar::by_name`] knows.
+    pub const CAR_NAMES: [&'static str; 3] = ["ute-diesel", "hatch-two-ecus", "hybrid"];
+
     /// The car without its enhanced modules (OBD-II only).
     pub fn without_modules(mut self) -> Self {
         self.modules.clear();
@@ -498,6 +859,7 @@ impl VirtualCar {
             vec![0x01, 0x05, 0x0D, 0x42],
         );
         tcm.reply_delay_ms = 4;
+        tcm.monitors_reported = false;
         car.ecus.push(tcm);
         car
     }
@@ -603,7 +965,7 @@ impl VirtualCar {
             return;
         }
         let at = at_ms + self.ecus[ecu].reply_delay_ms + self.faults.extra_delay_ms;
-        let Ok(mut sender) = Sender::new(msg, Some(ECU_PADDING)) else { return };
+        let Ok(mut sender) = Sender::new(msg, Some(self.ecus[ecu].padding)) else { return };
         if sender.is_single_frame() {
             if let SendStep::Send(payload) = sender.step(at)
                 && let Ok(f) = Frame::new(self.ecus[ecu].reply_id, &payload)
@@ -1043,5 +1405,130 @@ mod tests {
         };
         assert!((650.0..760.0).contains(&rpm(20_000)));
         assert!((2400.0..2600.0).contains(&rpm(60_000)));
+    }
+
+    /// Sends a functional request and returns the first frame from each answering ID, sorted.
+    fn ask_all(car: &mut VirtualCar, data: &[u8], at: u64) -> Vec<Frame> {
+        car.receive(&req(0x7DF, data), at);
+        let mut f = car.poll(at + 50);
+        f.sort_by_key(|x| x.id.raw());
+        f
+    }
+
+    fn rpm_of(car: &VirtualCar, ecu: usize, t: u64) -> f64 {
+        let d = car.ecus[ecu].pid_value(0x0C, t).unwrap();
+        f64::from(u16::from_be_bytes([d[0], d[1]])) / 4.0
+    }
+
+    #[test]
+    fn the_diesel_ute_has_two_ecus_diesel_monitors_and_a_dpf_code() {
+        let mut car = VirtualCar::ute_diesel();
+        let f = ask_all(&mut car, &[0x02, 0x01, 0x00], 0);
+        assert_eq!(f.iter().map(|x| x.id).collect::<Vec<_>>(), vec![CanId::Standard(0x7E8), CanId::Standard(0x7E9)]);
+        // Fuel type: diesel. Both computers answer 0x05 functionally.
+        let f = ask_all(&mut car, &[0x02, 0x01, 0x05], 100);
+        assert_eq!(f.len(), 2);
+        let f = ask_all(&mut car, &[0x02, 0x01, 0x51], 200);
+        assert_eq!(f[0].data()[..4], [0x03, 0x41, 0x51, 0x04]);
+        // PID 01: B bit 3 set (compression ignition), C and D hold the diesel monitors.
+        car.receive(&req(0x7E0, &[0x02, 0x01, 0x01]), 300);
+        let d = car.poll(310)[0].data().to_vec();
+        assert_eq!(d[1..3], [0x41, 0x01]);
+        assert_eq!(d[3], 0x81); // MIL on, one code
+        assert_eq!(d[4] & 0x08, 0x08);
+        assert_eq!((d[5], d[6]), (0xEB, 0x42));
+        // No oxygen sensor voltage PIDs (0x13 to 0x1B), but fuel rail pressure and DPF temperature.
+        let pids = &car.ecus[0].pids;
+        assert!((0x13..=0x1B).all(|p| !pids.contains(&p)));
+        assert!(pids.contains(&0x23) && pids.contains(&0x7C) && pids.contains(&0x78));
+        // Fuel rail pressure 0x23: 10 kPa per step, about 31000 kPa at idle.
+        let v = car.ecus[0].pid_value(0x23, 5000).unwrap();
+        let kpa = f64::from(u16::from_be_bytes([v[0], v[1]])) * 10.0;
+        assert!((29_000.0..33_000.0).contains(&kpa), "{kpa}");
+        // 0x7C: nine data bytes (support flags, then four temperatures).
+        assert_eq!(car.ecus[0].pid_value(0x7C, 5000).unwrap().len(), 9);
+        // The stored code is P2002, with a freeze frame from 85 km/h.
+        car.receive(&req(0x7E0, &[0x01, 0x03]), 400);
+        assert_eq!(car.poll(410)[0].data()[..5], [0x04, 0x43, 0x01, 0x20, 0x02]);
+        car.receive(&req(0x7E0, &[0x03, 0x02, 0x0D, 0x00]), 500);
+        assert_eq!(car.poll(510)[0].data()[..5], [0x04, 0x42, 0x0D, 0x00, 85]);
+        // Idles at about 780 rpm.
+        assert!((700.0..900.0).contains(&rpm_of(&car, 0, 5000)));
+    }
+
+    #[test]
+    fn the_hatch_has_two_ecus_answering_the_same_pids_with_zero_padding() {
+        let mut car = VirtualCar::hatch_two_ecus();
+        let f = ask_all(&mut car, &[0x02, 0x01, 0x0D], 0);
+        assert_eq!(f.len(), 2);
+        for fr in &f {
+            // 03 41 0D 00, then padding of 0x00 (not 0xAA).
+            assert_eq!(fr.data(), [0x03, 0x41, 0x0D, 0x00, 0, 0, 0, 0]);
+        }
+        let f = ask_all(&mut car, &[0x02, 0x01, 0x05], 100);
+        assert_eq!(f.len(), 2);
+        assert_eq!(f[0].data()[3], f[1].data()[3]);
+        // Calibration IDs from both, a VIN from the engine computer.
+        for (id, want) in [(0x7E0, "SIMCAL-HATCH-E01"), (0x7E1, "SIMCAL-HATCH-T01")] {
+            car.receive(&req(id, &[0x02, 0x09, 0x04]), 200);
+            let first = car.poll(210)[0].data().to_vec();
+            assert_eq!(first[0], 0x10);
+            car.receive(&req(id, &[0x30, 0, 0]), 220);
+            let rest: Vec<u8> = car.poll(240).iter().flat_map(|x| x.data()[1..].to_vec()).collect();
+            let text: Vec<u8> = [&first[5..], &rest[..]].concat();
+            assert!(String::from_utf8_lossy(&text).starts_with(want), "{id:X}");
+        }
+        car.receive(&req(0x7E0, &[0x02, 0x09, 0x02]), 300);
+        assert_eq!(car.poll(310)[0].data()[..2], [0x10, 20]);
+        car.receive(&req(0x7E0, &[0x30, 0, 0]), 320);
+        car.poll(340);
+        // A pending code (P0455), none stored, permanent codes supported (none).
+        car.receive(&req(0x7E0, &[0x01, 0x07]), 400);
+        assert_eq!(car.poll(410)[0].data()[..5], [0x04, 0x47, 0x01, 0x04, 0x55]);
+        car.receive(&req(0x7E0, &[0x01, 0x03]), 420);
+        assert_eq!(car.poll(430)[0].data()[..3], [0x02, 0x43, 0x00]);
+        car.receive(&req(0x7E0, &[0x01, 0x0A]), 440);
+        assert_eq!(car.poll(450)[0].data()[..3], [0x02, 0x4A, 0x00]);
+        // Spark ignition monitors: B bit 3 clear.
+        car.receive(&req(0x7E0, &[0x02, 0x01, 0x01]), 500);
+        let d = car.poll(510)[0].data().to_vec();
+        assert_eq!((d[3], d[4] & 0x08, d[5]), (0x00, 0x00, 0xE5));
+    }
+
+    #[test]
+    fn the_hybrid_reads_0_rpm_while_ready_and_the_engine_comes_and_goes() {
+        let mut car = VirtualCar::hybrid();
+        let f = ask_all(&mut car, &[0x02, 0x01, 0x00], 0);
+        assert_eq!(f.iter().map(|x| x.id).collect::<Vec<_>>(), vec![CanId::Standard(0x7E8), CanId::Standard(0x7EA)]);
+        // Ready and standing: 0 rpm, 0 km/h. Creeping on electric power: 0 rpm, but moving.
+        assert_eq!(rpm_of(&car, 0, 10_000), 0.0);
+        assert_eq!(rpm_of(&car, 0, 35_000), 0.0);
+        let speed = |t| car.ecus[1].pid_value(0x0D, t).unwrap()[0];
+        assert_eq!(speed(10_000), 0);
+        assert!(speed(35_000) > 20);
+        // Then the engine runs, and stops again.
+        assert!(rpm_of(&car, 0, 60_000) > 900.0);
+        assert_eq!(rpm_of(&car, 0, 85_000), 0.0);
+        // The hybrid computer answers its own PIDs: 0x5B battery life, not on the engine computer.
+        car.receive(&req(0x7E2, &[0x02, 0x01, 0x5B]), 100);
+        let f = car.poll(110);
+        assert_eq!((f[0].id, f[0].data()[..4].to_vec()), (CanId::Standard(0x7EA), vec![0x03, 0x41, 0x5B, 0xBF]));
+        car.receive(&req(0x7E0, &[0x02, 0x01, 0x5B]), 200);
+        assert!(car.poll(210)[0].data()[..4] == [0x03, 0x7F, 0x01, 0x12]);
+        // Fuel type 17 (hybrid gasoline), and fuel rate 0 L/h with the engine stopped.
+        car.receive(&req(0x7E0, &[0x02, 0x01, 0x51]), 300);
+        assert_eq!(car.poll(310)[0].data()[..4], [0x03, 0x41, 0x51, 17]);
+        assert_eq!(car.ecus[0].pid_value(0x5E, 10_000).unwrap(), vec![0, 0]);
+        // Ready, so the engine computer refuses to clear codes even at 0 rpm.
+        car.receive(&req(0x7E0, &[0x01, 0x04]), 400);
+        assert_eq!(car.poll(410)[0].data()[..4], [0x03, 0x7F, 0x04, 0x22]);
+    }
+
+    #[test]
+    fn cars_are_found_by_name() {
+        for name in VirtualCar::CAR_NAMES {
+            assert!(VirtualCar::by_name(name).is_some(), "{name}");
+        }
+        assert!(VirtualCar::by_name("nope").is_none());
     }
 }

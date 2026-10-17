@@ -38,6 +38,63 @@ pub struct ClearOutcome {
     pub codes_after: Vec<(CanId, Vec<Dtc>)>,
 }
 
+/// A hybrid shows its system voltage this high or higher while the car is ready (the converter
+/// charges the 12 V battery). With the ignition on but not ready, it reads about 12.5 V. An
+/// estimate, not from a maker's data: it errs on the side of refusing.
+const HYBRID_READY_VOLTS: f64 = 13.2;
+
+/// True if the car is a hybrid: an ECU reports the hybrid battery (PID 5B), or the fuel type
+/// (PID 51) is one of the hybrid ones (17 to 22).
+fn is_hybrid(client: &mut Client, ecus: &[(CanId, Vec<u8>)]) -> Result<bool, CoreError> {
+    if ecus.iter().any(|(_, supported)| supported.contains(&0x5B)) {
+        return Ok(true);
+    }
+    for (ecu, supported) in ecus {
+        if !supported.contains(&0x51) {
+            continue;
+        }
+        for r in readers::read_pids(client, *ecu, &[0x51])? {
+            if (17..=22).contains(&r.raw.first().copied().unwrap_or(0)) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+/// A hybrid's engine starts and stops by itself while the car is ready, so 0 rpm does not mean
+/// the car is off. Refuses when the system voltage says the car is ready.
+fn check_hybrid_not_ready(client: &mut Client, ecus: &[(CanId, Vec<u8>)]) -> Result<(), CoreError> {
+    if !is_hybrid(client, ecus)? {
+        return Ok(());
+    }
+    let mut read_any = false;
+    for (ecu, supported) in ecus {
+        if !supported.contains(&0x42) {
+            continue;
+        }
+        for r in readers::read_pids(client, *ecu, &[0x42])? {
+            let Some(v) = r.decoded.as_ref().and_then(|d| d.main()).map(|q| q.value) else { continue };
+            read_any = true;
+            if v >= HYBRID_READY_VOLTS {
+                return Err(CoreError::Unsafe(format!(
+                    "This is a hybrid, and it looks ready (system voltage {v:.1} V). Its engine can start by itself \
+                     even when it reads 0 rpm. Switch the car off, then switch the ignition on without pressing the \
+                     brake (no READY light), and try again."
+                )));
+            }
+        }
+    }
+    if !read_any {
+        return Err(CoreError::Unsafe(
+            "This is a hybrid and Scana can't tell whether it is ready (no computer reports system voltage). \
+             Codes were not cleared."
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Checks the engine is off and the car is still, using only PIDs each ECU supports.
 pub fn check_engine_off(client: &mut Client, ecus: &[(CanId, Vec<u8>)]) -> Result<(), CoreError> {
     let mut checked = false;
@@ -64,7 +121,7 @@ pub fn check_engine_off(client: &mut Client, ecus: &[(CanId, Vec<u8>)]) -> Resul
             "Scana can't confirm the engine is off: no ECU reports engine speed. Codes were not cleared.".into(),
         ));
     }
-    Ok(())
+    check_hybrid_not_ready(client, ecus)
 }
 
 /// Clears codes on every OBD ECU, after the checks. `ecus` lists each ECU with its supported PIDs.
@@ -120,6 +177,47 @@ mod tests {
         assert_eq!(out.codes_after, vec![(CanId::Standard(0x7E8), vec![])]);
         let m = readers::readiness(&mut c, CanId::Standard(0x7E8)).unwrap();
         assert!(!m.mil && m.monitors.iter().any(|x| x.available && !x.complete));
+    }
+
+    #[test]
+    fn refuses_a_hybrid_that_is_ready_though_its_engine_reads_0_rpm() {
+        // The hybrid starts ready with its engine stopped: 0 rpm, 0 km/h, 14 V.
+        let (mut c, ecus) = connected(VirtualCar::hybrid());
+        let e = clear_codes(&mut c, &ecus, ClearConsent::confirmed_by_user()).unwrap_err();
+        assert!(matches!(e, CoreError::Unsafe(ref m) if m.contains("hybrid") && m.contains("ready")), "{e}");
+    }
+
+    #[test]
+    fn refuses_a_hybrid_when_no_computer_reports_system_voltage() {
+        let mut car = VirtualCar::hybrid();
+        car.set_engine_running(false);
+        for e in &mut car.ecus {
+            e.pids.retain(|p| *p != 0x42);
+        }
+        let (mut c, ecus) = connected(car);
+        let e = clear_codes(&mut c, &ecus, ClearConsent::confirmed_by_user()).unwrap_err();
+        assert!(matches!(e, CoreError::Unsafe(ref m) if m.contains("can't tell whether it is ready")), "{e}");
+    }
+
+    #[test]
+    fn clears_a_hybrid_that_is_off() {
+        let mut car = VirtualCar::hybrid();
+        car.set_engine_running(false);
+        let (mut c, ecus) = connected(car);
+        let out = clear_codes(&mut c, &ecus, ClearConsent::confirmed_by_user()).unwrap();
+        assert!(out.refused.is_empty(), "{:?}", out.refused);
+    }
+
+    #[test]
+    fn clears_a_diesel_and_a_hatch_with_the_engine_off() {
+        for car in [VirtualCar::ute_diesel(), VirtualCar::hatch_two_ecus()] {
+            let mut car = car;
+            car.set_engine_running(false);
+            let (mut c, ecus) = connected(car);
+            let out = clear_codes(&mut c, &ecus, ClearConsent::confirmed_by_user()).unwrap();
+            assert_eq!(out.cleared.len(), 2);
+            assert!(out.codes_after.iter().all(|(_, codes)| codes.is_empty()));
+        }
     }
 
     #[test]

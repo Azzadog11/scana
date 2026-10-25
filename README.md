@@ -1,60 +1,229 @@
+<p align="center"><img src="crates/scana-app/assets/logo-256.png" width="128" alt="The Scana logo: a kangaroo over a CAN signal"></p>
+
 # Scana
 
-Scan software from down under: an open laptop scan tool for cars with OBD-II on CAN, built from an Arduino Uno R3 and a SparkFun CAN-BUS Shield.
+Scana is a scan tool for cars. It runs on a Linux laptop.
 
-- **scana-bridge**: firmware for the Uno R3 and the shield. It passes CAN frames between the car and the laptop over USB, and nothing else.
-- **scana-app**: a Rust desktop app for Linux. It reads and clears fault codes, shows live data and graphs, records drives, writes health reports, finds every module in the car (brakes, airbags, body) and reads their codes, and explains every value and code as you go.
-- **The Library**: about 120 topics in plain English on reading live data (fuel trims, oxygen sensors, what common faults look like in the numbers), how the car's systems and parts work, and how CAN and diagnostics work, each with its sources, plus a 240-word glossary. Every word Scana can explain is underlined wherever it appears: rest the pointer on it for a one-line meaning, click it to read more.
-- **Diagnosis guides**: for common fault codes, the likely causes and tests that tell them apart, in plain English. Scana measures some tests itself on a connected car; the rest you answer from what you see, a meter, or another scan tool, so they work on any car.
-- **scana**: the same engine on the command line, for scripts and testing.
+Scana connects to the car through a small USB bridge: an Arduino Uno with a CAN shield.
 
-It is tuned first for the 2024 Daihatsu Hijet Jumbo (S510P), and works with any car that has OBD-II on CAN (ISO 15765-4, 11-bit or 29-bit, 250 or 500 kbit/s).
+Scana reads data from the car. It does not change the car. The only exception is when you clear fault codes.
 
-## Status
+![Live data in Scana](docs/images/live-data.png)
 
-Version 0.3.3 (bridge firmware 0.1.2). The firmware runs on an Uno R3 with the shield; the app and the command line work end to end on built-in demo cars and talk to the real bridge. Live data has been recorded on three drives in a 2024 Hijet. Module discovery, module codes and the data explorer (stage 3) work on the simulated modules. There are 42 diagnosis guides and about 2,000 code descriptions. Most of it is not yet proven on a car: expect rough edges.
+## What Scana does
 
-## Hardware
+- Shows live data: engine speed, temperatures, fuel trims and more.
+- Shows graphs of live data.
+- Reads fault codes and freeze frames, and tells you what they mean.
+- Does a health check and saves a report.
+- Finds the modules in the car (ABS, airbag, body) and reads their codes.
+- Gives step-by-step guides to find the cause of common fault codes.
+- Records a drive to files.
+- Explains each value and word. Put the pointer on an underlined word to see what it means.
 
-| Part | Notes |
+## What you need
+
+| Item | Notes |
 |---|---|
-| Arduino Uno R3 | Genuine or a close clone with an ATmega16U2 USB chip |
-| SparkFun CAN-BUS Shield, DEV-13262 | MCP2515 and MCP2551, 16 MHz crystal. Leave the DB9 jumpers on their default OBD-II setting |
-| OBD-II to DB9 cable | Wired like SparkFun's CAB-10087: CAN-H on DB9 pin 3, CAN-L on pin 5, ground on pin 2. Check yours with a meter |
-| A laptop running Linux | The app is laid out for 1366 x 768 and scales up |
+| Arduino Uno R3 | A genuine Uno, or a clone with an ATmega16U2 USB chip |
+| SparkFun CAN-BUS Shield (DEV-13262) | Keep the DB9 jumpers on the OBD-II setting. This is the default |
+| OBD-II to DB9 cable | SparkFun CAB-10087, or a cable with the same wiring |
+| USB cable | USB-A to USB-B, for the Uno |
+| Laptop with Linux | Screen 1366 x 768 or larger |
+
+![The bridge and the cable](docs/images/bridge.jpg)
+
+*The bridge (front): the Uno with the CAN shield. The OBD-II to DB9 cable (back).*
+
+## Cars that Scana can read
+
+- Cars with OBD-II on CAN (ISO 15765-4), at 500 or 250 kbit/s, with 11-bit or 29-bit IDs.
+- A second CAN bus on OBD-II pins 3 and 11 (some Ford, Mazda and Volvo cars). This needs a special cable. See [The second bus](#the-second-bus-pins-3-and-11).
+
+Scana cannot read K-line (ISO 9141, ISO 14230), J1850 or CAN FD.
+
+To find out if a car uses CAN:
+
+- Look in the car's OBD-II socket. CAN uses pins 6 and 14. If there are no metal contacts at pins 6 and 14, the car does not use CAN.
+- Or connect another scan tool. "ISO 15765-4" is CAN.
+
+## Install
+
+1. Install Rust 1.99 or newer from [rustup.rs](https://rustup.rs).
+2. Install [arduino-cli](https://arduino.github.io/arduino-cli/). Then install the AVR core:
+
+   ```
+   arduino-cli core install arduino:avr
+   ```
+
+3. Get the code:
+
+   ```
+   git clone https://github.com/Azzadog11/scana
+   cd scana
+   ```
+
+4. Build Scana:
+
+   ```
+   cargo build --release
+   ```
+
+   The programs are in `target/release`: `scana-app` is the app, and `scana` is the command line.
+
+5. Give your user access to the serial port. Then log out and log in again.
+
+   ```
+   sudo usermod -aG uucp $USER      # Arch, CachyOS, Manjaro
+   sudo usermod -aG dialout $USER   # Debian, Ubuntu, Fedora
+   ```
+
+## Load the bridge firmware
+
+Do these steps one time.
+
+1. Put the shield on the Uno.
+2. Connect the Uno to the laptop with the USB cable.
+3. Find the port of the Uno:
+
+   ```
+   ./target/release/scana ports
+   ```
+
+4. Compile and load the firmware. Use the port from step 3:
+
+   ```
+   arduino-cli compile --fqbn arduino:avr:uno --upload -p /dev/ttyACM0 firmware/scana-bridge
+   ```
+
+5. Test the bridge:
+
+   ```
+   ./target/release/scana probe
+   ```
+
+   The result must show `Self-test: PASS`.
+
+## Try Scana without a car
+
+Scana has simulated cars. You do not need the bridge.
+
+- The app: run `./target/release/scana-app --demo`. Or start the app and click **Start the demo car**.
+- The command line: run `./target/release/scana --sim health`.
+
+More simulated cars: `--sim-corolla`, `--sim-car ute-diesel`, `--sim-car hatch-two-ecus` and `--sim-car hybrid`.
+
+## Connect to a car
+
+> **WARNING:** Do not use the laptop while you drive. A passenger must use the laptop.
+>
+> Keep the cables away from the pedals. Put the laptop where it cannot move.
+
+1. Find the OBD-II socket. It is usually below the dashboard, near the steering wheel.
+2. Turn the ignition on. The engine can be on or off.
+3. Connect the cable to the shield and to the OBD-II socket.
+4. Connect the Uno to the laptop.
+5. Start `scana-app`.
+6. On the **Home** page, select **Scana bridge** and **Pins 6 and 14 (main bus)**.
+7. Click **Connect**.
+8. Wait until the top bar shows **Connected**.
+
+![The Connect section on the Home page](docs/images/connect.png)
+
+*The Home page. The yellow line shows when the Uno is not connected.*
+
+## Use the app
+
+| Page | Use it to |
+|---|---|
+| **Health check** | Do a full check. Scana saves a report. |
+| **Fault codes** | Read stored, pending and permanent codes. |
+| **Live data** | See values now. Tick the values to show. |
+| **Graphs** | See values over time. |
+| **Readiness** | See which emission tests are complete. |
+| **Guides** | Find the cause of a fault code, step by step. |
+| **All modules** | Find the modules and read their codes. Do this only when the car is parked. |
+| **Library** | Read about live data, car systems and CAN. |
+| **Bus monitor** | See all the frames on the bus. |
+| **Sessions** | Open recordings and reports. |
+
+To record a drive: open **Live data**, click **Choose all**, then click **Record**.
+
+| | |
+|---|---|
+| ![Health check](docs/images/health-check.png) | ![Graphs](docs/images/graphs.png) |
+| **Health check** | **Graphs** |
+| ![A step-by-step guide for P0420](docs/images/diagnose.png) | ![Modules](docs/images/modules.png) |
+| **Guides** (simulated car) | **All modules** (simulated car) |
+
+![The Library](docs/images/library.png)
+
+## Use the command line
+
+| Command | What it does |
+|---|---|
+| `scana probe` | Tests the bridge. |
+| `scana detect` | Finds the bus and the computers in the car. |
+| `scana health` | Does a health check and saves a report. |
+| `scana codes` | Reads the fault codes. |
+| `scana pids` | Reads the live data. |
+| `scana record` | Records all live values. Press Enter to stop. |
+| `scana modules` | Finds the modules. Do this only when the car is parked. |
+| `scana diagnose P0420` | Shows a step-by-step guide for a fault code. |
+| `scana explain fuel trim` | Explains a fault code or a word. |
+| `scana clear` | Clears the fault codes. Scana asks first. |
+
+Run `scana --help` to see all the commands.
 
 ## Safety
 
-Scana only reads, except one thing: clearing fault codes, which asks first, saves a report, and refuses unless the engine is off and the car is still. It never reprograms, codes or unlocks anything. On the bus it listens before it talks, keeps to about 20 requests a second, and stops at the first transmit error. Looking for modules only runs with the car still, and never sends on an ID it hears in use. Use it at your own risk; see the licence.
+- Scana only reads. The only exception is when you clear fault codes.
+- Before Scana clears codes, it asks you. Then it saves a report. It clears codes only when the engine is off and the car is stopped.
+- Scana does not program, code or unlock a computer in the car.
+- Scana finds modules only when the car is stopped.
+- Use Scana at your own risk. See the licence.
 
-## Build and run
+## The second bus (pins 3 and 11)
 
-Needs Rust 1.99 or newer, and arduino-cli with the AVR core for the firmware.
+Some Ford, Mazda and Volvo cars have a second CAN bus on pins 3 and 11. The body modules use this bus.
 
-```
-arduino-cli upload --fqbn arduino:avr:uno -p /dev/ttyACM0 firmware/scana-bridge   # flash the bridge once
-cargo run --release -p scana-app                     # the desktop app
-cargo run --release -p scana-app -- --demo           # straight to the demo car, no hardware needed
-cargo run --release -p scana-cli -- probe            # check the bridge
-cargo run --release -p scana-cli -- health           # health check of the car, with a report
-cargo run --release -p scana-cli -- record           # record every live value until Enter
-cargo run --release -p scana-cli -- modules          # find every module and read its codes
-cargo run --release -p scana-cli -- module 7B0 --scan 00-FF   # one module: identity, codes, data IDs
-cargo run --release -p scana-cli -- diagnose P0420   # step-by-step diagnosis, no car needed
-cargo run --release -p scana-cli -- explain fuel trim          # look up a code, a word or a tool
-cargo run --release -p scana-cli -- --sim --sim-dash pids   # the simulated Hijet
-cargo run --release -p scana-cli -- --sim-corolla diagnose P0420 --car   # a simulated 2006 Corolla with a worn catalyst
-cargo run --release -p scana-cli -- --sim-car ford-ms-can --parked --make Ford modules   # a simulated second bus on pins 3 and 11: listens first, no OBD-II
-tools/gate.sh                                        # formatting, lint, tests, firmware checks
-```
+You need a cable or a switch that connects these pins to the shield:
 
-Your user must be in the group that owns `/dev/ttyACM*` (`uucp` on Arch-based systems, `dialout` on Debian, Ubuntu and Fedora).
+| OBD-II pin | Signal | Shield DB9 pin |
+|---|---|---|
+| 3 | CAN high | 3 |
+| 11 | CAN low | 5 |
+| 4 | Ground | 2 |
 
-| Read | For |
+To use the second bus:
+
+- The app: on the **Home** page, select **Pins 3 and 11**.
+- The command line: add `--pins 3-11`, for example `scana --pins 3-11 detect`.
+
+On this bus, Scana only listens. It sends requests only after you confirm that the car is parked.
+
+## Status
+
+- Version 0.3.3. Bridge firmware 0.1.2.
+- Tested in one car: a 2024 Daihatsu Hijet.
+- Other features are tested only with simulated cars.
+- Expect some problems.
+
+## For developers
+
+| File | Contents |
 |---|---|
-| `docs/DESIGN.md` | How it works: firmware, serial protocol, crates, protocol stack, safety, tests |
-| `CLAUDE.md` | Rules for anyone, human or AI, changing the code |
+| `docs/DESIGN.md` | How Scana works: the firmware, the protocol, the crates and the safety rules. |
+| `CLAUDE.md` | The rules for changes to the code. |
+| `tools/gate.sh` | Runs the format check, the lint, the tests and the firmware checks. |
+
+## Credits
+
+- The kangaroo in the logo is "Jumping kangaroo" from OpenClipart (public domain, CC0).
+- Most module addresses come from openpilot's [opendbc](https://github.com/commaai/opendbc) (MIT licence).
 
 ## Licence
 
-Scana is free software under the GNU General Public License, version 3 or (at your option) any later version: see `LICENSE`. You may use, study, change and share it. If you share a changed version, you must share its source under the same licence, so Scana and its forks stay open.
+Scana is free software under the GNU General Public License, version 3 or later. See `LICENSE`.
+
+You can use, study, change and share Scana. If you share a changed version, you must share its source under the same licence.
